@@ -1051,8 +1051,17 @@ function loadAgente(){
     <div class="chat-msgs" id="chat-msgs">
       <div class="chat-msg ai">Olá! Sou o assistente técnico da SOS Energia. Pode perguntar sobre geradores, instalações elétricas, partidas, paralelismo, manutenção ou qualquer dúvida técnica. Como posso ajudar?</div>
     </div>
+    <div id="chat-img-preview" style="display:none;margin-bottom:8px;position:relative;width:fit-content">
+      <img id="chat-img-thumb" style="max-height:90px;max-width:180px;border-radius:8px;border:2px solid var(--red);display:block"/>
+      <button onclick="removerFoto()" style="position:absolute;top:-8px;right:-8px;background:var(--red);border:none;color:#fff;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;line-height:1">×</button>
+      <div style="font-size:10px;color:var(--dim);margin-top:3px">📷 Foto anexada — será enviada com a próxima mensagem</div>
+    </div>
     <div class="chat-input-row">
-      <input id="chat-in" placeholder="Ex: Como faço o paralelo de dois geradores?" onkeydown="if(event.key==='Enter')enviarChat()"/>
+      <button onclick="document.getElementById('chat-foto-input').click()" title="Enviar foto" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--dim);padding:0 12px;cursor:pointer;flex-shrink:0;font-size:18px;display:flex;align-items:center">
+        📷
+      </button>
+      <input type="file" id="chat-foto-input" accept="image/*" capture="environment" style="display:none" onchange="anexarFoto(event)"/>
+      <input id="chat-in" placeholder="Tire uma foto ou digite sua dúvida..." onkeydown="if(event.key==='Enter')enviarChat()"/>
       <button class="btn btn-primary btn-icon" onclick="enviarChat()" style="width:44px;flex-shrink:0">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -1063,7 +1072,7 @@ function loadAgente(){
         const el=document.getElementById('ai-status-banner');
         if(!el) return;
         if(s.val()){
-          el.innerHTML='<div class="alert alert-green" style="font-size:12px">🤖 IA ativa — GPT-4o-mini conectado.</div>';
+          el.innerHTML='<div class="alert alert-green" style="font-size:12px">🤖 IA ativa — GPT-4o conectado. Você pode enviar fotos de painéis e controladoras para tradução e análise técnica.</div>';
         } else {
           el.innerHTML='<div class="alert alert-yellow" style="font-size:12px">⚠️ Chave OpenAI não configurada. Vá em <strong>Config → Agente IA</strong> e cole sua chave. O assistente usará respostas pré-programadas até lá.</div>';
         }
@@ -1090,18 +1099,53 @@ const RESP_MAP={
   avr:`AVR (Regulador Automático de Tensão):\n- Mantém a tensão estável sob variação de carga\n- Sintoma de AVR com problema: tensão instável (sobe/desce)\n- Ajuste de tensão: potenciômetro no AVR (geralmente etiqueta V+ / V-)\n- Se a tensão não estabiliza mesmo ajustando: AVR pode precisar de troca\n- Modelos comuns: Stamford AS480, Leroy Somer D350, Newage`
 };
 
+let chatFotoBase64=null; // foto pendente para envio
+
+function anexarFoto(e){
+  const file=e.target.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    chatFotoBase64=ev.target.result; // data:image/...;base64,...
+    const thumb=document.getElementById('chat-img-thumb');
+    const preview=document.getElementById('chat-img-preview');
+    if(thumb) thumb.src=chatFotoBase64;
+    if(preview) preview.style.display='block';
+  };
+  reader.readAsDataURL(file);
+  e.target.value=''; // reset input para permitir mesma foto
+}
+
+function removerFoto(){
+  chatFotoBase64=null;
+  const preview=document.getElementById('chat-img-preview');
+  if(preview) preview.style.display='none';
+}
+
 async function enviarChat(){
   const inp=document.getElementById('chat-in');
-  const msg=inp.value.trim();if(!msg) return;
+  const msg=inp.value.trim();
+  const temFoto=!!chatFotoBase64;
+  if(!msg && !temFoto) return;
   inp.value='';
+
   const msgs=document.getElementById('chat-msgs');
-  msgs.innerHTML+=`<div class="chat-msg user">${escHtml(msg)}</div>`;
+  // Mostra msg do usuário + thumb da foto se houver
+  let userBubble=`<div class="chat-msg user" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">`;
+  if(temFoto) userBubble+=`<img src="${chatFotoBase64}" style="max-height:120px;max-width:200px;border-radius:8px;border:2px solid rgba(255,255,255,.3)"/>`;
+  if(msg) userBubble+=`<span>${escHtml(msg)}</span>`;
+  userBubble+=`</div>`;
+  msgs.innerHTML+=userBubble;
   msgs.scrollTop=msgs.scrollHeight;
+
+  const fotoParaEnviar=chatFotoBase64;
+  removerFoto(); // limpa preview
+
   const typing=document.createElement('div');
-  typing.className='chat-msg ai typing';typing.id='typing';typing.textContent='Digitando...';
+  typing.className='chat-msg ai typing';typing.id='typing';
+  typing.textContent=temFoto?'Analisando imagem...':'Digitando...';
   msgs.appendChild(typing);msgs.scrollTop=msgs.scrollHeight;
 
-  // Tentar OpenAI — lê a chave do Firebase em tempo real para garantir que está atualizada
+  // Tentar OpenAI — lê a chave do Firebase em tempo real
   let openaiKey = config.openaiKey || '';
   try {
     const cfgSnap = await db.ref('config/openaiKey').once('value');
@@ -1109,18 +1153,31 @@ async function enviarChat(){
   } catch(e) {}
 
   if(openaiKey){
-    chatHistory.push({role:'user',content:msg});
+    // Monta conteúdo da mensagem — texto e/ou imagem
+    let userContent;
+    if(temFoto){
+      userContent=[];
+      if(msg) userContent.push({type:'text',text:msg});
+      else userContent.push({type:'text',text:'O que está escrito/mostrado nessa imagem? Explique em português o que significa para um operador de gerador.'});
+      // extrai só o base64 puro sem o prefixo data:...
+      const b64=fotoParaEnviar.split(',')[1];
+      const mime=fotoParaEnviar.split(';')[0].split(':')[1];
+      userContent.push({type:'image_url',image_url:{url:`data:${mime};base64,${b64}`,detail:'high'}});
+    } else {
+      userContent=msg;
+    }
+    chatHistory.push({role:'user',content:userContent});
     try{
       const res=await fetch('https://api.openai.com/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+openaiKey},
         body:JSON.stringify({
-          model:'gpt-4o-mini',
+          model:'gpt-4o', // gpt-4o suporta visão (imagens)
           messages:[
-            {role:'system',content:'Você é um técnico especialista em geradores elétricos, grupos geradores diesel, instalações elétricas industriais e de eventos. Responda em português brasileiro de forma prática e clara. Foque em procedimentos seguros, normas ABNT, e boas práticas de campo. Empresa: SOS Energia, locação de geradores.'},
+            {role:'system',content:'Você é um técnico especialista em geradores elétricos, grupos geradores diesel, instalações elétricas industriais e de eventos. Responda em português brasileiro de forma prática e clara. Se receber uma imagem de painel, controladora ou equipamento em inglês, traduza e explique o que significa para o operador. Foque em procedimentos seguros, normas ABNT, e boas práticas de campo. Empresa: SOS Energia, locação de geradores.'},
             ...chatHistory
           ],
-          max_tokens:600
+          max_tokens:800
         })
       });
       const data=await res.json();
@@ -1142,6 +1199,11 @@ async function enviarChat(){
   // Fallback: respostas pré-programadas
   await new Promise(r=>setTimeout(r,800));
   document.getElementById('typing')?.remove();
+  if(temFoto){
+    msgs.innerHTML+=`<div class="chat-msg ai">📷 Recebi a foto! Para analisar imagens preciso da chave OpenAI configurada em <strong>Config → Agente IA</strong>. Sem ela consigo responder apenas perguntas de texto.</div>`;
+    msgs.scrollTop=msgs.scrollHeight;
+    return;
+  }
   const msgLower=msg.toLowerCase();
   let resp='Não tenho uma resposta específica para isso no momento. Para dúvidas técnicas complexas, entre em contato com o suporte técnico da SOS Energia ou consulte o manual do equipamento.';
   for(const [key,kws] of Object.entries(RESPOSTAS_TECNICAS)){
