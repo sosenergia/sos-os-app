@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="theme-color" content="#CC0000"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="SOS OS"/>
+  <title>SOS Energia — OS Digital</title>
+  <style>
+    :root{
+      --red:#CC0000;--red-dark:#990000;--red-light:#ff3333;
+      --black:#0a0a0a;--dark:#141414;--card:#1c1c1c;--card2:#242424;
+      --border:#2e2e2e;--text:#f0f0f0;--dim:#888;
+      --green:#22c55e;--yellow:#f59e0b;--blue:#3b82f6;--purple:#a855f7;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{background:var(--black);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+    /* ── LOGIN ── */
+    #login-screen{position:fixed;inset:0;background:var(--black);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+    .login-logo{margin-bottom:32px;text-align:center}
+    .login-logo svg{width:120px;height:60px}
+    .login-logo p{color:var(--dim);font-size:13px;margin-top:8px}
+    .login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:380px}
+    .login-box h2{font-size:18px;margin-bottom:20px;color:var(--text)}
+    /* ── NAV ── */
+    .nav{background:var(--dark);border-bottom:2px solid var(--red);display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:54px;position:sticky;top:0;z-index:100}
+    .nav-left{display:flex;align-items:center;gap:10px}
+    .nav-logo-sm{width:52px;height:26px}
+    .nav-user{font-size:11px;color:var(--dim);background:var(--card2);padding:3px 8px;border-radius:20px}
+    .nav-tabs{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .nav-tabs::-webkit-scrollbar{display:none}
+    .nav-tab{background:none;border:none;color:var(--dim);font-size:11px;padding:7px 9px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:.2s}
+    .nav-tab.active{background:var(--red);color:#fff;font-weight:700}
+    /* ── LAYOUT ── */
+    .page{display:none;padding:14px;max-width:720px;margin:0 auto}
+    .page.active{display:block}
+    /* ── CARDS ── */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}
+    .card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--red);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+    /* ── FORM ── */
+    .field{margin-bottom:13px}
+    .field label{display:block;font-size:11px;color:var(--dim);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+    .field input,.field select,.field textarea{width:100%;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:10px 12px;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--red)}
+    .field textarea{resize:vertical;min-height:78px}
+    .field select option{background:var(--dark)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+    /* ── BTNS ── */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 18px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;width:100%}
+    .btn:active{transform:scale(.97)}
+    .btn-primary{background:var(--red);color:#fff}.btn-primary:hover{background:var(--red-dark)}
+    .btn-green{background:var(--green);color:#fff}
+    .btn-wpp{background:#25D366;color:#fff}
+    .btn-secondary{background:var(--border);color:var(--text)}
+    .btn-ghost{background:none;border:1px solid var(--border);color:var(--dim)}
+    .btn-sm{padding:7px 13px;font-size:12px}
+    .btn-icon{width:auto;padding:8px}
+    /* ── BADGE ── */
+    .badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+    .badge-red{background:rgba(204,0,0,.18);color:var(--red-light)}
+    .badge-green{background:rgba(34,197,94,.14);color:var(--green)}
+    .badge-yellow{background:rgba(245,158,11,.14);color:var(--yellow)}
+    .badge-blue{background:rgba(59,130,246,.14);color:var(--blue)}
+    .badge-purple{background:rgba(168,85,247,.14);color:var(--purple)}
+    /* ── OS ITEM ── */
+    .os-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:9px;cursor:pointer;transition:border-color .2s}
+    .os-item:hover{border-color:var(--red)}
+    .os-item-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+    /* ── SIG ── */
+    #sigCanvas{border:1px solid var(--border);border-radius:8px;background:#fff;touch-action:none;width:100%;display:block}
+    /* ── ALERT ── */
+    .alert{border-radius:9px;padding:11px 13px;margin-bottom:13px;font-size:13px;display:flex;gap:9px;align-items:flex-start}
+    .alert-red{background:rgba(204,0,0,.13);border:1px solid rgba(204,0,0,.28);color:#ff9090}
+    .alert-yellow{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.28);color:var(--yellow)}
+    .alert-green{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.28);color:var(--green)}
+    /* ── TABLE ── */
+    .tbl{width:100%;border-collapse:collapse;font-size:13px}
+    .tbl th{background:var(--dark);color:var(--dim);font-weight:600;padding:7px 9px;text-align:left}
+    .tbl td{padding:7px 9px;border-bottom:1px solid var(--border)}
+    .tbl tr:last-child td{border-bottom:none}
+    /* ── METRICS ── */
+    .metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:14px}
+    .metric-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:13px}
+    .metric-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+    .metric-value{font-size:22px;font-weight:700}
+    .metric-sub{font-size:11px;color:var(--dim);margin-top:2px}
+    /* ── STEPS ── */
+    .steps{display:flex;gap:7px;margin-bottom:18px}
+    .step{flex:1;height:3px;border-radius:3px;background:var(--border);transition:background .3s}
+    .step.done{background:var(--green)}.step.active{background:var(--red)}
+    /* ── SWITCH ── */
+    .switch{position:relative;width:42px;height:23px;flex-shrink:0}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;inset:0;background:var(--border);border-radius:23px;transition:.3s;cursor:pointer}
+    .slider:before{content:'';position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+    input:checked+.slider{background:var(--red)}
+    input:checked+.slider:before{transform:translateX(19px)}
+    /* ── AI CHAT ── */
+    .chat-msgs{height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;margin-bottom:12px;scroll-behavior:smooth}
+    .chat-msg{max-width:85%;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.5}
+    .chat-msg.user{align-self:flex-end;background:var(--red);color:#fff;border-bottom-right-radius:4px}
+    .chat-msg.ai{align-self:flex-start;background:var(--card2);border:1px solid var(--border);border-bottom-left-radius:4px}
+    .chat-msg.ai.typing{color:var(--dim)}
+    .chat-input-row{display:flex;gap:8px}
+    .chat-input-row input{flex:1;background:var(--dark);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 13px;outline:none}
+    .chat-input-row input:focus{border-color:var(--red)}
+    /* ── HE WARN ── */
+    .he-warn{background:rgba(245,158,11,.1);border:1px solid var(--yellow);border-radius:9px;padding:11px;margin-top:8px;display:none}
+    .he-warn.show{display:block}
+    /* ── USER CHIP ── */
+    .user-chip{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--card2);border:1px solid var(--border);border-radius:9px;margin-bottom:8px}
+    @media(max-width:480px){.grid3{grid-template-columns:1fr 1fr}.metric-grid{grid-template-columns:1fr 1fr}}
+  </style>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+  <div class="login-logo">
+    <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="80" fill="#0a0a0a"/>
+      <text x="100" y="58" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="52" fill="#CC0000">SOS</text>
+      <polygon points="102,6 94,36 101,36 97,68 112,30 104,30" fill="#0a0a0a"/>
+      <polygon points="101,8 93,37 100,37 96,66 110,32 103,32" fill="#CC0000" opacity=".55"/>
+    </svg>
+    <p>Ordem de Serviço Digital</p>
+  </div>
+  <div class="login-box">
+    <h2>Entrar</h2>
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="login-user" placeholder="seu.nome" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div id="login-err" style="color:var(--red-light);font-size:13px;margin-bottom:12px;display:none">Usuário ou senha incorretos.</div>
+    <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav" id="main-nav" style="display:none">
+  <div class="nav-left">
+    <svg class="nav-logo-sm" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="80" fill="#141414"/>
+      <text x="100" y="58" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="52" fill="#CC0000">SOS</text>
+      <polygon points="101,8 93,37 100,37 96,66 110,32 103,32" fill="#CC0000" opacity=".55"/>
+    </svg>
+    <span class="nav-user" id="nav-user-chip">—</span>
+        <span id="conn-status" style="font-size:10px;color:var(--dim);margin-left:4px">⏳</span>
+  </div>
+  <div class="nav-tabs" id="nav-tabs"></div>
+</nav>
+
+<!-- ═══ PAGES ═══ -->
+<div id="page-admin" class="page"></div>
+<div id="page-operador" class="page"></div>
+<div id="page-relatorio" class="page"></div>
+<div id="page-agente" class="page"></div>
+<div id="page-config" class="page"></div>
+
+<script>
+// ════════════════════════════════════════
+// FIREBASE
+// ════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAFzcqGX4jrh-IAF6Tfl2-Wk_IEe1acQUE",
+  authDomain: "sos-os-digital.firebaseapp.com",
+  databaseURL: "https://sos-os-digital-default-rtdb.firebaseio.com",
+  projectId: "sos-os-digital",
+  storageBucket: "sos-os-digital.firebasestorage.app",
+  messagingSenderId: "1098803329027",
+  appId: "1:1098803329027:web:bd18ee6c8b10afeedf3636"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Indicador de conexão
+const connRef = db.ref('.info/connected');
+connRef.on('value', snap => {
+  const online = snap.val();
+  const chip = document.getElementById('conn-status');
+  if (chip) {
+    chip.textContent = online ? '🟢 Online' : '🔴 Offline';
+    chip.style.color = online ? 'var(--green)' : 'var(--red-light)';
+  }
+});
+
+// Listeners em tempo real
+function initFirebaseListeners() {
+  db.ref('ordens').on('value', snap => {
+    ordens = snap.val() ? Object.values(snap.val()) : [];
+    DB.set('sos_ordens', ordens);
+    renderOSList();
+  });
+  db.ref('registros').on('value', snap => {
+    registros = snap.val() ? Object.values(snap.val()) : [];
+    DB.set('sos_registros', registros);
+  });
+  db.ref('usuarios').on('value', snap => {
+    if (snap.val()) {
+      usuarios = Object.values(snap.val());
+      DB.set('sos_usuarios', usuarios);
+    }
+  });
+  db.ref('config').on('value', snap => {
+    if (snap.val()) {
+      config = { ...config, ...snap.val() };
+      DB.set('sos_config', config);
+    }
+  });
+}
+
+// Funções de escrita Firebase
+function fbSet(path, data) {
+  return db.ref(path).set(data).catch(e => console.warn('Firebase write error:', e));
+}
+function fbSaveOrdens() {
+  const obj = {};
+  ordens.forEach(o => { obj[o.id] = o; });
+  fbSet('ordens', obj);
+}
+function fbSaveRegistros() {
+  const obj = {};
+  registros.forEach(r => { obj[r.id] = r; });
+  fbSet('registros', obj);
+}
+function fbSaveUsuarios() {
+  const obj = {};
+  usuarios.forEach(u => { obj[u.id] = u; });
+  fbSet('usuarios', obj);
+}
+function fbSaveConfig() {
+  fbSet('config', config);
+}
+
+
+// ════════════════════════════════════════
+// STORAGE
+// ════════════════════════════════════════
+const DB={
+  get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},
+  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))
+};
+let ordens     = DB.get('sos_ordens',[]);
+let registros  = DB.get('sos_registros',[]);
+let usuarios   = DB.get('sos_usuarios',[
+  {id:'adm_0',nome:'Admin',user:'admin',senha:'sos2024',perfil:'admin'},
+]);
+let config     = DB.get('sos_config',{
+  jornadaIni:'07:00',jornadaFim:'17:00',intervalo:1,
+  heValor:15,webhook:'',openaiKey:'',wppNumero:'5561999852409'
+});
+let sessaoAtual = null; // usuário logado
+
+function saveAll(){
+  DB.set('sos_ordens',ordens);DB.set('sos_registros',registros);
+  DB.set('sos_usuarios',usuarios);DB.set('sos_config',config);
+  fbSaveOrdens();fbSaveRegistros();fbSaveUsuarios();fbSaveConfig();
+}
+
+// ════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════
+function doLogin(){
+  const u=document.getElementById('login-user').value.trim().toLowerCase();
+  const p=document.getElementById('login-pass').value;
+  const found=usuarios.find(x=>x.user.toLowerCase()===u&&x.senha===p);
+  if(!found){document.getElementById('login-err').style.display='block';return;}
+  sessaoAtual=found;
+      initFirebaseListeners();
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-nav').style.display='flex';
+  document.getElementById('nav-user-chip').textContent=found.nome+' ('+found.perfil+')';
+  buildNav();
+  // aba inicial
+  if(found.perfil==='admin'||found.perfil==='comercial') loadAdmin();
+  else loadOperador();
+}
+
+function buildNav(){
+  const tabs=document.getElementById('nav-tabs');
+  const isAdmin=sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial';
+  tabs.innerHTML='';
+  const pages=[];
+  if(isAdmin) pages.push({id:'admin',label:'OS'});
+  pages.push({id:'operador',label:'Operador'});
+  if(isAdmin) pages.push({id:'relatorio',label:'Relatório'});
+  pages.push({id:'agente',label:'Assistente'});
+  if(sessaoAtual.perfil==='admin') pages.push({id:'config',label:'Config'});
+  pages.forEach((p,i)=>{
+    const b=document.createElement('button');
+    b.className='nav-tab'+(i===0?' active':'');
+    b.textContent=p.label;
+    b.onclick=()=>{switchPage(p.id,b)};
+    tabs.appendChild(b);
+  });
+  // load first
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+(isAdmin?'admin':'operador')).classList.add('active');
+}
+
+function switchPage(id,btn){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  btn.classList.add('active');
+  if(id==='admin') loadAdmin();
+  if(id==='operador') loadOperador();
+  if(id==='relatorio') loadRelatorio();
+  if(id==='agente') loadAgente();
+  if(id==='config') loadConfig();
+}
+
+// ════════════════════════════════════════
+// ADMIN — LISTA OS
+// ════════════════════════════════════════
+let diasContratados=[];
+
+function loadAdmin(){
+  const el=document.getElementById('page-admin');
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title">OS Ativas</div>
+    <div id="os-list"></div>
+    <button class="btn btn-primary" style="margin-top:8px" onclick="showFormOS()">
+      + Nova Ordem de Serviço
+    </button>
+  </div>
+  <div id="form-nova-os" style="display:none"></div>
+  <div id="os-detalhe" style="display:none"></div>`;
+  renderOSList();
+}
+
+function renderOSList(){
+  const el=document.getElementById('os-list');
+  if(!el) return;
+  const lista=ordens.slice().reverse();
+  if(!lista.length){el.innerHTML='<p style="color:var(--dim);font-size:13px;padding:6px 0">Nenhuma OS. Crie a primeira.</p>';return;}
+  el.innerHTML=lista.map(os=>{
+    const regs=registros.filter(r=>r.osId===os.id);
+    const cls=os.status==='fechada'?'badge-green':regs.length?'badge-blue':'badge-yellow';
+    const lbl=os.status==='fechada'?'Fechada':regs.length?regs.length+'reg.':'Aguardando';
+    return`<div class="os-item" onclick="verOS('${os.id}')">
+      <div class="os-item-header"><span style="font-weight:700">OS ${os.num}</span><span class="badge ${cls}">${lbl}</span></div>
+      <div style="font-size:14px;color:var(--dim);margin-bottom:3px">${os.cliente}${os.evento?' · '+os.evento:''}</div>
+      <div style="font-size:12px;color:var(--dim)">${os.dataSaida}→${os.dataRetorno} · ${os.potencia} · ${os.patrimonio}</div>
+    </div>`;
+  }).join('');
+}
+
+function showFormOS(){
+  document.getElementById('os-list').closest('.card').style.display='none';
+  const f=document.getElementById('form-nova-os');
+  f.style.display='block';
+  const hoje=new Date().toISOString().split('T')[0];
+  const num=ordens.length?parseInt(ordens[ordens.length-1].num)+1:1181522;
+  const optsOp=usuarios.filter(u=>u.perfil==='operador').map(o=>`<option value="${o.id}">${o.nome}</option>`).join('');
+  f.innerHTML=`
+  <div class="card">
+    <div class="card-title">Dados do Evento / Cliente</div>
+    <div class="grid2">
+      <div class="field"><label>Nº OS</label><input id="f-num" value="${num}"/></div>
+      <div class="field"><label>Cliente</label><input id="f-cli" placeholder="Nome do cliente"/></div>
+    </div>
+    <div class="field"><label>Nome do Evento</label><input id="f-evt" placeholder="Ex: CORRIDA DAS FLORES"/></div>
+    <div class="grid2">
+      <div class="field"><label>Data Saída</label><input type="date" id="f-saida" value="${hoje}" onchange="refreshDias()"/></div>
+      <div class="field"><label>Data Retorno</label><input type="date" id="f-ret" value="${hoje}" onchange="refreshDias()"/></div>
+    </div>
+    <div class="field"><label>Endereço da Locação</label><input id="f-end" placeholder="Endereço completo"/></div>
+    <div class="grid3">
+      <div class="field"><label>Cidade</label><input id="f-cid"/></div>
+      <div class="field"><label>UF</label><input id="f-uf" maxlength="2" style="text-transform:uppercase"/></div>
+      <div class="field"><label>CEP</label><input id="f-cep"/></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Contato</label><input id="f-contato"/></div>
+      <div class="field"><label>Fone</label><input type="tel" id="f-fone"/></div>
+    </div>
+    <div class="field"><label>CNPJ</label><input id="f-cnpj" placeholder="00.000.000/0001-00"/></div>
+    <div class="field"><label>Instruções para a Locação</label><textarea id="f-inst" placeholder="Horário de instalação, local exato, observações..."></textarea></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Gerador</div>
+    <div class="grid2">
+      <div class="field"><label>Potência (KVA)</label><input id="f-pot" placeholder="Ex: 180 KVA"/></div>
+      <div class="field"><label>Nº Patrimônio</label><input id="f-pat" placeholder="Ex: G-042"/></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Marca Motor</label><input id="f-motor" placeholder="SCANIA"/></div>
+      <div class="field"><label>Nº Série Motor</label><input id="f-smot"/></div>
+      <div class="field"><label>Alternador</label><input id="f-alt" placeholder="WEG"/></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Marca Grupo</label><input id="f-grp" placeholder="FG WILSON"/></div>
+      <div class="field"><label>Painel</label>
+        <select id="f-pain"><option>Analógico</option><option>Digital Automático</option><option>Digital Paralelo</option></select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Seguimento</label>
+        <select id="f-seg"><option>Eventos</option><option>Indústria</option><option>Infraestrutura</option><option>Off/On Shore</option><option>Construção</option><option>Comércio</option><option>Governo</option><option>TV & Comunicação</option><option>Saúde</option><option>Outros</option></select>
+      </div>
+      <div class="field"><label>Aplicação</label>
+        <select id="f-apl"><option>Evento</option><option>Longa Duração</option><option>Emergência</option><option>Dedicado</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Horas Contratadas do Gerador (por dia)</div>
+    <div id="dias-container"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:auto" onclick="addDia()">+ Adicionar dia extra</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Operador Designado</div>
+    <div class="grid2">
+      <div class="field"><label>Operador</label>
+        <select id="f-op"><option value="">Selecione</option>${optsOp}</select>
+      </div>
+      <div class="field"><label>WhatsApp do Operador</label><input type="tel" id="f-op-wpp" placeholder="(xx) xxxxx-xxxx"/></div>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="criarOS()">Criar OS e Gerar Link</button>
+  <button class="btn btn-ghost" style="margin-top:8px" onclick="cancelarOS()">Cancelar</button>`;
+  diasContratados=[];
+  refreshDias();
+}
+
+function refreshDias(){
+  const s=document.getElementById('f-saida')?.value;
+  const r=document.getElementById('f-ret')?.value;
+  if(!s||!r) return;
+  const d1=new Date(s+'T12:00');const d2=new Date(r+'T12:00');
+  diasContratados=[];
+  for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1))
+    diasContratados.push({data:d.toISOString().split('T')[0],hIni:'07:00',hFim:'19:00'});
+  renderDias();
+}
+function addDia(){diasContratados.push({data:'',hIni:'08:00',hFim:'18:00'});renderDias();}
+function renderDias(){
+  const c=document.getElementById('dias-container');if(!c) return;
+  c.innerHTML=diasContratados.map((d,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:9px;flex-wrap:wrap">
+      <div class="field" style="margin:0;min-width:110px;flex:0 0 auto">
+        <label style="font-size:10px">Data</label>
+        <input type="date" value="${d.data}" onchange="diasContratados[${i}].data=this.value"/>
+      </div>
+      <div class="field" style="margin:0;flex:1;min-width:90px">
+        <label style="font-size:10px">Início contratado</label>
+        <input type="time" value="${d.hIni}" onchange="diasContratados[${i}].hIni=this.value"/>
+      </div>
+      <div class="field" style="margin:0;flex:1;min-width:90px">
+        <label style="font-size:10px">Fim contratado</label>
+        <input type="time" value="${d.hFim}" onchange="diasContratados[${i}].hFim=this.value"/>
+      </div>
+      <button onclick="diasContratados.splice(${i},1);renderDias()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;padding:4px;margin-top:14px">×</button>
+    </div>`).join('');
+}
+
+function cancelarOS(){
+  document.getElementById('form-nova-os').style.display='none';
+  document.getElementById('os-list').closest('.card').style.display='block';
+}
+
+function criarOS(){
+  const num=document.getElementById('f-num').value.trim();
+  const cli=document.getElementById('f-cli').value.trim();
+  if(!num||!cli){alert('Preencha ao menos o Nº da OS e o Cliente.');return;}
+  const opId=document.getElementById('f-op').value;
+  const opUser=usuarios.find(u=>u.id===opId);
+  const os={
+    id:'os_'+Date.now(),num,cliente:cli,
+    evento:document.getElementById('f-evt').value,
+    dataSaida:document.getElementById('f-saida').value,
+    dataRetorno:document.getElementById('f-ret').value,
+    endereco:document.getElementById('f-end').value,
+    cidade:document.getElementById('f-cid').value,
+    uf:document.getElementById('f-uf').value,
+    cep:document.getElementById('f-cep').value,
+    contato:document.getElementById('f-contato').value,
+    fone:document.getElementById('f-fone').value,
+    cnpj:document.getElementById('f-cnpj').value,
+    instrucoes:document.getElementById('f-inst').value,
+    potencia:document.getElementById('f-pot').value,
+    patrimonio:document.getElementById('f-pat').value,
+    motor:document.getElementById('f-motor').value,
+    serieMotor:document.getElementById('f-smot').value,
+    alternador:document.getElementById('f-alt').value,
+    grupo:document.getElementById('f-grp').value,
+    painel:document.getElementById('f-pain').value,
+    seguimento:document.getElementById('f-seg').value,
+    aplicacao:document.getElementById('f-apl').value,
+    diasContratados:[...diasContratados],
+    operadorId:opId,
+    operadorNome:opUser?opUser.nome:'',
+    criadoPor:sessaoAtual.nome,
+    criadoEm:new Date().toISOString(),
+    status:'aberta'
+  };
+  ordens.push(os);saveAll();cancelarOS();renderOSList();
+  const link=window.location.href.split('?')[0]+'?os='+os.id;
+  showLinkPopup(os,link);
+}
+
+function showLinkPopup(os,link){
+  const pop=document.createElement('div');
+  pop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px';
+  pop.innerHTML=`<div style="background:var(--card);border:1px solid var(--red);border-radius:16px;padding:24px;max-width:460px;width:100%">
+    <div style="color:var(--green);font-size:22px;margin-bottom:10px">✅ OS ${os.num} criada!</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Envie o link abaixo para o operador via WhatsApp:</p>
+    <div style="background:var(--dark);border-radius:8px;padding:11px;font-size:12px;word-break:break-all;margin-bottom:14px">${link}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="navigator.clipboard.writeText('${link}').then(()=>{this.textContent='Copiado ✓'})" class="btn btn-primary btn-sm" style="flex:1">Copiar Link</button>
+      <a href="https://wa.me/?text=${encodeURIComponent('OS '+os.num+' — '+os.cliente+'\n'+link)}" target="_blank" class="btn btn-wpp btn-sm" style="flex:1;text-decoration:none">WhatsApp</a>
+      <button onclick="this.closest('div[style*=fixed]').remove()" class="btn btn-ghost btn-sm" style="flex:1">Fechar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(pop);
+}
+
+function verOS(id){
+  const os=ordens.find(o=>o.id===id);if(!os) return;
+  const regs=registros.filter(r=>r.osId===id);
+  document.getElementById('os-list').closest('.card').style.display='none';
+  const det=document.getElementById('os-detalhe');
+  det.style.display='block';
+  const link=window.location.href.split('?')[0]+'?os='+os.id;
+  det.innerHTML=`
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="fecharDet()">← Voltar</button>
+      <span class="badge ${os.status==='fechada'?'badge-green':'badge-yellow'}">${os.status==='fechada'?'Fechada':'Aberta'}</span>
+    </div>
+    <div class="card-title">OS ${os.num} — ${os.cliente}</div>
+    <table class="tbl">
+      <tr><td style="color:var(--dim)">Evento</td><td>${os.evento||'—'}</td></tr>
+      <tr><td style="color:var(--dim)">Gerador</td><td>${os.potencia} · ${os.patrimonio}</td></tr>
+      <tr><td style="color:var(--dim)">Período</td><td>${os.dataSaida} → ${os.dataRetorno}</td></tr>
+      <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''}, ${os.cidade||''}/${os.uf||''}</td></tr>
+      <tr><td style="color:var(--dim)">Operador</td><td>${os.operadorNome||'—'}</td></tr>
+      <tr><td style="color:var(--dim)">Criado por</td><td>${os.criadoPor||'—'}</td></tr>
+    </table>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="navigator.clipboard.writeText('${link}').then(()=>{this.textContent='Copiado ✓'})" class="btn btn-ghost btn-sm" style="width:auto">Copiar Link Operador</button>
+      <a href="https://wa.me/?text=${encodeURIComponent('OS '+os.num+' — '+os.cliente+'\n'+link)}" target="_blank" class="btn btn-wpp btn-sm" style="width:auto;text-decoration:none">Enviar WPP</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Registros do Operador (${regs.length})</div>
+    ${regs.length?regs.map(r=>`
+      <div style="border-bottom:1px solid var(--border);padding:10px 0">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <strong>${fmtData(r.data)}</strong>
+          ${r.heMaquina>0?`<span class="badge badge-yellow">+${r.heMaquina.toFixed(1)}h HE máq.</span>`:'<span class="badge badge-green">Dentro contrato</span>'}
+        </div>
+        <div style="font-size:12px;color:var(--dim)">Liga: ${r.partida} · Desliga: ${r.parada} · Hor: ${r.horIni}→${r.horFim}</div>
+        ${r.obs?`<div style="font-size:12px;color:var(--dim);margin-top:3px">${r.obs}</div>`:''}
+        ${r.heOperador>0?`<div style="font-size:12px;color:var(--yellow);margin-top:3px">HE operador: ${Math.round(r.heOperador*60)}min → R$ ${(r.valorHEOperador!=null?r.valorHEOperador:r.heOperador*config.heValor).toFixed(2)}</div>`:''}
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          ${r.assinatura?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura cliente</div><img src="${r.assinatura}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
+          ${r.assinaturaOp?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura operador</div><img src="${r.assinaturaOp}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
+        </div>
+      </div>`).join(''):'<p style="color:var(--dim);font-size:13px">Nenhum registro ainda.</p>'}
+  </div>
+  ${os.status!=='fechada'?`<button class="btn btn-green" onclick="fecharOSConf('${os.id}')">Fechar OS</button>`:''}
+  <button class="btn btn-ghost" style="margin-top:8px" onclick="fecharDet()">← Voltar</button>`;
+}
+function fecharDet(){document.getElementById('os-detalhe').style.display='none';document.getElementById('os-list').closest('.card').style.display='block';}
+function fecharOSConf(id){if(confirm('Confirmar fechamento desta OS?')){const os=ordens.find(o=>o.id===id);if(os){os.status='fechada';saveAll();verOS(id);}}}
+
+// ════════════════════════════════════════
+// OPERADOR
+// ════════════════════════════════════════
+let opOS=null;
+let sigCtx=null,sigDraw=false,sigHas=false;
+
+function loadOperador(){
+  const el=document.getElementById('page-operador');
+  // checar URL param
+  const p=new URLSearchParams(window.location.search);
+  const osParam=p.get('os');
+  if(osParam){const os=ordens.find(o=>o.id===osParam);if(os){el.innerHTML='';buildOpForm(os);return;}}
+  // listar OS do operador (ou todas se admin)
+  const isAdmin=sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial';
+  const lista=ordens.filter(o=>o.status!=='fechada'&&(isAdmin||o.operadorId===sessaoAtual.id));
+  if(!lista.length){el.innerHTML='<div class="card"><p style="color:var(--dim);font-size:14px;padding:8px 0">Nenhuma OS aberta atribuída a você.</p></div>';return;}
+  el.innerHTML='<div class="card"><div class="card-title">Minhas OS</div><div id="op-list"></div></div>';
+  document.getElementById('op-list').innerHTML=lista.map(os=>`
+    <div class="os-item" onclick="abrirOpOS('${os.id}')">
+      <div class="os-item-header"><span style="font-weight:700">OS ${os.num}</span><span class="badge badge-yellow">Aberta</span></div>
+      <div style="font-size:13px;color:var(--dim)">${os.cliente}${os.evento?' · '+os.evento:''}</div>
+      <div style="font-size:12px;color:var(--dim)">${os.dataSaida} · ${os.potencia} · ${os.patrimonio}</div>
+    </div>`).join('');
+}
+
+function abrirOpOS(id){opOS=ordens.find(o=>o.id===id);if(opOS){regEnviado=false;buildOpForm(opOS);}}
+
+function buildOpForm(os){
+  opOS=os;
+  const el=document.getElementById('page-operador');
+  const hoje=new Date().toISOString().split('T')[0];
+  el.innerHTML=`
+  <div class="steps"><div class="step active" id="st0"></div><div class="step" id="st1"></div><div class="step" id="st2"></div><div class="step" id="st3"></div></div>
+  <!-- Step 0: Resumo -->
+  <div id="op0">
+    <div class="card">
+      <div class="card-title">OS ${os.num}</div>
+      <table class="tbl">
+        <tr><td style="color:var(--dim)">Cliente</td><td><strong>${os.cliente}</strong></td></tr>
+        ${os.evento?`<tr><td style="color:var(--dim)">Evento</td><td>${os.evento}</td></tr>`:''}
+        <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''} ${os.cidade?'— '+os.cidade:''}${os.uf?'/'+os.uf:''}</td></tr>
+        <tr><td style="color:var(--dim)">Gerador</td><td>${os.potencia} · ${os.patrimonio}</td></tr>
+        ${os.instrucoes?`<tr><td style="color:var(--dim)">Instruções</td><td style="white-space:pre-line">${os.instrucoes}</td></tr>`:''}
+      </table>
+    </div>
+    <button class="btn btn-primary" onclick="opStep(1)">Iniciar Registro →</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="loadOperador()">← Voltar</button>
+  </div>
+  <!-- Step 1: Horários -->
+  <div id="op1" style="display:none">
+    <div class="card">
+      <div class="card-title">Registro do Dia</div>
+      <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}"/></div>
+      <div class="grid2">
+        <div class="field"><label>Horário Liga (Partida)</label><input type="time" id="op-part" oninput="calcHE()"/></div>
+        <div class="field"><label>Horário Desliga (Parada)</label><input type="time" id="op-par" oninput="calcHE()"/></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Horímetro Inicial</label><input type="number" id="op-hi" step="0.1" placeholder="4520"/></div>
+        <div class="field"><label>Horímetro Final</label><input type="number" id="op-hf" step="0.1" placeholder="4534"/></div>
+      </div>
+      <div class="he-warn" id="he-maq-warn">
+        <strong style="color:var(--yellow)">⚠️ Horas extras de máquina</strong>
+        <p id="he-maq-txt" style="font-size:13px;margin-top:4px"></p>
+        <p style="font-size:12px;color:var(--dim);margin-top:3px">Comunique ao cliente — haverá cobrança adicional.</p>
+      </div>
+      <div id="he-op-res" style="display:none;margin-top:10px;background:var(--dark);border-radius:8px;padding:10px;font-size:13px"></div>
+      <div class="field" style="margin-top:12px"><label>Observações</label><textarea id="op-obs" placeholder="Ocorrências, abastecimento, solicitações..."></textarea></div>
+    </div>
+    <button class="btn btn-primary" onclick="opStep(2)">Próximo: Transporte →</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(0)">← Voltar</button>
+  </div>
+  <!-- Step 2: Transporte -->
+  <div id="op2" style="display:none">
+    <div class="card">
+      <div class="card-title">Transporte</div>
+      <div class="grid2">
+        <div class="field"><label>Placa</label><input id="op-placa" style="text-transform:uppercase" placeholder="ABC-1234"/></div>
+        <div class="field"><label>Motorista</label><input id="op-mot" placeholder="Nome completo"/></div>
+      </div>
+      <div class="field"><label>Itinerário</label><input id="op-itin" placeholder="Origem → Destino → Retorno"/></div>
+    </div>
+    <button class="btn btn-primary" onclick="opStep(3)">Próximo: Assinatura →</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(1)">← Voltar</button>
+  </div>
+  <!-- Step 3: Assinaturas -->
+  <div id="op3" style="display:none">
+    <div class="card">
+      <div class="card-title">Assinatura do Cliente</div>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Peça ao cliente para assinar confirmando os horários.</p>
+      <canvas id="sigCanvas" width="400" height="155"></canvas>
+      <div style="display:flex;gap:8px;margin-top:7px">
+        <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvas')">Limpar</button>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Nome do responsável (cliente)</label><input id="op-resp" placeholder="Quem assinou pelo cliente"/></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Assinatura do Operador</div>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Agora assine você como operador responsável.</p>
+      <canvas id="sigCanvasOp" width="400" height="155"></canvas>
+      <div style="display:flex;gap:8px;margin-top:7px">
+        <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvasOp')">Limpar</button>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Nome do operador</label><input id="op-nome-op" value="${os.operadorNome||''}" placeholder="Nome do operador"/></div>
+    </div>
+    <button class="btn btn-green" id="btn-finalizar" onclick="finalizarReg()">✓ Enviar Assinaturas e Finalizar OS</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>
+  </div>
+  <!-- Confirmação -->
+  <div id="op-ok" style="display:none;">
+    <!-- Banner de sucesso destacado -->
+    <div style="background:var(--green);border-radius:14px;padding:28px 20px;text-align:center;margin-bottom:16px">
+      <div style="font-size:52px;margin-bottom:10px">✅</div>
+      <h2 style="color:#fff;font-size:20px;margin-bottom:6px">Preenchido e Enviado com Sucesso!</h2>
+      <p style="color:rgba(255,255,255,.85);font-size:14px">O administrativo já recebeu os dados desta OS.<br/>Este registro está travado e não pode ser reenviado.</p>
+    </div>
+    <div id="op-ok-resumo" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--dim)"></div>
+    <button class="btn btn-wpp" onclick="enviarWPP()" style="margin-bottom:10px">
+      📲 Enviar confirmação por WhatsApp
+    </button>
+    <button class="btn btn-ghost" onclick="loadOperador()">Nova OS</button>
+  </div>`;
+  // init assinatura depois do DOM estar pronto
+  setTimeout(initSig,100);
+}
+
+function opStep(n){
+  for(let i=0;i<4;i++){
+    document.getElementById('op'+i).style.display=i===n?'block':'none';
+    const s=document.getElementById('st'+i);
+    if(s) s.className='step '+(i<n?'done':i===n?'active':'');
+  }
+  if(n===3) setTimeout(initSig,80);
+}
+
+function calcHE(){
+  if(!opOS) return;
+  const data=document.getElementById('op-data')?.value;
+  const part=document.getElementById('op-part')?.value;
+  const par=document.getElementById('op-par')?.value;
+  if(!part||!par) return;
+  const pM=toMin(part),sM=toMin(par);
+  const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
+  // HE máquina
+  const dc=opOS.diasContratados?.find(d=>d.data===data);
+  const wEl=document.getElementById('he-maq-warn');
+  if(dc&&wEl){
+    const cI=toMin(dc.hIni),cF=toMin(dc.hFim);
+    let heM=0;
+    if(pM<cI) heM+=(cI-pM)/60;
+    if(sM>cF) heM+=(sM-cF)/60;
+    if(heM>0){
+      document.getElementById('he-maq-txt').textContent=`Gerador operou ${heM.toFixed(1)}h fora do contratado (${dc.hIni}–${dc.hFim}).`;
+      wEl.classList.add('show');
+    } else wEl.classList.remove('show');
+  }
+  // HE operador — cálculo proporcional (valor único por hora)
+  const jorH=(toMin(config.jornadaFim)-toMin(config.jornadaIni))/60-config.intervalo;
+  const heO=Math.max(0,totH-config.intervalo-jorH);
+  const rEl=document.getElementById('he-op-res');
+  if(rEl&&totH>0){
+    rEl.style.display='block';
+    const val=heO*config.heValor; // proporcional exato
+    const heMin=Math.round(heO*60);
+    rEl.innerHTML=`Total: <strong>${totH.toFixed(1)}h</strong> · HE: <strong style="color:${heO>0?'var(--yellow)':'var(--green)'};">${heMin}min</strong>${heO>0?` · <strong>R$ ${val.toFixed(2)}</strong>`:''}`;
+  }
+}
+
+const sigPads={};
+function initSigPad(id){
+  const canvas=document.getElementById(id);if(!canvas) return;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=Math.floor(rect.width*window.devicePixelRatio)||400;
+  canvas.height=155*window.devicePixelRatio||155;
+  canvas.style.width='100%';canvas.style.height='155px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(window.devicePixelRatio,window.devicePixelRatio);
+  ctx.strokeStyle='#111';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+  sigPads[id]={ctx,hasData:false,drawing:false};
+  const gp=e=>{const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top}};
+  canvas.onmousedown=canvas.ontouchstart=e=>{e.preventDefault();sigPads[id].drawing=true;const p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};
+  canvas.onmousemove=canvas.ontouchmove=e=>{e.preventDefault();if(!sigPads[id].drawing) return;const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();sigPads[id].hasData=true};
+  canvas.onmouseup=canvas.ontouchend=()=>{sigPads[id].drawing=false};
+}
+function initSig(){initSigPad('sigCanvas');initSigPad('sigCanvasOp');}
+function clearSig(id){const p=sigPads[id];if(p){const c=document.getElementById(id);p.ctx.clearRect(0,0,c.width,c.height);p.hasData=false;}}
+
+let lastReg=null;
+let regEnviado=false; // trava de reenvio
+function finalizarReg(){
+  if(regEnviado){alert('Esta OS já foi enviada. Para registrar outro dia, volte e selecione a OS novamente.');return;}
+  const data=document.getElementById('op-data')?.value;
+  const part=document.getElementById('op-part')?.value;
+  const par=document.getElementById('op-par')?.value;
+  if(!data||!part||!par){alert('Preencha data e horários.');return;}
+  const pM=toMin(part),sM=toMin(par);
+  const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
+  const jorH=(toMin(config.jornadaFim)-toMin(config.jornadaIni))/60-config.intervalo;
+  const heO=Math.max(0,totH-config.intervalo-jorH);
+  // Cálculo proporcional: valor exato por fração de hora
+  const valHEop=heO*config.heValor;
+  const dc=opOS.diasContratados?.find(d=>d.data===data);
+  let heM=0;
+  if(dc){const cI=toMin(dc.hIni),cF=toMin(dc.hFim);if(pM<cI)heM+=(cI-pM)/60;if(sM>cF)heM+=(sM-cF)/60;}
+  const sigCliente=sigPads['sigCanvas']?.hasData?document.getElementById('sigCanvas').toDataURL('image/png'):null;
+  const sigOperador=sigPads['sigCanvasOp']?.hasData?document.getElementById('sigCanvasOp').toDataURL('image/png'):null;
+  lastReg={
+    id:'reg_'+Date.now(),osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,
+    operadorId:opOS.operadorId,operadorNome:opOS.operadorNome,
+    data,partida:part,parada:par,
+    horIni:document.getElementById('op-hi')?.value||'',
+    horFim:document.getElementById('op-hf')?.value||'',
+    obs:document.getElementById('op-obs')?.value||'',
+    placa:document.getElementById('op-placa')?.value||'',
+    motorista:document.getElementById('op-mot')?.value||'',
+    itinerario:document.getElementById('op-itin')?.value||'',
+    respCliente:document.getElementById('op-resp')?.value||'',
+    nomeOperador:document.getElementById('op-nome-op')?.value||opOS.operadorNome||'',
+    assinatura:sigCliente,assinaturaOp:sigOperador,
+    heOperador:heO,valorHEOperador:valHEop,heMaquina:heM,totalHoras:totH,
+    criadoEm:new Date().toISOString()
+  };
+  registros.push(lastReg);saveAll();
+  regEnviado=true; // trava
+  if(config.webhook){fetch(config.webhook,{method:'POST',body:JSON.stringify({...lastReg,assinatura:sigCliente?'(capturada)':'não',assinaturaOp:sigOperador?'(capturada)':'não'}),headers:{'Content-Type':'application/json'}}).catch(()=>{});}
+  for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
+  // Preencher resumo no banner
+  const heMin=Math.round(heO*60);
+  const resumoEl=document.getElementById('op-ok-resumo');
+  if(resumoEl){
+    resumoEl.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div><span style="color:var(--dim)">OS</span><br/><strong style="color:var(--text)">${lastReg.osNum}</strong></div>
+        <div><span style="color:var(--dim)">Cliente</span><br/><strong style="color:var(--text)">${lastReg.cliente}</strong></div>
+        <div><span style="color:var(--dim)">Data</span><br/><strong style="color:var(--text)">${fmtData(lastReg.data)}</strong></div>
+        <div><span style="color:var(--dim)">Liga → Desliga</span><br/><strong style="color:var(--text)">${lastReg.partida} → ${lastReg.parada}</strong></div>
+        <div><span style="color:var(--dim)">Total trabalhado</span><br/><strong style="color:var(--text)">${lastReg.totalHoras.toFixed(1)}h</strong></div>
+        <div><span style="color:var(--dim)">HE operador</span><br/><strong style="color:${heO>0?'var(--yellow)':'var(--green)'}">${heMin > 0 ? heMin+'min → R$ '+valHEop.toFixed(2) : 'Nenhuma'}</strong></div>
+        ${heM>0?`<div style="grid-column:1/-1"><span style="color:var(--dim)">⚠️ HE Máquina</span><br/><strong style="color:var(--yellow)">${heM.toFixed(1)}h fora do contrato</strong></div>`:''}
+      </div>`;
+  }
+  document.getElementById('op-ok').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function enviarWPP(){
+  if(!lastReg){alert('Nenhum registro ativo.');return;}
+  const num=config.wppNumero?config.wppNumero.replace(/\D/g,''):'';
+  const heMin=Math.round(lastReg.heOperador*60);
+  const valHE=lastReg.valorHEOperador||0;
+  const texto=`✅ *OS ${lastReg.osNum} — CONCLUÍDA*\n\n`+
+    `*Cliente:* ${lastReg.cliente}\n`+
+    `*Operador:* ${lastReg.nomeOperador||lastReg.operadorNome||'—'}\n`+
+    `*Data:* ${fmtData(lastReg.data)}\n`+
+    `*Liga:* ${lastReg.partida}  |  *Desliga:* ${lastReg.parada}\n`+
+    `*Total trabalhado:* ${lastReg.totalHoras.toFixed(1)}h\n`+
+    `*Horímetro:* ${lastReg.horIni||'—'} → ${lastReg.horFim||'—'}\n`+
+    (lastReg.heMaquina>0?`*⚠️ HE Máquina:* ${lastReg.heMaquina.toFixed(1)}h (faturar ao cliente)\n`:'')+
+    (lastReg.heOperador>0?`*HE Operador:* ${heMin}min → R$ ${valHE.toFixed(2)}\n`:'')+
+    (lastReg.obs?`*Obs:* ${lastReg.obs}\n`:'')+
+    `\n_Enviado via SOS OS Digital_`;
+  const url='https://wa.me/'+(num?num:'')+'?text='+encodeURIComponent(texto);
+  window.open(url,'_blank');
+}
+
+// ════════════════════════════════════════
+// RELATÓRIO
+// ════════════════════════════════════════
+function loadRelatorio(){
+  const el=document.getElementById('page-relatorio');
+  const opOpts=usuarios.filter(u=>u.perfil==='operador').map(u=>`<option value="${u.id}">${u.nome}</option>`).join('');
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title">Filtro</div>
+    <div class="grid2">
+      <div class="field"><label>Mês/Ano</label><input type="month" id="rel-mes" value="${new Date().toISOString().slice(0,7)}"/></div>
+      <div class="field"><label>Operador</label><select id="rel-op"><option value="">Todos</option>${opOpts}</select></div>
+    </div>
+    <button class="btn btn-primary btn-sm" style="width:auto" onclick="gerarRel()">Gerar</button>
+  </div>
+  <div id="rel-out" style="display:none"></div>`;
+}
+
+function gerarRel(){
+  const mes=document.getElementById('rel-mes').value;
+  const opF=document.getElementById('rel-op').value;
+  if(!mes){alert('Selecione o mês.');return;}
+  const regs=registros.filter(r=>r.data.startsWith(mes)&&(!opF||r.operadorId===opF));
+  const jorH=(toMin(config.jornadaFim)-toMin(config.jornadaIni))/60-config.intervalo;
+  const porOp={};
+  regs.forEach(r=>{
+    const k=r.operadorId||r.operadorNome||'—';
+    if(!porOp[k]) porOp[k]={nome:r.operadorNome||k,regs:[]};
+    porOp[k].regs.push(r);
+  });
+  let totH=0,totHE=0,totVal=0,totHEMaq=0;
+  const linhas=[];
+  Object.values(porOp).forEach(op=>{
+    const h=op.regs.reduce((a,r)=>a+(r.totalHoras||0),0);
+    const he=op.regs.reduce((a,r)=>a+(r.heOperador||0),0);
+    // Usa valorHEOperador gravado no registro (proporcional), ou recalcula
+    const val=op.regs.reduce((a,r)=>a+(r.valorHEOperador!=null?r.valorHEOperador:r.heOperador*config.heValor),0);
+    const heMin=Math.round(he*60);
+    totH+=h;totHE+=he;totVal+=val;
+    linhas.push(`<tr><td>${op.nome}</td><td>${(h-he).toFixed(1)}h</td><td style="color:var(--yellow)">${heMin}min</td><td style="color:var(--yellow)">R$ ${val.toFixed(2)}</td><td><strong>${h.toFixed(1)}h</strong></td></tr>`);
+  });
+  regs.forEach(r=>totHEMaq+=r.heMaquina||0);
+  const maqLinhas=regs.filter(r=>r.heMaquina>0).map(r=>`<tr><td>OS ${r.osNum}</td><td>${r.cliente}</td><td>${fmtData(r.data)}</td><td style="color:var(--yellow)">${r.heMaquina.toFixed(1)}h</td></tr>`).join('');
+  document.getElementById('rel-out').style.display='block';
+  document.getElementById('rel-out').innerHTML=`
+  <div class="metric-grid">
+    <div class="metric-card"><div class="metric-label">Registros</div><div class="metric-value">${regs.length}</div></div>
+    <div class="metric-card"><div class="metric-label">Total horas</div><div class="metric-value">${totH.toFixed(1)}h</div></div>
+    <div class="metric-card"><div class="metric-label">HE Operadores</div><div class="metric-value" style="color:var(--yellow)">${totHE.toFixed(1)}h</div><div class="metric-sub">R$ ${totVal.toFixed(2)}</div></div>
+    <div class="metric-card"><div class="metric-label">HE Máquina</div><div class="metric-value" style="color:var(--yellow)">${totHEMaq.toFixed(1)}h</div><div class="metric-sub">a faturar ao cliente</div></div>
+  </div>
+  <div class="card"><div class="card-title">Por Operador</div>
+    <table class="tbl"><thead><tr><th>Operador</th><th>Normal</th><th>HE</th><th>Valor HE</th><th>Total</th></tr></thead>
+    <tbody>${linhas.join('')||'<tr><td colspan="5" style="color:var(--dim);text-align:center">Sem registros</td></tr>'}</tbody></table>
+  </div>
+  <div class="card"><div class="card-title">HE Máquina (Faturáveis)</div>
+    <table class="tbl"><thead><tr><th>OS</th><th>Cliente</th><th>Data</th><th>HE</th></tr></thead>
+    <tbody>${maqLinhas||'<tr><td colspan="4" style="color:var(--dim);text-align:center">Nenhuma</td></tr>'}</tbody></table>
+  </div>
+  <button class="btn btn-secondary btn-sm" style="width:auto" onclick="expCSV()">📥 Exportar CSV</button>`;
+}
+
+function expCSV(){
+  const mes=document.getElementById('rel-mes').value;
+  const regs2=registros.filter(r=>r.data.startsWith(mes));
+  const h=['Data','OS','Cliente','Operador','Liga','Desliga','Total h','HE Op','HE Máq','Hor Ini','Hor Fim','Obs'];
+  const rows=regs2.map(r=>[r.data,r.osNum,r.cliente,r.operadorNome,r.partida,r.parada,r.totalHoras?.toFixed(1),r.heOperador?.toFixed(1),r.heMaquina?.toFixed(1),r.horIni,r.horFim,r.obs]);
+  const csv=[h,...rows].map(r=>r.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);a.download=`sos-os-${mes}.csv`;a.click();
+}
+
+// ════════════════════════════════════════
+// AGENTE IA TÉCNICO
+// ════════════════════════════════════════
+let chatHistory=[];
+function loadAgente(){
+  const el=document.getElementById('page-agente');
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title" style="color:var(--purple)">⚡ Assistente Técnico Elétrico</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:14px">Tire dúvidas sobre geradores, instalações elétricas, manutenção e operação. Disponível 24h.</p>
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="chat-msg ai">Olá! Sou o assistente técnico da SOS Energia. Pode perguntar sobre geradores, instalações elétricas, partidas, paralelismo, manutenção ou qualquer dúvida técnica. Como posso ajudar?</div>
+    </div>
+    <div class="chat-input-row">
+      <input id="chat-in" placeholder="Ex: Como faço o paralelo de dois geradores?" onkeydown="if(event.key==='Enter')enviarChat()"/>
+      <button class="btn btn-primary btn-icon" onclick="enviarChat()" style="width:44px;flex-shrink:0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    ${!config.openaiKey?`<div class="alert alert-yellow" style="margin-top:12px;font-size:12px">⚠️ Para respostas com IA real, adicione uma chave OpenAI nas Configurações. Sem a chave, o assistente usa respostas técnicas pré-programadas.</div>`:''}
+  </div>`;
+  chatHistory=[];
+}
+
+const RESPOSTAS_TECNICAS={
+  paralelo:['paralelo','sincronizar','sincronismo'],'partida':['partida','ligar','dar partida','não liga','não inicia'],
+  'disjuntor':['disjuntor','trip','desarmou','desarmando'],'fusível':['fusível','fusivel','queimou'],
+  'horímetro':['horímetro','horimetro'],'kva':['kva','potência','potencia','carga'],
+  'terra':['aterramento','terra','proteção'],'avr':['avr','tensão','regulador']
+};
+const RESP_MAP={
+  paralelo:`Para paralelizar dois geradores:\n1. Verifique que ambos têm a **mesma tensão** (ex: 220V ou 380V)\n2. **Mesma frequência** (60Hz)\n3. **Mesma sequência de fases** (use fasímetro)\n4. Sincronize a tensão e frequência antes de fechar o disjuntor de paralelo\n5. Use o sincronoscópio ou LEDs para confirmar o sincronismo\n⚠️ Nunca feche o disjuntor sem sincronismo — pode danificar o alternador.`,
+  partida:`Gerador não dá partida — checklist:\n1. ✅ Nível do óleo (abaixo do mínimo = bloqueio automático)\n2. ✅ Nível do combustível\n3. ✅ Bateria carregada (mínimo 12V)\n4. ✅ Parada de emergência pressionada?\n5. ✅ Alarme ativo no painel?\n6. ✅ Filtro de combustível entupido?\nSe tudo OK e não parte: verifique bobina do motor de arranque.`,
+  disjuntor:`Disjuntor desarmando — causas mais comuns:\n1. **Sobrecarga** — carga conectada maior que a capacidade do gerador\n2. **Curto-circuito** na instalação do cliente\n3. **Aquecimento** — verifique ventilação do gerador\n4. **Falha no AVR** — tensão instável causando pico\nProcedimento: desligue a carga, reset o disjuntor, reconecte a carga gradualmente.`,
+  fusível:`Fusível queimado:\n1. Identifique o circuito (painel, bateria, 24V)\n2. Verifique **amperagem correta** — nunca substitua por fusível de amperagem maior\n3. Antes de trocar, identifique a **causa** (curto, sobrecarga)\n4. Fusível do painel 24V: geralmente 5A ou 10A conforme o modelo`,
+  horímetro:`O horímetro registra as horas de funcionamento do motor.\n- Horímetro **eletromecânico**: funciona enquanto o motor está rodando\n- Horímetro **digital**: pode ter função de horas parciais\n- Para manutenção: troca de óleo a cada **250-500h** conforme o fabricante\n- Anote sempre o horímetro no início e fim de cada locação`,
+  kva:`Cálculo de carga:\n- **KVA**: potência aparente\n- **KW**: potência ativa (KVA × fator de potência)\n- FP típico: 0,8 (motores) a 0,95 (resistivos)\n- Regra prática: não ultrapasse **70-80% da capacidade** do gerador\n- Ex: gerador 180KVA → use no máx. 144KVA de carga`,
+  terra:`Aterramento:\n1. Gerador deve estar **aterrado** antes de ligar qualquer carga\n2. Resistência máxima: **5Ω** (NBR 5410)\n3. Em eventos: use estaca de aterramento temporária (mínimo 60cm no solo)\n4. Verifique continuidade do barramento de terra do gerador ao quadro do cliente\n⚠️ Sem aterramento: risco de choque e danos ao equipamento`,
+  avr:`AVR (Regulador Automático de Tensão):\n- Mantém a tensão estável sob variação de carga\n- Sintoma de AVR com problema: tensão instável (sobe/desce)\n- Ajuste de tensão: potenciômetro no AVR (geralmente etiqueta V+ / V-)\n- Se a tensão não estabiliza mesmo ajustando: AVR pode precisar de troca\n- Modelos comuns: Stamford AS480, Leroy Somer D350, Newage`
+};
+
+async function enviarChat(){
+  const inp=document.getElementById('chat-in');
+  const msg=inp.value.trim();if(!msg) return;
+  inp.value='';
+  const msgs=document.getElementById('chat-msgs');
+  msgs.innerHTML+=`<div class="chat-msg user">${escHtml(msg)}</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  const typing=document.createElement('div');
+  typing.className='chat-msg ai typing';typing.id='typing';typing.textContent='Digitando...';
+  msgs.appendChild(typing);msgs.scrollTop=msgs.scrollHeight;
+
+  // Tentar OpenAI se tiver chave
+  if(config.openaiKey){
+    chatHistory.push({role:'user',content:msg});
+    try{
+      const res=await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+config.openaiKey},
+        body:JSON.stringify({
+          model:'gpt-4o-mini',
+          messages:[
+            {role:'system',content:'Você é um técnico especialista em geradores elétricos, grupos geradores diesel, instalações elétricas industriais e de eventos. Responda em português brasileiro de forma prática e clara. Foque em procedimentos seguros, normas ABNT, e boas práticas de campo. Empresa: SOS Energia, locação de geradores.'},
+            ...chatHistory
+          ],
+          max_tokens:600
+        })
+      });
+      const data=await res.json();
+      const reply=data.choices?.[0]?.message?.content||'Não consegui processar a resposta.';
+      chatHistory.push({role:'assistant',content:reply});
+      document.getElementById('typing')?.remove();
+      msgs.innerHTML+=`<div class="chat-msg ai">${formatMd(reply)}</div>`;
+      msgs.scrollTop=msgs.scrollHeight;
+      return;
+    }catch(e){/* fallback */}
+  }
+
+  // Fallback: respostas pré-programadas
+  await new Promise(r=>setTimeout(r,800));
+  document.getElementById('typing')?.remove();
+  const msgLower=msg.toLowerCase();
+  let resp='Não tenho uma resposta específica para isso no momento. Para dúvidas técnicas complexas, entre em contato com o suporte técnico da SOS Energia ou consulte o manual do equipamento.';
+  for(const [key,kws] of Object.entries(RESPOSTAS_TECNICAS)){
+    if(kws.some(k=>msgLower.includes(k))){resp=RESP_MAP[key];break;}
+  }
+  msgs.innerHTML+=`<div class="chat-msg ai">${formatMd(resp)}</div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function formatMd(t){return escHtml(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');}
+function escHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ════════════════════════════════════════
+// CONFIGURAÇÕES
+// ════════════════════════════════════════
+function loadConfig(){
+  const el=document.getElementById('page-config');
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title">Jornada e Horas Extras</div>
+    <div class="grid2">
+      <div class="field"><label>Início da jornada</label><input type="time" id="cfg-ji" value="${config.jornadaIni}" onchange="svcfg()"/></div>
+      <div class="field"><label>Fim da jornada</label><input type="time" id="cfg-jf" value="${config.jornadaFim}" onchange="svcfg()"/></div>
+    </div>
+    <div class="field"><label>Intervalo (horas descontadas)</label>
+      <input type="number" id="cfg-int" value="${config.intervalo}" step="0.5" min="0" onchange="svcfg()"/>
+    </div>
+    <div class="field"><label>Valor da hora extra (R$/hora)</label>
+      <input type="number" id="cfg-hevalor" value="${config.heValor}" step="0.50" min="0" onchange="svcfg()"/>
+      <span style="font-size:11px;color:var(--dim)">Cálculo proporcional — ex: 32min × R$${config.heValor}/h = R$${(32/60*config.heValor).toFixed(2)}</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">WhatsApp — Confirmação de OS</div>
+    <div class="field"><label>Número padrão para envio (com DDI)</label>
+      <input type="tel" id="cfg-wpp" value="${config.wppNumero||''}" placeholder="5561999999999" onchange="svcfg()"/>
+      <span style="font-size:11px;color:var(--dim)">Ex: 5561999999999 (55 = Brasil, 61 = DDD). Pode ser alterado no envio.</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Agente IA — OpenAI</div>
+    <div class="field"><label>Chave API OpenAI (opcional)</label>
+      <input type="password" id="cfg-oai" value="${config.openaiKey||''}" placeholder="sk-..." onchange="svcfg()"/>
+      <span style="font-size:11px;color:var(--dim)">Habilita respostas inteligentes no Assistente Técnico. Sem custo de plataforma — você paga só o que usar na OpenAI.</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Integração Google Sheets (webhook)</div>
+    <div class="field"><label>URL Google Apps Script</label>
+      <input type="url" id="cfg-wh" value="${config.webhook||''}" placeholder="https://script.google.com/..." onchange="svcfg()"/>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Usuários</div>
+    <div id="lista-users" style="margin-bottom:12px"></div>
+    <div class="grid3" style="margin-bottom:8px">
+      <div class="field" style="margin:0"><label style="font-size:10px">Nome</label><input id="nu-nome" placeholder="Nome"/></div>
+      <div class="field" style="margin:0"><label style="font-size:10px">Usuário</label><input id="nu-user" placeholder="login"/></div>
+      <div class="field" style="margin:0"><label style="font-size:10px">Senha</label><input type="password" id="nu-pass" placeholder="senha"/></div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label style="font-size:10px">Perfil</label>
+      <select id="nu-perfil">
+        <option value="admin">Admin (acesso total)</option>
+        <option value="comercial">Comercial (cria OS + relatórios)</option>
+        <option value="operador">Operador (só preenche OS)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-sm" style="width:auto" onclick="addUser()">+ Adicionar Usuário</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Dados</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="expBackup()">📥 Backup</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="document.getElementById('imp-file').click()">📤 Restaurar</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto;color:var(--red)" onclick="limparTudo()">🗑 Apagar tudo</button>
+    </div>
+    <input type="file" id="imp-file" accept=".json" style="display:none" onchange="impBackup(event)"/>
+  </div>`;
+  renderUsers();
+}
+
+function svcfg(){
+  config.jornadaIni=document.getElementById('cfg-ji')?.value||config.jornadaIni;
+  config.jornadaFim=document.getElementById('cfg-jf')?.value||config.jornadaFim;
+  config.intervalo=parseFloat(document.getElementById('cfg-int')?.value)||1;
+  config.heValor=parseFloat(document.getElementById('cfg-hevalor')?.value)||15;
+  config.webhook=document.getElementById('cfg-wh')?.value||'';
+  config.openaiKey=document.getElementById('cfg-oai')?.value||'';
+  config.wppNumero=document.getElementById('cfg-wpp')?.value||'';
+  saveAll();
+}
+
+function renderUsers(){
+  const el=document.getElementById('lista-users');if(!el) return;
+  el.innerHTML=usuarios.map(u=>`
+    <div class="user-chip">
+      <div>
+        <span style="font-weight:600">${u.nome}</span>
+        <span style="color:var(--dim);font-size:12px"> · ${u.user} · </span>
+        <span class="badge ${u.perfil==='admin'?'badge-red':u.perfil==='comercial'?'badge-blue':'badge-yellow'}" style="font-size:10px">${u.perfil}</span>
+      </div>
+      ${u.id!=='adm_0'?`<button onclick="delUser('${u.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:20px;line-height:1">×</button>`:'<span style="font-size:11px;color:var(--dim)">master</span>'}
+    </div>`).join('');
+}
+
+function addUser(){
+  const nome=document.getElementById('nu-nome')?.value.trim();
+  const user=document.getElementById('nu-user')?.value.trim().toLowerCase();
+  const pass=document.getElementById('nu-pass')?.value;
+  const perfil=document.getElementById('nu-perfil')?.value;
+  if(!nome||!user||!pass){alert('Preencha nome, usuário e senha.');return;}
+  if(usuarios.find(u=>u.user===user)){alert('Usuário já existe.');return;}
+  usuarios.push({id:'u_'+Date.now(),nome,user,senha:pass,perfil});
+  saveAll();renderUsers();
+  document.getElementById('nu-nome').value='';
+  document.getElementById('nu-user').value='';
+  document.getElementById('nu-pass').value='';
+}
+function delUser(id){if(confirm('Remover usuário?')){usuarios=usuarios.filter(u=>u.id!==id);saveAll();renderUsers();}}
+function expBackup(){const d=JSON.stringify({ordens,registros,usuarios,config},null,2);const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(d);a.download='sos-backup-'+new Date().toISOString().split('T')[0]+'.json';a.click();}
+function impBackup(e){const f=e.target.files[0];if(!f) return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(confirm(`Importar ${d.ordens?.length||0} OS, ${d.registros?.length||0} registros, ${d.usuarios?.length||0} usuários?`)){ordens=d.ordens||[];registros=d.registros||[];usuarios=d.usuarios||usuarios;config={...config,...(d.config||{})};saveAll();renderUsers();alert('Importado!')}}catch{alert('Arquivo inválido.')}};r.readAsText(f);}
+function limparTudo(){if(confirm('Apagar TODOS os dados?')){ordens=[];registros=[];saveAll();renderOSList();alert('Dados apagados.');}}
+
+// ════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════
+function toMin(t){if(!t) return 0;const[h,m]=t.split(':').map(Number);return h*60+m;}
+function fmtData(d){if(!d) return '';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
+
+// ── INIT ──
+// checar URL param para abrir direto no operador
+const _p=new URLSearchParams(window.location.search);
+if(_p.get('os')){
+  // auto-login como operador se não logado (link direto do WhatsApp)
+  // mostra tela de login normalmente — operador faz login e cai na aba certa
+}
+</script>
+</body>
+</html>
