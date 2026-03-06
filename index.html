@@ -244,7 +244,12 @@ connRef.on('value', snap => {
 // Listeners em tempo real
 function initFirebaseListeners() {
   db.ref('ordens').on('value', snap => {
-    ordens = snap.val() ? Object.values(snap.val()) : [];
+    ordens = snap.val() ? Object.values(snap.val()).map(o => ({
+      ...o,
+      diasContratados: o.diasContratados
+        ? (Array.isArray(o.diasContratados) ? o.diasContratados : Object.values(o.diasContratados))
+        : []
+    })) : [];
     DB.set('sos_ordens', ordens);
     renderOSList();
   });
@@ -1364,6 +1369,8 @@ function gerarPDFOS(osId){
 }
 
 function _gerarPDF(os, regsOS){
+  try{
+  regsOS=Array.isArray(regsOS)?regsOS:[];
   const totHoras=regsOS.reduce((a,r)=>a+(r.totalHoras||0),0);
   const totHEOp=regsOS.reduce((a,r)=>a+(r.heOperador||0),0);
   const totHEMaq=regsOS.reduce((a,r)=>a+(r.heMaquina||0),0);
@@ -1532,6 +1539,7 @@ ${registrosHTML||'<p style="color:#aaa;padding:8px 4px;font-size:11px">Nenhum re
   win.document.write(html);
   win.document.close();
   showToast('PDF pronto — clique em "Salvar / Imprimir PDF"');
+  }catch(e){showToast('Erro ao gerar PDF: '+(e&&e.message?e.message:String(e)),'err');console.error('_gerarPDF error',e);}
 }
 
 // ════════════════════════════════════════
