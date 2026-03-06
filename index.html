@@ -125,7 +125,7 @@
   </style>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -1358,6 +1358,12 @@ function gerarPDFOS(osId){
 }
 
 async function _gerarPDF(os, regsOS){
+  // Verifica se jsPDF carregou
+  if(!window.jspdf||!window.jspdf.jsPDF){
+    showToast('Biblioteca PDF não carregou. Verifique a conexão e tente novamente.','err');
+    return;
+  }
+  try{
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
   const W=210, m=14; // largura A4, margem
@@ -1585,6 +1591,10 @@ async function _gerarPDF(os, regsOS){
 
   doc.save(`SOS-OS-${os.num}-${(os.cliente||'').replace(/\s+/g,'-')}.pdf`);
   showToast('PDF gerado com sucesso!');
+  }catch(e){
+    console.error('Erro ao gerar PDF:',e);
+    showToast('Erro ao gerar PDF: '+(e&&e.message?e.message:'falha desconhecida'),'err');
+  }
 }
 
 // ════════════════════════════════════════
