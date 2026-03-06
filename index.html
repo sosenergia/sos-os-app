@@ -125,7 +125,6 @@
   </style>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-  <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -1364,244 +1363,175 @@ function gerarPDFOS(osId){
   _gerarPDF(os, regsOS);
 }
 
-async function _gerarPDF(os, regsOS){
-  // Verifica se jsPDF carregou
-  if(!window.jspdf||!window.jspdf.jsPDF){
-    showToast('Biblioteca PDF não carregou. Verifique a conexão e tente novamente.','err');
-    return;
-  }
-  try{
-  const {jsPDF} = window.jspdf;
-  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-  const W=210, m=14; // largura A4, margem
-  let y=0;
-
-  // ── Paleta ──
-  const vermelho=[204,0,0];
-  const preto=[10,10,10];
-  const cinzaEscuro=[40,40,40];
-  const cinzaMedio=[80,80,80];
-  const cinzaClaro=[200,200,200];
-  const branco=[255,255,255];
-  const amarelo=[245,158,11];
-  const verde=[34,197,94];
-
-  // ─── CABEÇALHO ───────────────────────────────────────
-  // Fundo preto total
-  doc.setFillColor(...preto);
-  doc.rect(0,0,W,36,'F');
-  // Faixa vermelha lateral esquerda
-  doc.setFillColor(...vermelho);
-  doc.rect(0,0,4,36,'F');
-
-  // Logo SOS em texto
-  doc.setTextColor(...vermelho);
-  doc.setFontSize(28);
-  doc.setFont('helvetica','bold');
-  doc.text('SOS', m+2, 16);
-  // Subtítulo
-  doc.setFontSize(8);
-  doc.setTextColor(...cinzaClaro);
-  doc.setFont('helvetica','normal');
-  doc.text('ENERGIA', m+2, 21);
-  doc.text('Locação de Geradores', m+2, 26);
-
-  // Título OS à direita
-  doc.setFontSize(20);
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(...branco);
-  doc.text(`ORDEM DE SERVIÇO Nº ${os.num}`, W-m, 16, {align:'right'});
-  doc.setFontSize(9);
-  doc.setFont('helvetica','normal');
-  doc.setTextColor(...cinzaClaro);
-  const statusTxt = os.status==='fechada'?'ENCERRADA':'EM ANDAMENTO';
-  doc.text(statusTxt, W-m, 23, {align:'right'});
-  doc.text(`Emitido em: ${new Date().toLocaleDateString('pt-BR')}`, W-m, 28, {align:'right'});
-
-  y=42;
-
-  // ─── DASHBOARD — métricas resumo ────────────────────
+function _gerarPDF(os, regsOS){
   const totHoras=regsOS.reduce((a,r)=>a+(r.totalHoras||0),0);
   const totHEOp=regsOS.reduce((a,r)=>a+(r.heOperador||0),0);
   const totHEMaq=regsOS.reduce((a,r)=>a+(r.heMaquina||0),0);
   const totValHE=regsOS.reduce((a,r)=>a+(r.valorHEOperador||0),0);
+  const heOpMin=Math.round(totHEOp*60);
+  const dataEmissao=new Date().toLocaleString('pt-BR');
 
-  const cards=[
-    {label:'REGISTROS',value:String(regsOS.length),cor:vermelho},
-    {label:'HORAS TOTAIS',value:totHoras.toFixed(1)+'h',cor:cinzaMedio},
-    {label:'HE OPERADOR',value:Math.round(totHEOp*60)+'min',cor:totHEOp>0?amarelo:verde},
-    {label:'HE MÁQUINA',value:totHEMaq>0?totHEMaq.toFixed(1)+'h':'—',cor:totHEMaq>0?amarelo:verde},
-    {label:'VALOR HE',value:'R$'+totValHE.toFixed(2),cor:totValHE>0?amarelo:verde},
-  ];
-  const cw=(W-2*m)/cards.length - 2;
-  cards.forEach((c,i)=>{
-    const cx=m+i*(cw+2.5);
-    doc.setFillColor(28,28,28);
-    doc.roundedRect(cx,y,cw,18,2,2,'F');
-    doc.setDrawColor(...c.cor);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(cx,y,cw,18,2,2,'S');
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica','bold');
-    doc.setTextColor(...cinzaClaro);
-    doc.text(c.label, cx+cw/2, y+6, {align:'center'});
-    doc.setFontSize(11);
-    doc.setFont('helvetica','bold');
-    doc.setTextColor(...c.cor);
-    doc.text(c.value, cx+cw/2, y+14, {align:'center'});
-  });
-  y+=24;
+  const registrosHTML=regsOS.map(r=>{
+    const heM=r.heMaquina||0;
+    const heO=r.heOperador||0;
+    const heOMin=Math.round(heO*60);
+    const valHE=r.valorHEOperador||0;
+    return `
+    <div class="reg-box">
+      <div class="reg-header">
+        <span class="reg-data">${fmtData(r.data)}</span>
+        ${heM>0?`<span class="badge-warn">⚠ HE MÁQUINA: +${heM.toFixed(1)}h</span>`:`<span class="badge-ok">✓ Dentro do contrato</span>`}
+      </div>
+      <div class="reg-grid">
+        <div><span class="lbl">Liga</span><span class="val">${r.partida||'—'}</span></div>
+        <div><span class="lbl">Desliga</span><span class="val">${r.parada||'—'}</span></div>
+        <div><span class="lbl">Total</span><span class="val">${(r.totalHoras||0).toFixed(1)}h</span></div>
+        <div><span class="lbl">Horímetro</span><span class="val">${r.horIni||'—'} → ${r.horFim||'—'}</span></div>
+        <div><span class="lbl">Operador</span><span class="val">${r.nomeOperador||r.operadorNome||'—'}</span></div>
+        <div><span class="lbl">Motorista</span><span class="val">${r.motorista||'—'}</span></div>
+        <div><span class="lbl">Placa</span><span class="val">${r.placa||'—'}</span></div>
+        <div><span class="lbl">Itinerário</span><span class="val">${r.itinerario||'—'}</span></div>
+        ${heO>0?`<div class="span2"><span class="lbl">HE Operador</span><span class="val he-val">${heOMin}min → R$ ${valHE.toFixed(2)}</span></div>`:''}
+        ${r.obs?`<div class="span2"><span class="lbl">Observações</span><span class="val">${r.obs}</span></div>`:''}
+      </div>
+      <div class="sig-row">
+        <div class="sig-box">
+          <div class="sig-title">ASSINATURA DO CLIENTE</div>
+          ${r.assinatura?`<img src="${r.assinatura}" class="sig-img"/>`:'<div class="sig-empty">Não coletada</div>'}
+          <div class="sig-name">${r.respCliente||''}</div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-title">ASSINATURA DO OPERADOR</div>
+          ${r.assinaturaOp?`<img src="${r.assinaturaOp}" class="sig-img"/>`:'<div class="sig-empty">Não coletada</div>'}
+          <div class="sig-name">${r.nomeOperador||r.operadorNome||''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
-  // ─── DADOS DA OS ────────────────────────────────────
-  function secTitle(titulo){
-    doc.setFillColor(...vermelho);
-    doc.rect(m,y,W-2*m,6,'F');
-    doc.setFontSize(8);
-    doc.setFont('helvetica','bold');
-    doc.setTextColor(...branco);
-    doc.text(titulo, m+3, y+4.2);
-    y+=9;
+  const html=`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>OS ${os.num} — ${os.cliente||''}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
+  @page{margin:12mm 14mm}
+  /* CABEÇALHO */
+  .header{background:#0a0a0a;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-left:5px solid #CC0000}
+  .logo-txt{font-size:28px;font-weight:900;color:#CC0000;line-height:1;font-family:Arial Black,sans-serif}
+  .logo-sub{font-size:9px;color:#aaa;margin-top:2px}
+  .header-right{text-align:right}
+  .os-num{font-size:20px;font-weight:900;color:#fff}
+  .os-status{font-size:9px;color:#aaa;margin-top:2px}
+  /* DASHBOARD */
+  .dashboard{display:flex;gap:8px;margin-bottom:12px}
+  .metric{flex:1;border:1px solid #ddd;border-radius:6px;padding:8px;text-align:center}
+  .metric .m-lbl{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+  .metric .m-val{font-size:14px;font-weight:900;margin-top:3px}
+  .m-red{border-color:#CC0000;color:#CC0000}
+  .m-warn{border-color:#f59e0b;color:#f59e0b}
+  .m-ok{border-color:#22c55e;color:#22c55e}
+  /* SEÇÕES */
+  .sec-title{background:#CC0000;color:#fff;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:4px 10px;margin-bottom:6px;margin-top:10px}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;padding:0 4px;margin-bottom:4px}
+  .info-row{display:flex;gap:6px;align-items:baseline}
+  .info-lbl{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;white-space:nowrap;min-width:70px}
+  .info-val{font-size:10px;color:#111}
+  .info-full{grid-column:1/-1}
+  /* REGISTROS */
+  .reg-box{border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:10px;page-break-inside:avoid}
+  .reg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:6px}
+  .reg-data{font-size:12px;font-weight:700;color:#0a0a0a}
+  .badge-warn{background:#fff3cd;color:#856404;border:1px solid #ffc107;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700}
+  .badge-ok{background:#d1fae5;color:#065f46;border:1px solid #22c55e;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700}
+  .reg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+  .span2{grid-column:span 2}
+  .lbl{display:block;font-size:8px;color:#888;text-transform:uppercase;font-weight:700;margin-bottom:1px}
+  .val{font-size:10px;color:#111;font-weight:500}
+  .he-val{color:#d97706;font-weight:700}
+  /* ASSINATURAS */
+  .sig-row{display:flex;gap:12px;margin-top:8px;border-top:1px solid #eee;padding-top:8px}
+  .sig-box{flex:1;border:1px solid #ddd;border-radius:4px;padding:8px;text-align:center}
+  .sig-title{font-size:8px;font-weight:700;color:#CC0000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .sig-img{max-height:60px;max-width:100%;object-fit:contain;display:block;margin:0 auto}
+  .sig-empty{height:50px;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:italic;font-size:9px}
+  .sig-name{font-size:9px;color:#666;margin-top:4px;border-top:1px solid #eee;padding-top:3px}
+  /* RODAPÉ */
+  .footer{margin-top:16px;border-top:2px solid #CC0000;padding-top:8px;display:flex;justify-content:space-between;font-size:8px;color:#888}
+  @media print{
+    .no-print{display:none}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
-  function row(label, value, col2label, col2value){
-    doc.setFontSize(8);
-    doc.setFont('helvetica','bold');
-    doc.setTextColor(...cinzaMedio);
-    doc.text(label+':', m+2, y);
-    doc.setFont('helvetica','normal');
-    doc.setTextColor(...cinzaEscuro);
-    doc.text(String(value||'—'), m+38, y);
-    if(col2label){
-      doc.setFont('helvetica','bold');
-      doc.setTextColor(...cinzaMedio);
-      doc.text(col2label+':', W/2+2, y);
-      doc.setFont('helvetica','normal');
-      doc.setTextColor(...cinzaEscuro);
-      doc.text(String(col2value||'—'), W/2+38, y);
-    }
-    y+=5.5;
-  }
+  /* BOTÃO IMPRIMIR */
+  .print-bar{position:fixed;top:0;left:0;right:0;background:#CC0000;padding:10px 20px;display:flex;gap:12px;align-items:center;z-index:999}
+  .print-bar button{background:#fff;color:#CC0000;border:none;padding:8px 20px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer}
+  .print-bar span{color:#fff;font-size:13px;font-weight:600}
+  @media print{.print-bar{display:none}body{padding-top:0}}
+  body{padding-top:52px}
+</style>
+</head>
+<body>
+<div class="print-bar no-print">
+  <span>OS ${os.num} — ${os.cliente||''}</span>
+  <button onclick="window.print()">🖨️ Salvar / Imprimir PDF</button>
+  <button onclick="window.close()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4)">✕ Fechar</button>
+</div>
 
-  secTitle('DADOS DO CLIENTE / EVENTO');
-  row('Cliente', os.cliente, 'Evento', os.evento);
-  row('Endereço', os.endereco, 'Cidade/UF', (os.cidade||'')+(os.uf?'/'+os.uf:''));
-  row('Contato', os.contato, 'Fone', os.fone);
-  row('CNPJ', os.cnpj, 'Operador', os.operadorNome);
-  row('Período', (os.dataSaida?fmtData(os.dataSaida):'—')+' → '+(os.dataRetorno?fmtData(os.dataRetorno):'—'), '', '');
-  if(os.instrucoes){
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...cinzaMedio);
-    doc.text('Instruções:', m+2, y);
-    doc.setFont('helvetica','normal');doc.setTextColor(...cinzaEscuro);
-    const linhas=doc.splitTextToSize(os.instrucoes, W-2*m-40);
-    doc.text(linhas, m+38, y);
-    y+=linhas.length*4.5+1;
-  }
-  y+=2;
+<div class="header">
+  <div>
+    <div class="logo-txt">SOS</div>
+    <div class="logo-sub">ENERGIA — Locação de Geradores</div>
+  </div>
+  <div class="header-right">
+    <div class="os-num">ORDEM DE SERVIÇO Nº ${os.num}</div>
+    <div class="os-status">${os.status==='fechada'?'ENCERRADA':'EM ANDAMENTO'} · Emitido em ${dataEmissao}</div>
+  </div>
+</div>
 
-  secTitle('GERADOR');
-  row('Potência', os.potencia, 'Patrimônio', os.patrimonio);
-  y+=2;
+<div class="dashboard">
+  <div class="metric"><div class="m-lbl">Registros</div><div class="m-val m-red">${regsOS.length}</div></div>
+  <div class="metric"><div class="m-lbl">Horas Totais</div><div class="m-val">${totHoras.toFixed(1)}h</div></div>
+  <div class="metric"><div class="m-lbl">HE Operador</div><div class="m-val ${totHEOp>0?'m-warn':'m-ok'}">${heOpMin}min</div></div>
+  <div class="metric"><div class="m-lbl">HE Máquina</div><div class="m-val ${totHEMaq>0?'m-warn':'m-ok'}">${totHEMaq>0?totHEMaq.toFixed(1)+'h':'—'}</div></div>
+  <div class="metric"><div class="m-lbl">Valor HE</div><div class="m-val ${totValHE>0?'m-warn':'m-ok'}">R$ ${totValHE.toFixed(2)}</div></div>
+</div>
 
-  // ─── REGISTROS ──────────────────────────────────────
-  secTitle(`REGISTROS DO OPERADOR (${regsOS.length})`);
+<div class="sec-title">Dados do Cliente / Evento</div>
+<div class="info-grid">
+  <div class="info-row"><span class="info-lbl">Cliente</span><span class="info-val"><strong>${os.cliente||'—'}</strong></span></div>
+  <div class="info-row"><span class="info-lbl">Evento</span><span class="info-val">${os.evento||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Endereço</span><span class="info-val">${os.endereco||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Cidade/UF</span><span class="info-val">${(os.cidade||'')+(os.uf?'/'+os.uf:'')}</span></div>
+  <div class="info-row"><span class="info-lbl">Contato</span><span class="info-val">${os.contato||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Fone</span><span class="info-val">${os.fone||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">CNPJ</span><span class="info-val">${os.cnpj||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Operador</span><span class="info-val">${os.operadorNome||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Período</span><span class="info-val">${os.dataSaida?fmtData(os.dataSaida):'—'} → ${os.dataRetorno?fmtData(os.dataRetorno):'—'}</span></div>
+  ${os.instrucoes?`<div class="info-row info-full"><span class="info-lbl">Instruções</span><span class="info-val">${os.instrucoes}</span></div>`:''}
+</div>
 
-  for(const r of regsOS){
-    if(y>240){ doc.addPage(); y=14; }
-    // Box do registro
-    doc.setFillColor(245,245,245);
-    doc.roundedRect(m,y,W-2*m,r.obs?30:26,2,2,'F');
-    doc.setDrawColor(...cinzaClaro);
-    doc.roundedRect(m,y,W-2*m,r.obs?30:26,2,2,'S');
+<div class="sec-title">Gerador</div>
+<div class="info-grid">
+  <div class="info-row"><span class="info-lbl">Potência</span><span class="info-val">${os.potencia||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Patrimônio</span><span class="info-val">${os.patrimonio||'—'}</span></div>
+</div>
 
-    // Data + status HE máquina
-    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...preto);
-    doc.text(fmtData(r.data), m+3, y+6);
-    if(r.heMaquina>0){
-      doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...amarelo[0],...amarelo.slice(1));
-      doc.setTextColor(245,158,11);
-      doc.text(`⚠ HE MÁQ: +${r.heMaquina.toFixed(1)}h`, W-m-3, y+6, {align:'right'});
-    } else {
-      doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...verde);
-      doc.text('✓ Dentro do contrato', W-m-3, y+6, {align:'right'});
-    }
-    // Linha info
-    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...cinzaEscuro);
-    doc.text(`Liga: ${r.partida}  |  Desliga: ${r.parada}  |  Total: ${(r.totalHoras||0).toFixed(1)}h  |  Horímetro: ${r.horIni||'—'} → ${r.horFim||'—'}`, m+3, y+12);
-    doc.text(`Operador: ${r.nomeOperador||r.operadorNome||'—'}  |  Motorista: ${r.motorista||'—'}  |  Placa: ${r.placa||'—'}`, m+3, y+18);
-    if(r.heOperador>0){
-      doc.setTextColor(245,158,11);
-      doc.text(`HE Operador: ${Math.round(r.heOperador*60)}min → R$ ${(r.valorHEOperador||0).toFixed(2)}`, m+3, y+24);
-    }
-    if(r.obs){
-      doc.setTextColor(...cinzaMedio);
-      const obsLines=doc.splitTextToSize('Obs: '+r.obs, W-2*m-6);
-      doc.text(obsLines, m+3, r.heOperador>0?y+28:y+24);
-    }
-    y+=(r.obs?32:28);
+<div class="sec-title">Registros do Operador (${regsOS.length})</div>
+${registrosHTML||'<p style="color:#aaa;padding:8px 4px;font-size:11px">Nenhum registro.</p>'}
 
-    // ─── ASSINATURAS ────────────────────────────────
-    if(r.assinatura||r.assinaturaOp){
-      if(y>250){doc.addPage();y=14;}
-      const swCli=(W-2*m)/2-4;
-      const swOp=(W-2*m)/2-4;
+<div class="footer">
+  <span>SOS Energia — Locação de Geradores</span>
+  <span>OS ${os.num} | ${dataEmissao}</span>
+</div>
+</body></html>`;
 
-      // Box cliente
-      doc.setFillColor(250,250,250);
-      doc.roundedRect(m, y, swCli, 38, 2, 2, 'F');
-      doc.setDrawColor(...cinzaClaro);
-      doc.roundedRect(m, y, swCli, 38, 2, 2, 'S');
-      doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...vermelho);
-      doc.text('ASSINATURA DO CLIENTE', m+swCli/2, y+5, {align:'center'});
-      if(r.assinatura){
-        try{ doc.addImage(r.assinatura,'PNG',m+4,y+7,swCli-8,26); }catch(e){}
-      } else {
-        doc.setFontSize(7);doc.setFont('helvetica','italic');doc.setTextColor(...cinzaClaro);
-        doc.text('(não coletada)', m+swCli/2, y+22, {align:'center'});
-      }
-      doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...cinzaMedio);
-      doc.text(r.respCliente?'Resp: '+r.respCliente:'', m+3, y+36);
-
-      // Box operador
-      const xOp=m+swCli+6;
-      doc.setFillColor(250,250,250);
-      doc.roundedRect(xOp, y, swOp, 38, 2, 2, 'F');
-      doc.setDrawColor(...cinzaClaro);
-      doc.roundedRect(xOp, y, swOp, 38, 2, 2, 'S');
-      doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...vermelho);
-      doc.text('ASSINATURA DO OPERADOR', xOp+swOp/2, y+5, {align:'center'});
-      if(r.assinaturaOp){
-        try{ doc.addImage(r.assinaturaOp,'PNG',xOp+4,y+7,swOp-8,26); }catch(e){}
-      } else {
-        doc.setFontSize(7);doc.setFont('helvetica','italic');doc.setTextColor(...cinzaClaro);
-        doc.text('(não coletada)', xOp+swOp/2, y+22, {align:'center'});
-      }
-      doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...cinzaMedio);
-      doc.text(r.nomeOperador||r.operadorNome||'', xOp+3, y+36);
-
-      y+=42;
-    }
-    y+=4;
-  }
-
-  // ─── RODAPÉ ────────────────────────────────────────
-  const pageCount=doc.internal.getNumberOfPages();
-  for(let i=1;i<=pageCount;i++){
-    doc.setPage(i);
-    doc.setFillColor(...preto);
-    doc.rect(0,287,W,10,'F');
-    doc.setFillColor(...vermelho);
-    doc.rect(0,287,4,10,'F');
-    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...cinzaClaro);
-    doc.text('SOS Energia — Locação de Geradores', m, 293);
-    doc.text(`OS ${os.num} | Gerado em ${new Date().toLocaleString('pt-BR')}`, W-m, 293, {align:'right'});
-    doc.text(`Página ${i} de ${pageCount}`, W/2, 293, {align:'center'});
-  }
-
-  doc.save(`SOS-OS-${os.num}-${(os.cliente||'').replace(/\s+/g,'-')}.pdf`);
-  showToast('PDF gerado com sucesso!');
-  }catch(e){
-    console.error('Erro ao gerar PDF:',e);
-    showToast('Erro ao gerar PDF: '+(e&&e.message?e.message:'falha desconhecida'),'err');
-  }
+  const win=window.open('','_blank');
+  if(!win){showToast('Popup bloqueado. Permita popups para este site.','err');return;}
+  win.document.write(html);
+  win.document.close();
+  showToast('PDF pronto — clique em "Salvar / Imprimir PDF"');
 }
 
 // ════════════════════════════════════════
