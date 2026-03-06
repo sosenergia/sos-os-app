@@ -464,7 +464,7 @@ function showFormOS(){
   <div class="card">
     <div class="card-title">Dados do Evento / Cliente</div>
     <div class="grid2">
-      <div class="field"><label>Nº OS</label><input id="f-num" value="${num}"/></div>
+      <div class="field"><label>Nº OS</label><input id="f-num" value="${num}" readonly style="background:var(--dark);opacity:.6;cursor:not-allowed"/></div>
       <div class="field"><label>Cliente</label><input id="f-cli" placeholder="Nome do cliente"/></div>
     </div>
     <div class="field"><label>Nome do Evento</label><input id="f-evt" placeholder="Ex: CORRIDA DAS FLORES"/></div>
@@ -490,25 +490,6 @@ function showFormOS(){
     <div class="grid2">
       <div class="field"><label>Potência (KVA)</label><input id="f-pot" placeholder="Ex: 180 KVA"/></div>
       <div class="field"><label>Nº Patrimônio</label><input id="f-pat" placeholder="Ex: G-042"/></div>
-    </div>
-    <div class="grid3">
-      <div class="field"><label>Marca Motor</label><input id="f-motor" placeholder="SCANIA"/></div>
-      <div class="field"><label>Nº Série Motor</label><input id="f-smot"/></div>
-      <div class="field"><label>Alternador</label><input id="f-alt" placeholder="WEG"/></div>
-    </div>
-    <div class="grid2">
-      <div class="field"><label>Marca Grupo</label><input id="f-grp" placeholder="FG WILSON"/></div>
-      <div class="field"><label>Painel</label>
-        <select id="f-pain"><option>Analógico</option><option>Digital Automático</option><option>Digital Paralelo</option></select>
-      </div>
-    </div>
-    <div class="grid2">
-      <div class="field"><label>Seguimento</label>
-        <select id="f-seg"><option>Eventos</option><option>Indústria</option><option>Infraestrutura</option><option>Off/On Shore</option><option>Construção</option><option>Comércio</option><option>Governo</option><option>TV & Comunicação</option><option>Saúde</option><option>Outros</option></select>
-      </div>
-      <div class="field"><label>Aplicação</label>
-        <select id="f-apl"><option>Evento</option><option>Longa Duração</option><option>Emergência</option><option>Dedicado</option></select>
-      </div>
     </div>
   </div>
   <div class="card">
@@ -594,13 +575,6 @@ function criarOS(){
     instrucoes:document.getElementById('f-inst').value,
     potencia:document.getElementById('f-pot').value,
     patrimonio:document.getElementById('f-pat').value,
-    motor:document.getElementById('f-motor').value,
-    serieMotor:document.getElementById('f-smot').value,
-    alternador:document.getElementById('f-alt').value,
-    grupo:document.getElementById('f-grp').value,
-    painel:document.getElementById('f-pain').value,
-    seguimento:document.getElementById('f-seg').value,
-    aplicacao:document.getElementById('f-apl').value,
     diasContratados:[...diasContratados],
     operadorId:opId,
     operadorNome:opUser?opUser.nome:'',
