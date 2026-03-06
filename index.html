@@ -819,13 +819,12 @@ function calcHE(){
   // HE máquina
   const dc=opOS.diasContratados?.find(d=>d.data===data);
   const wEl=document.getElementById('he-maq-warn');
-  if(dc&&wEl){
-    const cI=toMin(dc.hIni),cF=toMin(dc.hFim);
-    let heM=0;
-    if(pM<cI) heM+=(cI-pM)/60;
-    if(sM>cF) heM+=(sM-cF)/60;
-    if(heM>0){
-      document.getElementById('he-maq-txt').textContent=`Gerador operou ${heM.toFixed(1)}h fora do contratado (${dc.hIni}–${dc.hFim}).`;
+  // HE máquina — regra: contrato sempre 12h independente do horário
+  const CONTRATO_MAQUINA_H = 12;
+  const heM_calc = Math.max(0, totH - CONTRATO_MAQUINA_H);
+  if(wEl){
+    if(heM_calc > 0){
+      document.getElementById('he-maq-txt').textContent=`Gerador operou ${totH.toFixed(1)}h — excedeu ${heM_calc.toFixed(1)}h do contrato de ${CONTRATO_MAQUINA_H}h.`;
       wEl.classList.add('show');
     } else wEl.classList.remove('show');
   }
@@ -878,9 +877,9 @@ function finalizarReg(){
   const _opUser=opOS?usuarios.find(u=>u.id===opOS.operadorId):null;
   const _heValorOp=(_opUser&&_opUser.heValor>0)?_opUser.heValor:config.heValor;
   const valHEop=heO*_heValorOp;
-  const dc=opOS.diasContratados?.find(d=>d.data===data);
-  let heM=0;
-  if(dc){const cI=toMin(dc.hIni),cF=toMin(dc.hFim);if(pM<cI)heM+=(cI-pM)/60;if(sM>cF)heM+=(sM-cF)/60;}
+  // HE máquina — sempre 12h de contrato, independente do horário configurado
+  const _CONTRATO_H = 12;
+  const heM = Math.max(0, totH - _CONTRATO_H);
   const sigCliente=sigPads['sigCanvas']?.hasData?document.getElementById('sigCanvas').toDataURL('image/png'):null;
   const sigOperador=sigPads['sigCanvasOp']?.hasData?document.getElementById('sigCanvasOp').toDataURL('image/png'):null;
   lastReg={
