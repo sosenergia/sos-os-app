@@ -160,7 +160,7 @@
 <!-- ═══ NAV ═══ -->
 <nav class="nav" id="main-nav" style="display:none">
   <div class="nav-left">
-    <svg class="nav-logo-sm" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+    <svg class="nav-logo-sm" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" onclick="irParaOS()" style="cursor:pointer" title="Voltar para OS">
       <rect width="200" height="80" fill="#141414"/>
       <text x="100" y="58" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="52" fill="#CC0000">SOS</text>
       <polygon points="101,8 93,37 100,37 96,66 110,32 103,32" fill="#CC0000" opacity=".55"/>
@@ -402,6 +402,13 @@ function buildNav(){
   // load first
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+(isAdmin?'admin':'operador')).classList.add('active');
+}
+
+function irParaOS(){
+  const isAdmin=sessaoAtual&&(sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial');
+  const targetId=isAdmin?'admin':'operador';
+  const btn=Array.from(document.querySelectorAll('.nav-tab')).find(b=>b.textContent.trim()===(isAdmin?'OS':'Operador'));
+  if(btn) switchPage(targetId,btn);
 }
 
 function switchPage(id,btn){
