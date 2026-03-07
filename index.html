@@ -1204,10 +1204,15 @@ function finalizarReg(){
   if(!data||!part||!par){alert('Preencha data e horários.');return;}
   const pM=toMin(part),sM=toMin(par);
   const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
-  const jorH=(toMin(config.jornadaFim)-toMin(config.jornadaIni))/60-config.intervalo;
-  const heO=Math.max(0,totH-config.intervalo-jorH);
-  // Cálculo proporcional: usa valor HE individual do operador
-  const _opUser=opOS?usuarios.find(u=>u.id===opOS.operadorId):null;
+  // HE do operador = diferença entre heIni e heFim que ele informou
+  const _heIni=document.getElementById('op-he-ini')?.value||'';
+  const _heFim=document.getElementById('op-he-fim')?.value||'';
+  let heO=0;
+  if(_heIni&&_heFim){
+    const hIniM=toMin(_heIni),hFimM=toMin(_heFim);
+    heO=(hFimM>hIniM?hFimM-hIniM:hFimM+1440-hIniM)/60;
+  }
+  const _opUser=opOS?usuarios.find(u=>u.id===sessaoAtual.id):null;
   const _heValorOp=(_opUser&&_opUser.heValor>0)?_opUser.heValor:config.heValor;
   const valHEop=heO*_heValorOp;
   // HE máquina — sempre 12h de contrato, independente do horário configurado
@@ -1957,11 +1962,16 @@ function loadHistorico(){
     <p style="font-size:12px;color:var(--dim);margin-bottom:12px">Visualização somente leitura. Para alterações, contate o administrador.</p>
     ${minhasOS.slice().reverse().map(os=>{
       const regsOS=meusRegs.filter(r=>r.osId===os.id);
-      // Soma total de HE de todos os registros desta OS
-      const jorH=(toMin(config.jornadaFim)-toMin(config.jornadaIni))/60-config.intervalo;
+      // Soma total de HE: usa heOperador gravado (calculado pelo período informado)
       const totalHEmin=regsOS.reduce((acc,r)=>{
-        let heO=r.heOperador||0;
-        if(heO===0&&r.totalHoras) heO=Math.max(0,(r.totalHoras||0)-config.intervalo-jorH);
+        // Recalcula pelo período heIni/heFim se disponível; caso contrário usa heOperador gravado
+        let heO=0;
+        if(r.heIni&&r.heFim){
+          const hIniM=toMin(r.heIni),hFimM=toMin(r.heFim);
+          heO=(hFimM>hIniM?hFimM-hIniM:hFimM+1440-hIniM)/60;
+        } else {
+          heO=r.heOperador||0;
+        }
         return acc+Math.round(heO*60);
       },0);
       return `<div class="os-item" style="cursor:default">
