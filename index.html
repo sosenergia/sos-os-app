@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v4.6</title>
+  <title>SOS Energia — OS Digital v4.7</title>
   <style>
     :root{
       --red:#CC0000;--red-dark:#990000;--red-light:#ff3333;
@@ -2268,7 +2268,7 @@ ${registrosHTML||'<p style="color:#aaa;padding:8px 4px;font-size:11px">Nenhum re
   win.document.write(html);
   win.document.close();
   showToast('PDF pronto — clique em "Salvar / Imprimir PDF"');
-  }catch(e){showToast('Erro ao gerar PDF: '+(e&&e.message?e.message:String(e)),'err');console.error('_gerarPDF error',e);}
+  }catch(e){const msg='Erro ao gerar PDF: '+(e&&e.message?e.message:String(e));console.error('_gerarPDF error',e);showToast(msg,'err');alert(msg);}
 }
 
 // ════════════════════════════════════════
