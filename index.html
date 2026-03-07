@@ -1965,9 +1965,17 @@ function loadHistorico(){
         <div style="font-size:14px;color:var(--dim);margin-bottom:3px">${os.cliente}${os.evento?' · '+os.evento:''}</div>
         <div style="font-size:12px;color:var(--dim)">${os.dataSaida} → ${os.dataRetorno}</div>
         ${regsOS.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-          ${regsOS.map(r=>`<div style="font-size:12px;color:var(--dim);margin-bottom:4px">
-            📋 ${fmtData(r.data)} · Liga: ${r.partida} → Desliga: ${r.parada} · ${(r.totalHoras||0).toFixed(1)}h
-          </div>`).join('')}
+          ${regsOS.map(r=>{
+            const heO=r.heOperador||0;
+            const heIniStr=r.heIni?` · HE: ${r.heIni}–${r.heFim||'?'}`:' · Sem HE';
+            const heMin=Math.round(heO*60);
+            return `<div style="font-size:12px;color:var(--dim);margin-bottom:6px">
+              📋 ${fmtData(r.data)} · Liga: ${r.partida} → Desliga: ${r.parada} · ${(r.totalHoras||0).toFixed(1)}h
+              ${heO>0
+                ? `<span style="color:var(--yellow);margin-left:4px">⚠️ ${heMin}min HE${r.heIni?' ('+r.heIni+'–'+(r.heFim||'?')+')':''}</span>`
+                : `<span style="color:var(--green);margin-left:4px">✓ Sem hora extra</span>`}
+            </div>`;
+          }).join('')}
         </div>`:''}
       </div>`;
     }).join('')}
