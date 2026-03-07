@@ -107,6 +107,21 @@
     .chat-input-row{display:flex;gap:8px}
     .chat-input-row input{flex:1;background:var(--dark);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 13px;outline:none}
     .chat-input-row input:focus{border-color:var(--red)}
+    /* ── EQUIPAMENTOS ── */
+    .equip-item{background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;position:relative}
+    .equip-item .equip-tipo{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:2px 8px;border-radius:10px;display:inline-block;margin-bottom:8px}
+    .equip-item .equip-tipo.gerador{background:rgba(204,0,0,.15);color:var(--red-light)}
+    .equip-item .equip-tipo.acessorio{background:rgba(139,92,246,.15);color:var(--purple)}
+    .equip-remove{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;line-height:1;padding:2px 6px}
+    .equip-remove:hover{color:var(--red)}
+    .equip-add-btns{display:flex;gap:8px;margin-top:4px}
+    .btn-add-gerador{background:rgba(204,0,0,.1);border:1px solid rgba(204,0,0,.3);color:var(--red-light);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;flex:1}
+    .btn-add-acessorio{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);color:var(--purple);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;flex:1}
+    .btn-add-gerador:hover{background:rgba(204,0,0,.2)}
+    .btn-add-acessorio:hover{background:rgba(139,92,246,.2)}
+    /* conferência de acessórios no operador */
+    .acessorio-check{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--dark);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px}
+    .acessorio-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--red);cursor:pointer;flex-shrink:0}
     .btn-mic{background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--dim);padding:0 12px;cursor:pointer;flex-shrink:0;font-size:18px;display:flex;align-items:center;transition:all .2s}
     .btn-mic.gravando{background:rgba(204,0,0,.15);border-color:var(--red);color:var(--red);animation:pulse-mic .8s ease-in-out infinite}
     @keyframes pulse-mic{0%,100%{box-shadow:0 0 0 0 rgba(204,0,0,.4)}50%{box-shadow:0 0 0 6px rgba(204,0,0,0)}}
@@ -251,6 +266,9 @@ function initFirebaseListeners() {
       ...o,
       diasContratados: o.diasContratados
         ? (Array.isArray(o.diasContratados) ? o.diasContratados : Object.values(o.diasContratados))
+        : [],
+      equipamentos: o.equipamentos
+        ? (Array.isArray(o.equipamentos) ? o.equipamentos : Object.values(o.equipamentos))
         : []
     })) : [];
     DB.set('sos_ordens', ordens);
@@ -501,10 +519,12 @@ function showFormOS(){
     <div class="field"><label>Instruções para a Locação</label><textarea id="f-inst" placeholder="Horário de instalação, local exato, observações..."></textarea></div>
   </div>
   <div class="card">
-    <div class="card-title">Gerador</div>
-    <div class="grid2">
-      <div class="field"><label>Potência (KVA)</label><input id="f-pot" placeholder="Ex: 180 KVA"/></div>
-      <div class="field"><label>Nº Patrimônio</label><input id="f-pat" placeholder="Ex: G-042"/></div>
+    <div class="card-title">Equipamentos</div>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">Adicione geradores (com horímetro) e acessórios (cabos, caixas, gradis, etc.) que fazem parte desta OS.</p>
+    <div id="equip-lista"></div>
+    <div class="equip-add-btns">
+      <button class="btn-add-gerador" onclick="addEquip('gerador')">⚡ + Gerador</button>
+      <button class="btn-add-acessorio" onclick="addEquip('acessorio')">🔌 + Acessório</button>
     </div>
   </div>
   <div class="card">
@@ -525,7 +545,114 @@ function showFormOS(){
   <span class="save-feedback" id="fb-criar-os" style="margin-bottom:8px"></span>
   <button class="btn btn-ghost" style="margin-top:4px" onclick="cancelarOS()">Cancelar</button>`;
   diasContratados=[];
+  equipamentosOS=[];
+  renderEquip();
   refreshDias();
+}
+
+// ── EQUIPAMENTOS DA OS ──
+let equipamentosOS=[];
+
+function addEquip(tipo){
+  equipamentosOS.push(tipo==='gerador'
+    ? {id:'eq_'+Date.now(),tipo:'gerador',potencia:'',patrimonio:''}
+    : {id:'eq_'+Date.now(),tipo:'acessorio',nome:'',quantidade:'1'});
+  renderEquip();
+  // foco no primeiro campo do item adicionado
+  setTimeout(()=>{
+    const inputs=document.querySelectorAll('#equip-lista .equip-item:last-child input');
+    if(inputs[0]) inputs[0].focus();
+  },50);
+}
+
+function removeEquip(id){
+  equipamentosOS=equipamentosOS.filter(e=>e.id!==id);
+  renderEquip();
+}
+
+function renderEquip(){
+  const c=document.getElementById('equip-lista');if(!c) return;
+  if(!equipamentosOS.length){
+    c.innerHTML='<p style="font-size:12px;color:var(--dim);margin-bottom:10px;text-align:center;padding:10px 0">Nenhum equipamento adicionado. Clique em + Gerador ou + Acessório.</p>';
+    return;
+  }
+  c.innerHTML=equipamentosOS.map((eq,i)=>{
+    if(eq.tipo==='gerador'){
+      return `<div class="equip-item">
+        <span class="equip-tipo gerador">⚡ Gerador</span>
+        <button class="equip-remove" onclick="removeEquip('${eq.id}')" title="Remover">×</button>
+        <div class="grid2">
+          <div class="field" style="margin:0 0 6px">
+            <label style="font-size:10px">Potência (KVA)</label>
+            <input value="${eq.potencia}" placeholder="Ex: 180 KVA" oninput="equipamentosOS[${i}].potencia=this.value"/>
+          </div>
+          <div class="field" style="margin:0 0 6px">
+            <label style="font-size:10px">Nº Patrimônio</label>
+            <input value="${eq.patrimonio}" placeholder="Ex: G-042" oninput="equipamentosOS[${i}].patrimonio=this.value"/>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      return `<div class="equip-item">
+        <span class="equip-tipo acessorio">🔌 Acessório</span>
+        <button class="equip-remove" onclick="removeEquip('${eq.id}')" title="Remover">×</button>
+        <div class="grid2">
+          <div class="field" style="margin:0 0 6px;grid-column:1/-1">
+            <label style="font-size:10px">Nome do Acessório</label>
+            <input value="${eq.nome}" placeholder="Ex: Cabo PP 150mm² — 50m, Caixa intermediária, Gradil, Passa-cabos..." oninput="equipamentosOS[${i}].nome=this.value"/>
+          </div>
+          <div class="field" style="margin:0">
+            <label style="font-size:10px">Quantidade</label>
+            <input type="number" min="1" value="${eq.quantidade}" placeholder="1" oninput="equipamentosOS[${i}].quantidade=this.value"/>
+          </div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+// Renderiza lista de equipamentos como texto resumido (para tabela admin)
+function renderEquipTexto(os){
+  const eqs=os.equipamentos&&os.equipamentos.length?os.equipamentos:[];
+  if(!eqs.length){
+    // retrocompatibilidade com OS antigas (só tinham potencia/patrimonio)
+    return (os.potencia||'')+(os.patrimonio?' · '+os.patrimonio:'') || '—';
+  }
+  return eqs.map(e=>
+    e.tipo==='gerador'
+      ? `⚡ ${e.potencia||'Gerador'}${e.patrimonio?' ('+e.patrimonio+')':''}`
+      : `🔌 ${e.nome||'Acessório'}${e.quantidade&&e.quantidade!='1'?' ×'+e.quantidade:''}`
+  ).join('<br/>');
+}
+
+// Renderiza lista de acessórios para o operador confirmar (step 1)
+function renderAcessoriosOperador(os){
+  const eqs=os.equipamentos&&os.equipamentos.length?os.equipamentos:[];
+  const acessorios=eqs.filter(e=>e.tipo==='acessorio');
+  if(!acessorios.length) return '';
+  return `<div class="card" style="margin-top:12px">
+    <div class="card-title" style="color:var(--purple)">🔌 Confirmação de Acessórios</div>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Marque os itens que você conferiu e levou para o evento:</p>
+    ${acessorios.map(a=>`
+      <div class="acessorio-check">
+        <input type="checkbox" id="ck_${a.id}" onchange="atualizarAcessorioCheck()"/>
+        <label for="ck_${a.id}" style="cursor:pointer;flex:1">
+          ${a.nome||'Acessório'}
+          ${a.quantidade&&a.quantidade!='1'?`<span style="color:var(--dim);font-size:11px"> × ${a.quantidade}</span>`:''}
+        </label>
+      </div>`).join('')}
+    <div id="acessorio-aviso" style="display:none;font-size:12px;color:var(--yellow);margin-top:8px">⚠️ Confirme todos os acessórios antes de continuar.</div>
+  </div>`;
+}
+
+function atualizarAcessorioCheck(){
+  if(!opOS) return;
+  const eqs=(opOS.equipamentos||[]).filter(e=>e.tipo==='acessorio');
+  if(!eqs.length) return;
+  const total=eqs.length;
+  const checked=eqs.filter(a=>document.getElementById('ck_'+a.id)?.checked).length;
+  const aviso=document.getElementById('acessorio-aviso');
+  if(aviso) aviso.style.display=checked<total?'block':'none';
 }
 
 function refreshDias(){
@@ -588,8 +715,10 @@ function criarOS(){
     fone:document.getElementById('f-fone').value,
     cnpj:document.getElementById('f-cnpj').value,
     instrucoes:document.getElementById('f-inst').value,
-    potencia:document.getElementById('f-pot').value,
-    patrimonio:document.getElementById('f-pat').value,
+    equipamentos:equipamentosOS.length?[...equipamentosOS]:[],
+    // compatibilidade retroativa: primeiro gerador como potencia/patrimonio
+    potencia:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).potencia||'',
+    patrimonio:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).patrimonio||'',
     diasContratados:[...diasContratados],
     operadorId:opId,
     operadorNome:opUser?opUser.nome:'',
@@ -640,7 +769,7 @@ function verOS(id){
     <div class="card-title">OS ${os.num} — ${os.cliente}</div>
     <table class="tbl">
       <tr><td style="color:var(--dim)">Evento</td><td>${os.evento||'—'}</td></tr>
-      <tr><td style="color:var(--dim)">Gerador</td><td>${os.potencia} · ${os.patrimonio}</td></tr>
+      <tr><td style="color:var(--dim)">Equipamentos</td><td>${renderEquipTexto(os)}</td></tr>
       <tr><td style="color:var(--dim)">Período</td><td>${os.dataSaida} → ${os.dataRetorno}</td></tr>
       <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''}, ${os.cidade||''}/${os.uf||''}</td></tr>
       <tr><td style="color:var(--dim)">Operador</td><td>${os.operadorNome||'—'}</td></tr>
@@ -730,15 +859,18 @@ function buildOpForm(os){
         <tr><td style="color:var(--dim)">Cliente</td><td><strong>${os.cliente}</strong></td></tr>
         ${os.evento?`<tr><td style="color:var(--dim)">Evento</td><td>${os.evento}</td></tr>`:''}
         <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''} ${os.cidade?'— '+os.cidade:''}${os.uf?'/'+os.uf:''}</td></tr>
-        <tr><td style="color:var(--dim)">Gerador</td><td>${os.potencia} · ${os.patrimonio}</td></tr>
+        <tr><td style="color:var(--dim)">Equipamentos</td><td>${renderEquipTexto(os)}</td></tr>
         ${os.instrucoes?`<tr><td style="color:var(--dim)">Instruções</td><td style="white-space:pre-line">${os.instrucoes}</td></tr>`:''}
       </table>
     </div>
     <button class="btn btn-primary" onclick="opStep(1)">Iniciar Registro →</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="loadOperador()">← Voltar</button>
   </div>
-  <!-- Step 1: Horários -->
+  <!-- Step 1: Horários + Acessórios -->
   <div id="op1" style="display:none">
+    ${(()=>{
+      const temGerador=(os.equipamentos&&os.equipamentos.some(e=>e.tipo==='gerador'))||(os.potencia&&!os.equipamentos?.length);
+      return temGerador?`
     <div class="card">
       <div class="card-title">Registro do Dia</div>
       <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}"/></div>
@@ -757,7 +889,21 @@ function buildOpForm(os){
       </div>
       <div id="he-op-res" style="display:none;margin-top:10px;background:var(--dark);border-radius:8px;padding:10px;font-size:13px"></div>
       <div class="field" style="margin-top:12px"><label>Observações</label><textarea id="op-obs" placeholder="Ocorrências, abastecimento, solicitações..."></textarea></div>
-    </div>
+    </div>` : `
+    <div class="card">
+      <div class="card-title">Registro do Dia</div>
+      <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}"/></div>
+      <div style="background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);border-radius:8px;padding:10px;font-size:12px;color:var(--dim);margin-bottom:8px">
+        ℹ️ Esta OS não possui gerador — apenas acessórios. Não há horímetro ou cálculo de horas.
+      </div>
+      <input type="hidden" id="op-part" value="00:00"/>
+      <input type="hidden" id="op-par" value="00:00"/>
+      <input type="hidden" id="op-hi" value=""/>
+      <input type="hidden" id="op-hf" value=""/>
+      <div class="field"><label>Observações</label><textarea id="op-obs" placeholder="Ocorrências, solicitações..."></textarea></div>
+    </div>`;
+    })()}
+    ${renderAcessoriosOperador(os)}
     <button class="btn btn-primary" onclick="opStep(2)">Próximo: Transporte →</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(0)">← Voltar</button>
   </div>
@@ -1572,10 +1718,24 @@ function _gerarPDF(os, regsOS){
   ${os.instrucoes?`<div class="info-row info-full"><span class="info-lbl">Instruções</span><span class="info-val">${os.instrucoes}</span></div>`:''}
 </div>
 
-<div class="sec-title">Gerador</div>
-<div class="info-grid">
-  <div class="info-row"><span class="info-lbl">Potência</span><span class="info-val">${os.potencia||'—'}</span></div>
-  <div class="info-row"><span class="info-lbl">Patrimônio</span><span class="info-val">${os.patrimonio||'—'}</span></div>
+<div class="sec-title">Equipamentos</div>
+<div style="padding:0 4px;margin-bottom:4px">
+${(()=>{
+  const eqs=os.equipamentos&&os.equipamentos.length?os.equipamentos:[];
+  if(!eqs.length) return `<div class="info-row"><span class="info-lbl">Gerador</span><span class="info-val">${os.potencia||'—'} · ${os.patrimonio||'—'}</span></div>`;
+  const geradores=eqs.filter(e=>e.tipo==='gerador');
+  const acessorios=eqs.filter(e=>e.tipo==='acessorio');
+  let html='';
+  if(geradores.length){
+    html+=`<div style="font-size:9px;font-weight:700;color:#CC0000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Geradores</div>`;
+    html+=`<div class="info-grid" style="margin-bottom:8px">`+geradores.map(g=>`<div class="info-row"><span class="info-lbl">⚡ ${g.potencia||'—'}</span><span class="info-val">Pat: ${g.patrimonio||'—'}</span></div>`).join('')+`</div>`;
+  }
+  if(acessorios.length){
+    html+=`<div style="font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:4px">Acessórios</div>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">`+acessorios.map(a=>`<span style="background:#f3f4f6;border:1px solid #ddd;border-radius:4px;padding:2px 7px;font-size:9px">🔌 ${a.nome||'—'}${a.quantidade&&a.quantidade!='1'?' ×'+a.quantidade:''}</span>`).join('')+`</div>`;
+  }
+  return html;
+})()}
 </div>
 
 <div class="sec-title">Registros do Operador (${regsOS.length})</div>
