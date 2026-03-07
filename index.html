@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v3.4</title>
+  <title>SOS Energia — OS Digital v3.5</title>
   <style>
     :root{
       --red:#CC0000;--red-dark:#990000;--red-light:#ff3333;
@@ -305,6 +305,7 @@ function doLoginFirebase(userVal, passVal) {
     usuarios = lista;
     DB.set('sos_usuarios', usuarios);
     sessaoAtual = found;
+    localStorage.setItem('sos_sessao', JSON.stringify(found));
     initFirebaseListeners();
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-nav').style.display = 'flex';
@@ -317,6 +318,7 @@ function doLoginFirebase(userVal, passVal) {
     const found = usuarios.find(x => x.user.toLowerCase() === userVal && x.senha === passVal);
     if (!found) { document.getElementById('login-err').style.display = 'block'; document.getElementById('login-btn').disabled = false; document.getElementById('login-btn').textContent = 'Entrar'; return; }
     sessaoAtual = found;
+    localStorage.setItem('sos_sessao', JSON.stringify(found));
     initFirebaseListeners();
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-nav').style.display = 'flex';
@@ -369,6 +371,44 @@ let config     = DB.get('sos_config',{
 });
 let sessaoAtual = null; // usuário logado
 
+// Restaurar sessão salva (persiste entre recargas)
+(function restoreSessao(){
+  try {
+    const saved = localStorage.getItem('sos_sessao');
+    if (!saved) return;
+    const found = JSON.parse(saved);
+    if (!found || !found.user) return;
+    sessaoAtual = found;
+    // Aguarda DOM + Firebase pronto via evento customizado ou timeout
+    function _doRestore(){
+      // Atualiza dados do usuário com versão mais recente do Firebase
+      db.ref('usuarios').once('value').then(snap=>{
+        if(snap.val()){
+          const lista=Object.values(snap.val());
+          usuarios=lista;
+          DB.set('sos_usuarios',usuarios);
+          const atualizado=lista.find(u=>u.user===found.user);
+          if(atualizado) { sessaoAtual=atualizado; localStorage.setItem('sos_sessao',JSON.stringify(atualizado)); }
+        }
+      }).catch(()=>{}).finally(()=>{
+        initFirebaseListeners();
+        document.getElementById('login-screen').style.display='none';
+        document.getElementById('main-nav').style.display='flex';
+        document.getElementById('nav-user-chip').textContent=sessaoAtual.nome+' ('+sessaoAtual.perfil+')';
+        buildNav();
+        if(sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial') loadAdmin();
+        else loadOperador();
+      });
+    }
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded',_doRestore);
+    } else {
+      // DOM pronto — espera Firebase inicializar (já inicializado no topo)
+      setTimeout(_doRestore, 300);
+    }
+  } catch(e){ localStorage.removeItem('sos_sessao'); }
+})();
+
 function saveAll(){
   DB.set('sos_ordens',ordens);DB.set('sos_registros',registros);
   DB.set('sos_usuarios',usuarios);DB.set('sos_config',config);
@@ -396,6 +436,7 @@ function doLogout(){
   db.ref('usuarios').off();
   db.ref('config').off();
   sessaoAtual=null;
+  localStorage.removeItem('sos_sessao');
   document.getElementById('main-nav').style.display='none';
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('login-user').value='';
