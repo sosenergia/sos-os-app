@@ -1966,8 +1966,12 @@ function loadHistorico(){
         <div style="font-size:12px;color:var(--dim)">${os.dataSaida} → ${os.dataRetorno}</div>
         ${regsOS.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
           ${regsOS.map(r=>{
-            const heO=r.heOperador||0;
-            const heIniStr=r.heIni?` · HE: ${r.heIni}–${r.heFim||'?'}`:' · Sem HE';
+            // Usa heOperador gravado; se zero, recalcula pela jornada config
+            let heO=r.heOperador||0;
+            if(heO===0 && r.totalHoras){
+              const jorH=(toMin(config.jornadaFim)-toMin(config.jornadaIni))/60-config.intervalo;
+              heO=Math.max(0,(r.totalHoras||0)-config.intervalo-jorH);
+            }
             const heMin=Math.round(heO*60);
             return `<div style="font-size:12px;color:var(--dim);margin-bottom:6px">
               📋 ${fmtData(r.data)} · Liga: ${r.partida} → Desliga: ${r.parada} · ${(r.totalHoras||0).toFixed(1)}h
