@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v4.5</title>
+  <title>SOS Energia — OS Digital v4.6</title>
   <style>
     :root{
       --red:#CC0000;--red-dark:#990000;--red-light:#ff3333;
@@ -1374,12 +1374,25 @@ let lastReg=null;
 let regEnviado=false; // trava de reenvio
 function finalizarReg(){
   if(regEnviado){alert('Esta OS já foi enviada. Para registrar outro dia, volte e selecione a OS novamente.');return;}
+  // Coletar todos os geradores da OS
+  const gerOp=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+  // Copiar campos legado do primeiro gerador ANTES de validar
+  if(gerOp.length>0){
+    const g0=document.getElementById('op-part-0');
+    const gp0=document.getElementById('op-par-0');
+    if(g0) document.getElementById('op-part').value=g0.value||'';
+    if(gp0) document.getElementById('op-par').value=gp0.value||'';
+    const hi0=document.getElementById('op-hi-0');
+    const hf0=document.getElementById('op-hf-0');
+    if(hi0) document.getElementById('op-hi').value=hi0.value||'';
+    if(hf0) document.getElementById('op-hf').value=hf0.value||'';
+  }
   const hi=document.getElementById('op-hi')?.value;
   if(!hi){ alert('Preencha o Horímetro Inicial.'); return; }
   const data=document.getElementById('op-data')?.value;
   const part=document.getElementById('op-part')?.value;
   const par=document.getElementById('op-par')?.value;
-  if(!data||!part||!par){alert('Preencha data e horários.');return;}
+  if(!data||!part||!par){alert('Preencha data e horários do gerador.');return;}
   const pM=toMin(part),sM=toMin(par);
   const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
   // Coletar horários por gerador (múltiplos geradores)
@@ -1391,15 +1404,8 @@ function finalizarReg(){
       liga:document.getElementById('op-part-'+gi)?.value||'',
       desliga:document.getElementById('op-par-'+gi)?.value||''
     }));
-    // Usar o primeiro gerador para calcHE (compatibilidade)
-    const el0part=document.getElementById('op-part');
-    const el0par=document.getElementById('op-par');
-    if(el0part&&horariosPorGerador[0]) el0part.value=horariosPorGerador[0].liga;
-    if(el0par&&horariosPorGerador[0]) el0par.value=horariosPorGerador[0].desliga;
   }
-  // HE do operador = diferença entre heIni e heFim que ele informou
-  // Coletar horários de todos os geradores
-  const gerOp=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+  // Coletar horários detalhados de todos os geradores
   const horariosGeradores = gerOp.length>0 ? gerOp.map((g,gi)=>{
     const ligou=document.getElementById('op-part-'+gi)?.value||'';
     const desligou=document.getElementById('op-par-'+gi)?.value||'';
@@ -1413,17 +1419,6 @@ function finalizarReg(){
     if(heIniG&&heFimG){const pM=toMin(heIniG),sM=toMin(heFimG);heH=(sM>pM?sM-pM:sM+1440-pM)/60;}
     return {id:g.id,potencia:g.potencia,patrimonio:g.patrimonio,ligou,desligou,horIni,horFim,horasRodadas,heIni:heIniG,heFim:heFimG,heH};
   }) : [];
-  // Compatibilidade: usar primeiro gerador para campos legado
-  if(gerOp.length>0){
-    const g0=document.getElementById('op-part-0');
-    const gp0=document.getElementById('op-par-0');
-    if(g0) document.getElementById('op-part').value=g0.value||'';
-    if(gp0) document.getElementById('op-par').value=gp0.value||'';
-    const hi0=document.getElementById('op-hi-0');
-    const hf0=document.getElementById('op-hf-0');
-    if(hi0) document.getElementById('op-hi').value=hi0.value||'';
-    if(hf0) document.getElementById('op-hf').value=hf0.value||'';
-  }
   const _heIni=document.getElementById('op-he-ini')?.value||'';
   const _heFim=document.getElementById('op-he-fim')?.value||'';
   let heO=0;
