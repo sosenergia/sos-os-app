@@ -947,13 +947,14 @@ function loadOperador(){
   if(osParam){const os=ordens.find(o=>o.id===osParam);if(os){el.innerHTML='';buildOpForm(os);return;}}
   // listar OS do operador (ou todas se admin)
   const isAdmin=sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial';
-  // OS já enviadas pelo operador atual (não devem aparecer em "Minhas OS")
-  const osEnviadasIds=new Set(registros.filter(r=>r.operadorId===sessaoAtual.id||r.operadorNome===sessaoAtual.nome).map(r=>r.osId));
   const lista=ordens.filter(o=>{
     if(o.status==='fechada') return false;
     if(isAdmin) return true;
     const atribuida=(o.operadores&&o.operadores.some(op=>op.userId===sessaoAtual.id))||o.operadorId===sessaoAtual.id;
-    return atribuida && !osEnviadasIds.has(o.id);
+    if(!atribuida) return false;
+    // Oculta se este operador já enviou o registro (campo gravado diretamente na OS)
+    const jaEnviou=o.registradoPor&&o.registradoPor.includes(sessaoAtual.id);
+    return !jaEnviou;
   });
   if(!lista.length){el.innerHTML='<div class="card"><p style="color:var(--dim);font-size:14px;padding:8px 0">Nenhuma OS pendente. Veja seu <strong>Histórico</strong> para OS já enviadas.</p></div>';return;}
   el.innerHTML='<div class="card"><div class="card-title">Minhas OS</div><div id="op-list"></div></div>';
@@ -1230,6 +1231,14 @@ function finalizarReg(){
     criadoEm:new Date().toISOString()
   };
   registros.push(lastReg);
+  // Marca a OS como registrada por este operador (campo direto na OS para filtro confiável)
+  const osIdx=ordens.findIndex(o=>o.id===opOS.id);
+  if(osIdx!==-1){
+    if(!ordens[osIdx].registradoPor) ordens[osIdx].registradoPor=[];
+    if(!ordens[osIdx].registradoPor.includes(sessaoAtual.id)){
+      ordens[osIdx].registradoPor.push(sessaoAtual.id);
+    }
+  }
   const btnFin=document.getElementById('btn-finalizar');
   if(btnFin){btnFin.disabled=true;btnFin.textContent='Enviando...';}
   saveAll().then(()=>{
