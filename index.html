@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v4.8</title>
+  <title>SOS Energia — OS Digital v4.9</title>
   <style>
     :root{
       --red:#CC0000;--red-dark:#990000;--red-light:#ff3333;
@@ -938,10 +938,13 @@ function showLinkPopup(os,link){
 
 function verOS(id){
   const os=ordens.find(o=>o.id===id);if(!os) return;
-  const regs=registros.filter(r=>r.osId===id);
   document.getElementById('os-list').closest('.card').style.display='none';
   const det=document.getElementById('os-detalhe');
   det.style.display='block';
+  det.innerHTML='<div class="card" style="text-align:center;padding:32px;color:var(--dim)">Carregando registros...</div>';
+  // Busca registros frescos do Firebase antes de renderizar
+  const doRender=(regs)=>{
+  det.innerHTML='';
   const link=window.location.href.split('?')[0]+'?os='+os.id;
   det.innerHTML=`
   <div class="card">
@@ -984,6 +987,23 @@ function verOS(id){
   ${regs.length?`<button class="btn btn-primary" style="margin-top:8px;background:#1a1a2e;border:1px solid var(--red)" data-oid="${os.id}" onclick="gerarPDFOS(this.dataset.oid)">📄 Gerar PDF da OS</button>`:''}
   <button class="btn btn-ghost" style="margin-top:8px;color:var(--red-light);border-color:rgba(204,0,0,.3)" data-oid="${os.id}" onclick="excluirOS(this.dataset.oid)">🗑 Excluir OS</button>
   <button class="btn btn-ghost" style="margin-top:8px" onclick="fecharDet()">← Voltar</button>`;
+  }; // end doRender
+  // Busca do Firebase primeiro para garantir dados frescos
+  if(db){
+    db.ref('registros').once('value').then(snap=>{
+      if(snap.val()){
+        const fbRegs=Object.values(snap.val());
+        // Merge: atualiza registros locais com os do Firebase
+        fbRegs.forEach(r=>{ if(!registros.find(x=>x.id===r.id)) registros.push(r); });
+        // Atualiza registros que possam ter mudado
+        registros=registros.map(r=>{ const fb=fbRegs.find(x=>x.id===r.id); return fb||r; });
+        DB.set('sos_registros',registros);
+      }
+      doRender(registros.filter(r=>r.osId===id));
+    }).catch(()=>doRender(registros.filter(r=>r.osId===id)));
+  } else {
+    doRender(registros.filter(r=>r.osId===id));
+  }
 }
 function fecharDet(){document.getElementById('os-detalhe').style.display='none';document.getElementById('os-list').closest('.card').style.display='block';}
 function fecharOSConf(id){if(confirm('Confirmar fechamento desta OS?')){const os=ordens.find(o=>o.id===id);if(os){os.status='fechada';saveAll();verOS(id);}}}
