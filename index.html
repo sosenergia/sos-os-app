@@ -1825,7 +1825,7 @@ function _gerarPDF(os, regsOS){
     totHEOp+=heH;
     totValHE+=heH*heValorH;
   });
-  const heOpMin=Math.round(totHEOp*60);
+  const heOpH=totHEOp.toFixed(1);
   const dataEmissao=new Date().toLocaleString('pt-BR');
 
   const registrosHTML=regsOS.map(r=>{
@@ -1953,7 +1953,7 @@ function _gerarPDF(os, regsOS){
 <div class="dashboard">
   <div class="metric"><div class="m-lbl">Registros</div><div class="m-val m-red">${regsOS.length}</div></div>
   <div class="metric"><div class="m-lbl">Horas Totais</div><div class="m-val">${totHoras.toFixed(1)}h</div></div>
-  <div class="metric"><div class="m-lbl">HE Operador</div><div class="m-val ${totHEOp>0?'m-warn':'m-ok'}">${heOpMin}min</div><div style="font-size:10px;color:${totValHE>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHE>0?'R$ '+totValHE.toFixed(2):'—'}</div></div>
+  <div class="metric"><div class="m-lbl">HE Operador</div><div class="m-val ${totHEOp>0?'m-warn':'m-ok'}">${totHEOp>0?heOpH+'h':'—'}</div><div style="font-size:10px;color:${totValHE>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHE>0?'R$ '+totValHE.toFixed(2):'—'}</div></div>
   <div class="metric"><div class="m-lbl">HE Máquina</div><div class="m-val ${totHEMaq>0?'m-warn':'m-ok'}">${totHEMaq>0?totHEMaq.toFixed(1)+'h':'—'}</div><div style="font-size:10px;color:${totValHEMaq>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHEMaq>0?'R$ '+totValHEMaq.toFixed(2):'—'}</div></div>
 </div>
 
@@ -2055,8 +2055,7 @@ function loadHistorico(){
     ${minhasOS.slice().reverse().map(os=>{
       const regsOS=meusRegs.filter(r=>r.osId===os.id);
       // Soma total de HE: usa heOperador gravado (calculado pelo período informado)
-      const totalHEmin=regsOS.reduce((acc,r)=>{
-        // Recalcula pelo período heIni/heFim se disponível; caso contrário usa heOperador gravado
+      const totalHEh=regsOS.reduce((acc,r)=>{
         let heO=0;
         if(r.heIni&&r.heFim){
           const hIniM=toMin(r.heIni),hFimM=toMin(r.heFim);
@@ -2064,14 +2063,14 @@ function loadHistorico(){
         } else {
           heO=r.heOperador||0;
         }
-        return acc+Math.round(heO*60);
+        return acc+heO;
       },0);
       return `<div class="os-item" style="cursor:default">
         <div class="os-item-header">
           <span style="font-weight:700">OS ${os.num}</span>
           <div style="display:flex;gap:6px;align-items:center">
-            ${regsOS.length&&totalHEmin>0
-              ? `<span class="badge badge-yellow">⚠️ ${totalHEmin}min HE</span>`
+            ${regsOS.length&&totalHEh>0
+              ? `<span class="badge badge-yellow">⚠️ ${totalHEh.toFixed(1)}h HE</span>`
               : regsOS.length?`<span class="badge badge-green">✓ Sem HE</span>`:''}
             <span class="badge ${os.status==='fechada'?'badge-green':regsOS.length?'badge-green':'badge-yellow'}">${os.status==='fechada'?'Fechada':regsOS.length?'✓ Enviada':'Aguardando'}</span>
           </div>
