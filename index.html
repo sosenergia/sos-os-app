@@ -119,6 +119,10 @@
     .btn-add-acessorio{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);color:var(--purple);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;flex:1}
     .btn-add-gerador:hover{background:rgba(204,0,0,.2)}
     .btn-add-acessorio:hover{background:rgba(139,92,246,.2)}
+    .op-item{background:var(--dark);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-end;position:relative}
+    .op-item .equip-remove{position:static;margin-left:auto;align-self:flex-end;margin-bottom:2px}
+    .btn-add-op{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--green);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;width:100%;margin-top:4px}
+    .btn-add-op:hover{background:rgba(34,197,94,.2)}
     /* conferência de acessórios no operador */
     .acessorio-check{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--dark);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px}
     .acessorio-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--red);cursor:pointer;flex-shrink:0}
@@ -485,38 +489,40 @@ function renderOSList(){
   }).join('');
 }
 
-function showFormOS(){
+function showFormOS(osId){
+  const osEdit=osId?ordens.find(o=>o.id===osId):null;
+  _editandoOSId=osEdit?osEdit.id:null;
   document.getElementById('os-list').closest('.card').style.display='none';
+  if(osEdit) document.getElementById('os-detalhe').style.display='none';
   const f=document.getElementById('form-nova-os');
   f.style.display='block';
   const hoje=new Date().toISOString().split('T')[0];
   const maiorNum=ordens.length?Math.max(...ordens.map(o=>parseInt(o.num)||0)):0;
-  const num=maiorNum+1;
-  const optsOp=usuarios.filter(u=>u.perfil==='operador').map(o=>`<option value="${o.id}">${o.nome}</option>`).join('');
+  const num=osEdit?osEdit.num:(maiorNum+1);
   f.innerHTML=`
   <div class="card">
-    <div class="card-title">Dados do Evento / Cliente</div>
+    <div class="card-title">${osEdit?'✏️ Editando OS '+osEdit.num:'Dados do Evento / Cliente'}</div>
     <div class="grid2">
       <div class="field"><label>Nº OS</label><input id="f-num" value="${num}" readonly style="background:var(--dark);opacity:.6;cursor:not-allowed"/></div>
-      <div class="field"><label>Cliente</label><input id="f-cli" placeholder="Nome do cliente"/></div>
+      <div class="field"><label>Cliente</label><input id="f-cli" value="${osEdit?osEdit.cliente:''}" placeholder="Nome do cliente"/></div>
     </div>
-    <div class="field"><label>Nome do Evento</label><input id="f-evt" placeholder="Ex: CORRIDA DAS FLORES"/></div>
+    <div class="field"><label>Nome do Evento</label><input id="f-evt" value="${osEdit?osEdit.evento||'':''}" placeholder="Ex: CORRIDA DAS FLORES"/></div>
     <div class="grid2">
-      <div class="field"><label>Data Saída</label><input type="date" id="f-saida" value="${hoje}" onchange="refreshDias()"/></div>
-      <div class="field"><label>Data Retorno</label><input type="date" id="f-ret" value="${hoje}" onchange="refreshDias()"/></div>
+      <div class="field"><label>Data Saída</label><input type="date" id="f-saida" value="${osEdit?osEdit.dataSaida:hoje}" onchange="refreshDias()"/></div>
+      <div class="field"><label>Data Retorno</label><input type="date" id="f-ret" value="${osEdit?osEdit.dataRetorno:hoje}" onchange="refreshDias()"/></div>
     </div>
-    <div class="field"><label>Endereço da Locação</label><input id="f-end" placeholder="Endereço completo"/></div>
+    <div class="field"><label>Endereço da Locação</label><input id="f-end" value="${osEdit?osEdit.endereco||'':''}" placeholder="Endereço completo"/></div>
     <div class="grid3">
-      <div class="field"><label>Cidade</label><input id="f-cid"/></div>
-      <div class="field"><label>UF</label><input id="f-uf" maxlength="2" style="text-transform:uppercase"/></div>
-      <div class="field"><label>CEP</label><input id="f-cep"/></div>
+      <div class="field"><label>Cidade</label><input id="f-cid" value="${osEdit?osEdit.cidade||'':''}"/></div>
+      <div class="field"><label>UF</label><input id="f-uf" value="${osEdit?osEdit.uf||'':''}" maxlength="2" style="text-transform:uppercase"/></div>
+      <div class="field"><label>CEP</label><input id="f-cep" value="${osEdit?osEdit.cep||'':''}"/></div>
     </div>
     <div class="grid2">
-      <div class="field"><label>Contato</label><input id="f-contato"/></div>
-      <div class="field"><label>Fone</label><input type="tel" id="f-fone"/></div>
+      <div class="field"><label>Contato</label><input id="f-contato" value="${osEdit?osEdit.contato||'':''}"/></div>
+      <div class="field"><label>Fone</label><input type="tel" id="f-fone" value="${osEdit?osEdit.fone||'':''}"/></div>
     </div>
-    <div class="field"><label>CNPJ</label><input id="f-cnpj" placeholder="00.000.000/0001-00"/></div>
-    <div class="field"><label>Instruções para a Locação</label><textarea id="f-inst" placeholder="Horário de instalação, local exato, observações..."></textarea></div>
+    <div class="field"><label>CNPJ</label><input id="f-cnpj" value="${osEdit?osEdit.cnpj||'':''}" placeholder="00.000.000/0001-00"/></div>
+    <div class="field"><label>Instruções para a Locação</label><textarea id="f-inst" placeholder="Horário de instalação, local exato, observações...">${osEdit?osEdit.instrucoes||'':''}</textarea></div>
   </div>
   <div class="card">
     <div class="card-title">Equipamentos</div>
@@ -533,25 +539,39 @@ function showFormOS(){
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:auto" onclick="addDia()">+ Adicionar dia extra</button>
   </div>
   <div class="card">
-    <div class="card-title">Operador Designado</div>
-    <div class="grid2">
-      <div class="field"><label>Operador</label>
-        <select id="f-op"><option value="">Selecione</option>${optsOp}</select>
-      </div>
-      <div class="field"><label>WhatsApp do Operador</label><input type="tel" id="f-op-wpp" placeholder="(xx) xxxxx-xxxx"/></div>
-    </div>
+    <div class="card-title">Operadores Designados</div>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">Adicione um ou mais operadores para esta OS. Cada um receberá seu próprio link de acesso.</p>
+    <div id="ops-lista"></div>
+    <button class="btn-add-op" onclick="addOperador()">👷 + Adicionar Operador</button>
   </div>
-  <button class="btn btn-primary" id="btn-criar-os" onclick="criarOS()">Criar OS e Gerar Link</button>
+  <button class="btn btn-primary" id="btn-criar-os" onclick="criarOS()">${_editandoOSId?'💾 Salvar Alterações':'Criar OS e Gerar Link'}</button>
   <span class="save-feedback" id="fb-criar-os" style="margin-bottom:8px"></span>
   <button class="btn btn-ghost" style="margin-top:4px" onclick="cancelarOS()">Cancelar</button>`;
-  diasContratados=[];
-  equipamentosOS=[];
+  // Carregar dados existentes (modo edição) ou iniciar vazios (modo criação)
+  diasContratados=osEdit&&osEdit.diasContratados?[...osEdit.diasContratados]:[];
+  equipamentosOS=osEdit&&osEdit.equipamentos?[...osEdit.equipamentos]:[];
+  // Operadores: migrar formato antigo (operadorId único) para lista
+  if(osEdit){
+    if(osEdit.operadores&&osEdit.operadores.length){
+      operadoresOS=[...osEdit.operadores];
+    } else if(osEdit.operadorId){
+      operadoresOS=[{id:'op_legacy',userId:osEdit.operadorId,wpp:osEdit.operadorWpp||''}];
+    } else {
+      operadoresOS=[];
+    }
+  } else {
+    operadoresOS=[];
+  }
   renderEquip();
-  refreshDias();
+  renderOperadores();
+  if(osEdit&&diasContratados.length) renderDias(); else refreshDias();
 }
 
 // ── EQUIPAMENTOS DA OS ──
 let equipamentosOS=[];
+// ── OPERADORES DA OS ──
+let operadoresOS=[];   // [{id, userId, wpp}]
+let _editandoOSId=null; // null = criação, string = edição
 
 function addEquip(tipo){
   equipamentosOS.push(tipo==='gerador'
@@ -608,6 +628,70 @@ function renderEquip(){
         </div>
       </div>`;
     }
+  }).join('');
+}
+
+function addOperador(){
+  operadoresOS.push({id:'op_'+Date.now(),userId:'',wpp:''});
+  renderOperadores();
+  setTimeout(()=>{
+    const sels=document.querySelectorAll('#ops-lista .op-item select');
+    if(sels[sels.length-1]) sels[sels.length-1].focus();
+  },50);
+}
+
+function removeOperador(id){
+  operadoresOS=operadoresOS.filter(o=>o.id!==id);
+  renderOperadores();
+}
+
+function renderOperadores(){
+  const c=document.getElementById('ops-lista');if(!c) return;
+  const optsOp=usuarios.filter(u=>u.perfil==='operador');
+  if(!operadoresOS.length){
+    c.innerHTML='<p style="font-size:12px;color:var(--dim);margin-bottom:10px;text-align:center;padding:8px 0">Nenhum operador adicionado. Clique em + Adicionar Operador.</p>';
+    return;
+  }
+  c.innerHTML=operadoresOS.map((op,i)=>`
+    <div class="op-item">
+      <div class="field" style="margin:0;flex:1;min-width:120px">
+        <label style="font-size:10px">Operador</label>
+        <select onchange="operadoresOS[${i}].userId=this.value">
+          <option value="">Selecione</option>
+          ${optsOp.map(u=>`<option value="${u.id}" ${op.userId===u.id?'selected':''}>${u.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field" style="margin:0;flex:1;min-width:110px">
+        <label style="font-size:10px">WhatsApp</label>
+        <input type="tel" value="${op.wpp}" placeholder="(xx) xxxxx-xxxx" oninput="operadoresOS[${i}].wpp=this.value"/>
+      </div>
+      <button class="equip-remove" onclick="removeOperador('${op.id}')" title="Remover">×</button>
+    </div>`).join('');
+}
+
+// Renderiza operadores como texto para tabela admin
+function renderOperadoresTexto(os){
+  const ops=os.operadores&&os.operadores.length?os.operadores:[];
+  if(!ops.length) return os.operadorNome||'—';
+  return ops.map(op=>{
+    const u=usuarios.find(u=>u.id===op.userId);
+    return u?u.nome:'—';
+  }).join(', ');
+}
+
+// Gera botões de link/WPP para cada operador
+function renderLinksOperadores(os,link){
+  const ops=os.operadores&&os.operadores.length?os.operadores:[];
+  if(!ops.length){
+    return `<button onclick="navigator.clipboard.writeText('${link}').then(()=>{this.textContent='Copiado ✓'})" class="btn btn-ghost btn-sm" style="width:auto">Copiar Link</button>
+    <a href="https://wa.me/?text=${encodeURIComponent('OS '+os.num+' — '+os.cliente+'\n'+link)}" target="_blank" class="btn btn-wpp btn-sm" style="width:auto;text-decoration:none">Enviar WPP</a>`;
+  }
+  return ops.map(op=>{
+    const u=usuarios.find(u=>u.id===op.userId);
+    const nome=u?u.nome:'Operador';
+    const wppNum=op.wpp?(op.wpp.replace(/\D/g,'')):'';
+    return `<button onclick="navigator.clipboard.writeText('${link}').then(()=>{this.textContent='Copiado ✓'})" class="btn btn-ghost btn-sm" style="width:auto">Copiar link — ${nome}</button>
+    ${wppNum?`<a href="https://wa.me/${wppNum}?text=${encodeURIComponent('OS '+os.num+' — '+os.cliente+'\nSeu link: '+link)}" target="_blank" class="btn btn-wpp btn-sm" style="width:auto;text-decoration:none">WPP — ${nome}</a>`:''}`;
   }).join('');
 }
 
@@ -687,8 +771,14 @@ function renderDias(){
 }
 
 function cancelarOS(){
+  const editId=_editandoOSId;
+  _editandoOSId=null;
   document.getElementById('form-nova-os').style.display='none';
-  document.getElementById('os-list').closest('.card').style.display='block';
+  if(editId){
+    verOS(editId);
+  } else {
+    document.getElementById('os-list').closest('.card').style.display='block';
+  }
 }
 
 function criarOS(){
@@ -700,10 +790,11 @@ function criarOS(){
   }
   const btnCriar=document.getElementById('btn-criar-os');
   if(btnCriar){btnCriar.disabled=true;btnCriar.textContent='Salvando...';}
-  const opId=document.getElementById('f-op').value;
-  const opUser=usuarios.find(u=>u.id===opId);
-  const os={
-    id:'os_'+Date.now(),num,cliente:cli,
+  // Resolver operadores — usar lista nova; fallback retrocompat
+  const opsValidos=operadoresOS.filter(o=>o.userId);
+  const primeiroOp=opsValidos[0]?usuarios.find(u=>u.id===opsValidos[0].userId):null;
+  const dadosComuns={
+    num,cliente:cli,
     evento:document.getElementById('f-evt').value,
     dataSaida:document.getElementById('f-saida').value,
     dataRetorno:document.getElementById('f-ret').value,
@@ -716,24 +807,39 @@ function criarOS(){
     cnpj:document.getElementById('f-cnpj').value,
     instrucoes:document.getElementById('f-inst').value,
     equipamentos:equipamentosOS.length?[...equipamentosOS]:[],
-    // compatibilidade retroativa: primeiro gerador como potencia/patrimonio
     potencia:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).potencia||'',
     patrimonio:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).patrimonio||'',
     diasContratados:[...diasContratados],
-    operadorId:opId,
-    operadorNome:opUser?opUser.nome:'',
-    criadoPor:sessaoAtual.nome,
-    criadoEm:new Date().toISOString(),
-    status:'aberta'
+    operadores:[...opsValidos],
+    // retrocompat: primeiro operador como campos legados
+    operadorId:primeiroOp?primeiroOp.id:'',
+    operadorNome:primeiroOp?primeiroOp.nome:'',
+    operadorWpp:opsValidos[0]?opsValidos[0].wpp:''
   };
-  ordens.push(os);
+  const isEdit=!!_editandoOSId;
+  let os;
+  if(isEdit){
+    const idx=ordens.findIndex(o=>o.id===_editandoOSId);
+    if(idx===-1){showToast('OS não encontrada','err');return;}
+    os={...ordens[idx],...dadosComuns};
+    ordens[idx]=os;
+  } else {
+    os={id:'os_'+Date.now(),...dadosComuns,criadoPor:sessaoAtual.nome,criadoEm:new Date().toISOString(),status:'aberta'};
+    ordens.push(os);
+  }
   const btnCriar2=document.getElementById('btn-criar-os');
   fbSaveWithFeedback(()=>saveAll(), btnCriar2, 'fb-criar-os').then(()=>{
     cancelarOS();renderOSList();
-    const link=window.location.href.split('?')[0]+'?os='+os.id;
-    showLinkPopup(os,link);
+    if(isEdit){
+      showToast('OS '+os.num+' atualizada com sucesso');
+      verOS(os.id);
+    } else {
+      const link=window.location.href.split('?')[0]+'?os='+os.id;
+      showLinkPopup(os,link);
+    }
+    _editandoOSId=null;
   }).catch(()=>{
-    if(btnCriar2){btnCriar2.disabled=false;btnCriar2.textContent='Criar OS e Gerar Link';}
+    if(btnCriar2){btnCriar2.disabled=false;btnCriar2.textContent=isEdit?'💾 Salvar Alterações':'Criar OS e Gerar Link';}
   });
 }
 
@@ -772,12 +878,12 @@ function verOS(id){
       <tr><td style="color:var(--dim)">Equipamentos</td><td>${renderEquipTexto(os)}</td></tr>
       <tr><td style="color:var(--dim)">Período</td><td>${os.dataSaida} → ${os.dataRetorno}</td></tr>
       <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''}, ${os.cidade||''}/${os.uf||''}</td></tr>
-      <tr><td style="color:var(--dim)">Operador</td><td>${os.operadorNome||'—'}</td></tr>
+      <tr><td style="color:var(--dim)">Operadores</td><td>${renderOperadoresTexto(os)}</td></tr>
       <tr><td style="color:var(--dim)">Criado por</td><td>${os.criadoPor||'—'}</td></tr>
     </table>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="navigator.clipboard.writeText('${link}').then(()=>{this.textContent='Copiado ✓'})" class="btn btn-ghost btn-sm" style="width:auto">Copiar Link Operador</button>
-      <a href="https://wa.me/?text=${encodeURIComponent('OS '+os.num+' — '+os.cliente+'\n'+link)}" target="_blank" class="btn btn-wpp btn-sm" style="width:auto;text-decoration:none">Enviar WPP</a>
+      ${renderLinksOperadores(os,link)}
+      <button class="btn btn-primary btn-sm" style="width:auto;background:var(--card2);border:1px solid var(--border);color:var(--text)" onclick="showFormOS('${os.id}')">✏️ Editar OS</button>
     </div>
   </div>
   <div class="card">
