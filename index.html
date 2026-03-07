@@ -1135,7 +1135,7 @@ function calcHE(){
   const heM_calc = Math.max(0, totH - CONTRATO_MAQUINA_H);
   if(wEl){
     if(heM_calc > 0){
-      document.getElementById('he-maq-txt').textContent=`Gerador operou ${totH.toFixed(1)}h — excedeu ${heM_calc.toFixed(1)}h do contrato de ${CONTRATO_MAQUINA_H}h.`;
+      document.getElementById('he-maq-txt').textContent=`Gerador operou ${totH.toFixed(1)}h — excedeu ${fmtHE(heM_calc)} do contrato de ${CONTRATO_MAQUINA_H}h.`;
       wEl.classList.add('show');
     } else wEl.classList.remove('show');
   }
@@ -1331,7 +1331,7 @@ function gerarRel(){
     const val=op.regs.reduce((a,r)=>a+(r.valorHEOperador!=null?r.valorHEOperador:r.heOperador*config.heValor),0);
     const heMin=Math.round(he*60);
     totH+=h;totHE+=he;totVal+=val;
-    linhas.push(`<tr><td>${op.nome}</td><td>${(h-he).toFixed(1)}h</td><td style="color:var(--yellow)">${heMin}min</td><td style="color:var(--yellow)">R$ ${val.toFixed(2)}</td><td><strong>${h.toFixed(1)}h</strong></td></tr>`);
+    linhas.push(`<tr><td>${op.nome}</td><td>${(h-he).toFixed(1)}h</td><td style="color:var(--yellow)">${fmtHE(he)}</td><td style="color:var(--yellow)">R$ ${val.toFixed(2)}</td><td><strong>${h.toFixed(1)}h</strong></td></tr>`);
   });
   regs.forEach(r=>totHEMaq+=r.heMaquina||0);
   const maqLinhas=regs.filter(r=>r.heMaquina>0).map(r=>`<tr><td>OS ${r.osNum}</td><td>${r.cliente}</td><td>${fmtData(r.data)}</td><td style="color:var(--yellow)">${r.heMaquina.toFixed(1)}h</td></tr>`).join('');
@@ -1815,7 +1815,7 @@ function _gerarPDF(os, regsOS){
     totHEOp+=heH;
     totValHE+=heH*heValorH;
   });
-  const heOpH=totHEOp.toFixed(1);
+  const heOpH=fmtHE(totHEOp);
   const dataEmissao=new Date().toLocaleString('pt-BR');
 
   const registrosHTML=regsOS.map(r=>{
@@ -1827,7 +1827,7 @@ function _gerarPDF(os, regsOS){
     <div class="reg-box">
       <div class="reg-header">
         <span class="reg-data">${fmtData(r.data)}</span>
-        ${heM>0?`<span class="badge-warn">⚠ HE MÁQUINA: +${heM.toFixed(1)}h</span>`:`<span class="badge-ok">✓ Dentro do contrato</span>`}
+        ${heM>0?`<span class="badge-warn">⚠ HE MÁQUINA: +${fmtHE(heM)}</span>`:`<span class="badge-ok">✓ Dentro do contrato</span>`}
       </div>
       <div class="reg-grid">
         <div><span class="lbl">Liga</span><span class="val">${r.partida||'—'}</span></div>
@@ -1943,8 +1943,8 @@ function _gerarPDF(os, regsOS){
 <div class="dashboard">
   <div class="metric"><div class="m-lbl">Registros</div><div class="m-val m-red">${regsOS.length}</div></div>
   <div class="metric"><div class="m-lbl">Horas Totais</div><div class="m-val">${totHoras.toFixed(1)}h</div></div>
-  <div class="metric"><div class="m-lbl">HE Operador</div><div class="m-val ${totHEOp>0?'m-warn':'m-ok'}">${totHEOp>0?heOpH+'h':'—'}</div><div style="font-size:10px;color:${totValHE>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHE>0?'R$ '+totValHE.toFixed(2):'—'}</div></div>
-  <div class="metric"><div class="m-lbl">HE Máquina</div><div class="m-val ${totHEMaq>0?'m-warn':'m-ok'}">${totHEMaq>0?totHEMaq.toFixed(1)+'h':'—'}</div><div style="font-size:10px;color:${totValHEMaq>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHEMaq>0?'R$ '+totValHEMaq.toFixed(2):'—'}</div></div>
+  <div class="metric"><div class="m-lbl">HE Operador</div><div class="m-val ${totHEOp>0?'m-warn':'m-ok'}">${totHEOp>0?heOpH:'—'}</div><div style="font-size:10px;color:${totValHE>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHE>0?'R$ '+totValHE.toFixed(2):'—'}</div></div>
+  <div class="metric"><div class="m-lbl">HE Máquina</div><div class="m-val ${totHEMaq>0?'m-warn':'m-ok'}">${totHEMaq>0?fmtHE(totHEMaq):'—'}</div><div style="font-size:10px;color:${totValHEMaq>0?'#d97706':'#888'};margin-top:2px;font-weight:700">${totValHEMaq>0?'R$ '+totValHEMaq.toFixed(2):'—'}</div></div>
 </div>
 
 <div class="sec-title">Dados do Cliente / Evento</div>
@@ -1991,8 +1991,8 @@ ${(()=>{
         return `<tr>
           <td style="padding:5px 8px;border:1px solid #ddd;font-weight:700">⚡ ${g.potencia||'—'}</td>
           <td style="padding:5px 8px;border:1px solid #ddd">${g.patrimonio||'—'}</td>
-          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${totalHorasRodadas>0?totalHorasRodadas.toFixed(1)+'h':'—'}</td>
-          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:${totalHEMaq>0?'#856404':'#22c55e'}">${totalHEMaq>0?'+'+totalHEMaq.toFixed(1)+'h extra':'✓ Dentro contrato'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right">${totalHorasRodadas>0?fmtHE(totalHorasRodadas):'—'}</td>
+          <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:${totalHEMaq>0?'#856404':'#22c55e'}">${totalHEMaq>0?'+'+fmtHE(totalHEMaq)+' extra':'✓ Dentro contrato'}</td>
           <td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:${valorHETotal>0?'#CC0000':'#888'}">${heVal>0?(valorHETotal>0?'R$ '+valorHETotal.toFixed(2)+'<br/><span style="font-size:8px;font-weight:400;color:#888">R$ '+heVal.toFixed(2)+'/hora extra</span>':'R$ 0,00'):'<span style="color:#888">Não informado</span>'}</td>
         </tr>`;
       }).join('')+`</tbody></table>`;
@@ -2060,7 +2060,7 @@ function loadHistorico(){
           <span style="font-weight:700">OS ${os.num}</span>
           <div style="display:flex;gap:6px;align-items:center">
             ${regsOS.length&&totalHEh>0
-              ? `<span class="badge badge-yellow">⚠️ ${totalHEh.toFixed(1)}h HE</span>`
+              ? `<span class="badge badge-yellow">⚠️ ${fmtHE(totalHEh)} HE</span>`
               : regsOS.length?`<span class="badge badge-green">✓ Sem HE</span>`:''}
             <span class="badge ${os.status==='fechada'?'badge-green':regsOS.length?'badge-green':'badge-yellow'}">${os.status==='fechada'?'Fechada':regsOS.length?'✓ Enviada':'Aguardando'}</span>
           </div>
@@ -2082,6 +2082,7 @@ function loadHistorico(){
 // ════════════════════════════════════════
 function toMin(t){if(!t) return 0;const[h,m]=t.split(':').map(Number);return h*60+m;}
 function fmtData(d){if(!d) return '';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
+function fmtHE(h){if(!h||h<=0) return '—';const hInt=Math.floor(h);const min=Math.round((h-hInt)*60);if(min===0) return `${hInt}h`;return `${hInt}h ${min}min`;}
 
 // ── INIT ──
 // checar URL param para abrir direto no operador
