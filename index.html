@@ -1669,7 +1669,10 @@ function loadConfig(){
       </select>
     </div>
     <p style="font-size:11px;color:var(--dim);margin-bottom:10px">O campo "Valor HE" é usado apenas para operadores — define quanto esse funcionário específico recebe por hora extra.</p>
-    <button class="btn btn-primary btn-sm" style="width:auto" id="btn-add-user" onclick="addUser()">+ Adicionar Usuário</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" style="width:auto" id="btn-add-user" onclick="addUser()">+ Adicionar Usuário</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto;display:none" id="btn-cancel-edit" onclick="cancelEditUser()">✕ Cancelar</button>
+    </div>
     <span class="save-feedback" id="fb-add-user"></span>
   </div>
   <div class="card">
@@ -1706,10 +1709,42 @@ function renderUsers(){
         <span class="badge ${u.perfil==='admin'?'badge-red':u.perfil==='comercial'?'badge-blue':'badge-yellow'}" style="font-size:10px">${u.perfil}</span>
         ${u.perfil==='operador'&&u.heValor?`<span style="color:var(--yellow);font-size:11px;margin-left:6px">R$${u.heValor}/h HE</span>`:''}
       </div>
-      ${u.id!=='adm_0'?`<button onclick="delUser('${u.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:20px;line-height:1">×</button>`:'<span style="font-size:11px;color:var(--dim)">master</span>'}
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="editUser('${u.id}')" style="background:none;border:none;color:var(--blue,#3b82f6);cursor:pointer;font-size:14px;padding:2px 4px" title="Editar">✏️</button>
+        ${u.id!=='adm_0'?`<button onclick="delUser('${u.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:20px;line-height:1" title="Remover">×</button>`:'<span style="font-size:11px;color:var(--dim)">master</span>'}
+      </div>
     </div>`).join('');
 }
 
+let _editUserId=null;
+function editUser(id){
+  const u=usuarios.find(u=>u.id===id);if(!u) return;
+  _editUserId=id;
+  document.getElementById('nu-nome').value=u.nome||'';
+  document.getElementById('nu-user').value=u.user||'';
+  document.getElementById('nu-pass').value=u.senha||'';
+  document.getElementById('nu-perfil').value=u.perfil||'operador';
+  document.getElementById('nu-he').value=u.heValor||'';
+  const btn=document.getElementById('btn-add-user');
+  btn.textContent='💾 Salvar Alterações';
+  btn.style.background='#d97706';
+  const cancelBtn=document.getElementById('btn-cancel-edit');
+  if(cancelBtn) cancelBtn.style.display='inline-block';
+  setFeedback('fb-add-user','Editando: '+u.nome,'');
+}
+function cancelEditUser(){
+  _editUserId=null;
+  document.getElementById('nu-nome').value='';
+  document.getElementById('nu-user').value='';
+  document.getElementById('nu-pass').value='';
+  document.getElementById('nu-he').value='';
+  const btn=document.getElementById('btn-add-user');
+  btn.textContent='+ Adicionar Usuário';
+  btn.style.background='';
+  const cancelBtn=document.getElementById('btn-cancel-edit');
+  if(cancelBtn) cancelBtn.style.display='none';
+  setFeedback('fb-add-user','','');
+}
 function addUser(){
   const nome=document.getElementById('nu-nome')?.value.trim();
   const user=document.getElementById('nu-user')?.value.trim().toLowerCase();
@@ -1718,6 +1753,20 @@ function addUser(){
   const heValor=parseFloat(document.getElementById('nu-he')?.value)||0;
   const btn=document.getElementById('btn-add-user');
   if(!nome||!user||!pass){setFeedback('fb-add-user','✕ Preencha nome, usuário e senha.','err');return;}
+  // Modo edição
+  if(_editUserId){
+    const idx=usuarios.findIndex(u=>u.id===_editUserId);
+    if(idx===-1) return;
+    const conflito=usuarios.find(u=>u.user===user&&u.id!==_editUserId);
+    if(conflito){setFeedback('fb-add-user','✕ Nome de usuário já em uso.','err');return;}
+    usuarios[idx]={...usuarios[idx],nome,user,senha:pass,perfil,heValor};
+    fbSaveWithFeedback(()=>saveAll(), btn, 'fb-add-user').then(()=>{
+      cancelEditUser();
+      renderUsers();
+    });
+    return;
+  }
+  // Modo criação
   if(usuarios.find(u=>u.user===user)){setFeedback('fb-add-user','✕ Usuário já existe.','err');return;}
   usuarios.push({id:'u_'+Date.now(),nome,user,senha:pass,perfil,heValor});
   fbSaveWithFeedback(()=>saveAll(), btn, 'fb-add-user').then(()=>{
