@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v3.7</title>
+  <title>SOS Energia — OS Digital v3.8</title>
   <style>
     :root{
       --red:#CC0000;--red-dark:#990000;--red-light:#ff3333;
@@ -671,39 +671,6 @@ function renderEquip(){
   }
   c.innerHTML=equipamentosOS.map((eq,i)=>{
     if(eq.tipo==='gerador'){
-      // Sincronizar dias do gerador com diasContratados
-      if(!eq.horariosDias || eq.horariosDias.length !== diasContratados.length){
-        eq.horariosDias = diasContratados.map(d=>({data:d.data,hIni:'',hFim:''}));
-        // Preservar horários já preenchidos
-        if(eq.horariosDias && eq.horariosDias.length){
-          (eq.horariosDias||[]).forEach((hd,hi)=>{
-            const prev=(eq.horariosDias||[])[hi];
-            if(prev){hd.hIni=prev.hIni||'';hd.hFim=prev.hFim||'';}
-          });
-        }
-      } else {
-        // Atualizar datas se mudaram, preservando horários
-        eq.horariosDias = diasContratados.map((d,di)=>({
-          data:d.data,
-          hIni:(eq.horariosDias[di]&&eq.horariosDias[di].hIni)||'',
-          hFim:(eq.horariosDias[di]&&eq.horariosDias[di].hFim)||''
-        }));
-      }
-      const diasRows = eq.horariosDias.map((hd,di)=>`
-        <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:6px;flex-wrap:wrap">
-          <div style="flex:0 0 auto;min-width:100px">
-            <div style="font-size:10px;color:var(--dim);margin-bottom:3px;font-weight:600">${hd.data||'—'}</div>
-          </div>
-          <div class="field" style="margin:0;flex:1;min-width:80px">
-            <label style="font-size:10px">Ligou</label>
-            <input type="time" value="${hd.hIni||''}" oninput="equipamentosOS[${i}].horariosDias[${di}].hIni=this.value"/>
-          </div>
-          <div class="field" style="margin:0;flex:1;min-width:80px">
-            <label style="font-size:10px">Desligou</label>
-            <input type="time" value="${hd.hFim||''}" oninput="equipamentosOS[${i}].horariosDias[${di}].hFim=this.value"/>
-          </div>
-        </div>`).join('');
-      const temDias = eq.horariosDias && eq.horariosDias.length > 0;
       return `<div class="equip-item">
         <span class="equip-tipo gerador">⚡ Gerador</span>
         <button class="equip-remove" onclick="removeEquip('${eq.id}')" title="Remover">×</button>
@@ -721,11 +688,6 @@ function renderEquip(){
             <input type="number" step="0.50" min="0" value="${eq.heValorGerador||''}" placeholder="Ex: 50.00" oninput="equipamentosOS[${i}].heValorGerador=this.value"/>
           </div>
         </div>
-        ${temDias ? `
-        <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-          <div style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Horário de funcionamento por dia</div>
-          ${diasRows}
-        </div>` : '<div style="font-size:11px;color:var(--dim);margin-top:8px">Defina as datas da OS para registrar horários por dia.</div>'}
       </div>`;
     } else {
       return `<div class="equip-item">
@@ -863,7 +825,6 @@ function refreshDias(){
   for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1))
     diasContratados.push({data:d.toISOString().split('T')[0],hIni:'07:00',hFim:'19:00'});
   renderDias();
-  renderEquip();
 }
 function addDia(){diasContratados.push({data:'',hIni:'08:00',hFim:'18:00'});renderDias();}
 function renderDias(){
@@ -1100,14 +1061,31 @@ function buildOpForm(os){
   <div id="op1" style="display:none">
     ${(()=>{
       const temGerador=(os.equipamentos&&os.equipamentos.some(e=>e.tipo==='gerador'))||(os.potencia&&!os.equipamentos?.length);
+      const geradores=(os.equipamentos||[]).filter(e=>e.tipo==='gerador');
       return temGerador?`
     <div class="card">
       <div class="card-title">Registro do Dia</div>
       <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}"/></div>
+      ${geradores.length>1 ? `
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--dim);margin-bottom:8px">Horário por Gerador</div>
+        ${geradores.map((g,gi)=>`
+        <div style="background:var(--dark);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--red-light);margin-bottom:6px">⚡ ${g.potencia||'Gerador '+(gi+1)} ${g.patrimonio?'· '+g.patrimonio:''}</div>
+          <div class="grid2">
+            <div class="field" style="margin:0"><label style="font-size:10px">Ligou</label><input type="time" id="op-part-${gi}" oninput="calcHE()"/></div>
+            <div class="field" style="margin:0"><label style="font-size:10px">Desligou</label><input type="time" id="op-par-${gi}" oninput="calcHE()"/></div>
+          </div>
+        </div>`).join('')}
+      </div>
+      <input type="hidden" id="op-part" oninput="calcHE()"/>
+      <input type="hidden" id="op-par" oninput="calcHE()"/>
+      ` : `
       <div class="grid2">
         <div class="field"><label>Horário Liga (Partida)</label><input type="time" id="op-part" oninput="calcHE()"/></div>
         <div class="field"><label>Horário Desliga (Parada)</label><input type="time" id="op-par" oninput="calcHE()"/></div>
       </div>
+      `}
       <div class="grid2">
         <div class="field"><label>Horímetro Inicial</label><input type="number" id="op-hi" step="0.1" placeholder="4520" required oninput="calcHorFinal()"/></div>
         <div class="field"><label>Horímetro Final</label><input type="number" id="op-hf" step="0.1" placeholder="Calculado automaticamente"/></div>
@@ -1311,6 +1289,21 @@ function finalizarReg(){
   if(!data||!part||!par){alert('Preencha data e horários.');return;}
   const pM=toMin(part),sM=toMin(par);
   const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
+  // Coletar horários por gerador (múltiplos geradores)
+  const _geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+  let horariosPorGerador=[];
+  if(_geradores.length>1){
+    horariosPorGerador=_geradores.map((g,gi)=>({
+      geradorId:g.id,potencia:g.potencia||'',patrimonio:g.patrimonio||'',
+      liga:document.getElementById('op-part-'+gi)?.value||'',
+      desliga:document.getElementById('op-par-'+gi)?.value||''
+    }));
+    // Usar o primeiro gerador para calcHE (compatibilidade)
+    const el0part=document.getElementById('op-part');
+    const el0par=document.getElementById('op-par');
+    if(el0part&&horariosPorGerador[0]) el0part.value=horariosPorGerador[0].liga;
+    if(el0par&&horariosPorGerador[0]) el0par.value=horariosPorGerador[0].desliga;
+  }
   // HE do operador = diferença entre heIni e heFim que ele informou
   const _heIni=document.getElementById('op-he-ini')?.value||'';
   const _heFim=document.getElementById('op-he-fim')?.value||'';
@@ -1336,6 +1329,7 @@ function finalizarReg(){
     obs:document.getElementById('op-obs')?.value||'',
     heIni: document.getElementById('op-he-ini')?.value || '',
     heFim: document.getElementById('op-he-fim')?.value || '',
+    horariosPorGerador: horariosPorGerador.length ? horariosPorGerador : undefined,
     abastecido: document.getElementById('op-abastecido')?.value||'nao',
     litros: document.getElementById('op-litros')?.value||'',
     placa:document.getElementById('op-placa')?.value||'',
