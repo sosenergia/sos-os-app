@@ -1039,17 +1039,12 @@ function buildOpForm(os){
         <p id="he-maq-txt" style="font-size:13px;margin-top:4px"></p>
         <p style="font-size:12px;color:var(--dim);margin-top:3px">Comunique ao cliente — haverá cobrança adicional.</p>
       </div>
-      <div id="he-periodo-container" style="display:none">
-        <div class="alert alert-yellow" style="margin-bottom:8px;font-size:12px">
-          ⚠️ <strong>Hora extra detectada.</strong> Informe o período de hora extra trabalhado:
-        </div>
-        <p style="font-size:12px;color:var(--dim);margin-bottom:10px">
-          Hora extra: Seg-Sex das <strong>18h às 08h</strong> | Sáb a partir das <strong>12h</strong> até <strong>08h de segunda</strong>.
-        </p>
+      <div id="he-periodo-container">
         <div class="grid2">
-          <div class="field"><label>Início da HE</label><input type="time" id="op-he-ini" oninput="calcHE()"/></div>
-          <div class="field"><label>Fim da HE</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
+          <div class="field"><label>Início da HE do operador</label><input type="time" id="op-he-ini" oninput="calcHE()"/></div>
+          <div class="field"><label>Fim da HE do operador</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
         </div>
+        <p style="font-size:11px;color:var(--dim);margin-top:-6px;margin-bottom:8px">Preencha apenas se houver HE. Seg-Sex das 18h às 08h | Sáb a partir das 12h.</p>
       </div>
       <div class="field" style="margin-top:12px">
         <label>Gerador foi abastecido?</label>
@@ -1178,9 +1173,6 @@ function calcHE(){
       wEl.classList.add('show');
     } else wEl.classList.remove('show');
   }
-  // Mostra campo de período de HE se houver HE
-  const hePeriodoContainer = document.getElementById('he-periodo-container');
-  if(hePeriodoContainer) hePeriodoContainer.style.display = heM_calc > 0 ? 'block' : 'none';
   calcHorFinal();
 }
 
