@@ -1670,11 +1670,12 @@ function gerarHE(){
     const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
     const linhasHE=regsComHE.map(r=>{
       const valR=r.valorHEOperador!=null?r.valorHEOperador:(r.heOperador||0)*valorHora;
+      const horario=(r.horIni&&r.horFim)?`${r.horIni} → ${r.horFim}`:'—';
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap">
         <div style="min-width:0">
           <span style="font-size:11px;color:var(--dim)">${fmtData(r.data)}</span>
-          <span style="font-size:12px;font-weight:600;margin-left:8px">${r.cliente||'—'}</span>
-          ${r.osNum?`<span style="font-size:10px;color:var(--dim);margin-left:6px">OS ${r.osNum}</span>`:''}
+          ${r.osNum?`<span style="font-size:12px;font-weight:600;margin-left:8px">OS ${r.osNum}</span>`:''}
+          <span style="font-size:11px;color:var(--dim);margin-left:6px">${horario}</span>
         </div>
         <div style="display:flex;gap:10px;flex-shrink:0;align-items:center">
           <span style="font-size:13px;font-weight:700;color:var(--yellow)">${fmtHE(r.heOperador)}</span>
