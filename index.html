@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v5.7</title>
+  <title>SOS Energia — OS Digital v5.8</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet"/>
@@ -903,7 +903,7 @@ function verOS(id){
         </div>
         <div style="font-size:12px;color:var(--dim)">Liga: ${r.partida} · Desliga: ${r.parada} · Hor: ${r.horIni}→${r.horFim}</div>
         ${r.obs?`<div style="font-size:12px;color:var(--dim);margin-top:3px">${r.obs}</div>`:''}
-        ${r.heOperador>0?`<div style="font-size:12px;color:var(--yellow);margin-top:3px">HE operador: ${Math.round(r.heOperador*60)}min → R$ ${(r.valorHEOperador!=null?r.valorHEOperador:r.heOperador*config.heValor).toFixed(2)}</div>`:''}
+        ${r.heOperador>0?`<div style="font-size:12px;color:var(--yellow);margin-top:3px">HE operador: ${fmtHE(r.heOperador)} → R$ ${(r.valorHEOperador!=null?r.valorHEOperador:r.heOperador*config.heValor).toFixed(2)}</div>`:''}
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           ${r.assinatura?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura cliente</div><img src="${r.assinatura}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
           ${r.assinaturaOp?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura operador</div><img src="${r.assinaturaOp}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
@@ -1283,7 +1283,6 @@ function _finalizarRegUI(){
   const heO=lastReg.heOperador||0;
   const heM=lastReg.heMaquina||0;
   const valHEop=lastReg.valorHEOperador||0;
-  const heMin=Math.round(heO*60);
   const resumoEl=document.getElementById('op-ok-resumo');
   if(resumoEl){
     resumoEl.innerHTML=`
@@ -1353,7 +1352,6 @@ function gerarRel(){
     const he=op.regs.reduce((a,r)=>a+(r.heOperador||0),0);
     // Usa valorHEOperador gravado no registro (proporcional), ou recalcula
     const val=op.regs.reduce((a,r)=>a+(r.valorHEOperador!=null?r.valorHEOperador:r.heOperador*config.heValor),0);
-    const heMin=Math.round(he*60);
     totH+=h;totHE+=he;totVal+=val;
     linhas.push(`<tr><td>${op.nome}</td><td>${(h-he).toFixed(1)}h</td><td style="color:var(--yellow)">${fmtHE(he)}</td><td style="color:var(--yellow)">R$ ${val.toFixed(2)}</td><td><strong>${h.toFixed(1)}h</strong></td></tr>`);
   });
@@ -2157,7 +2155,7 @@ function mascaraCnpjCpf(el){
   }
   el.value=v;
 }
-function fmtHE(h){if(!h||h<=0) return '—';const hInt=Math.floor(h);const min=Math.round((h-hInt)*60);if(min===0) return `${hInt}h`;return `${hInt}h ${min}min`;}
+function fmtHE(h){if(!h||h<=0) return '—';return `${h.toFixed(2).replace(/\.?0+$/,'')}h`;}
 
 function atualizarBadgeHEMes(){
   const badge=document.getElementById('nav-he-mes');
