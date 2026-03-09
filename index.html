@@ -431,7 +431,7 @@ function buildNav(){atualizarBadgeHEMes();
   tabs.innerHTML='';
   const pages=[];
   if(isAdmin) pages.push({id:'admin',label:'OS'});
-  pages.push({id:'operador',label:'Operador'});
+  if(!isAdmin) pages.push({id:'operador',label:'Operador'});
   if(isAdmin) pages.push({id:'relatorio',label:'Relatório'});
   pages.push({id:'agente',label:'Assistente'});
   if(sessaoAtual.perfil==='admin') pages.push({id:'he',label:'HE Time'});
