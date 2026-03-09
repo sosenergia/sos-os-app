@@ -1704,14 +1704,7 @@ function loadConfig(){
   const el=document.getElementById('page-config');
   el.innerHTML=`
   <div class="card">
-    <div class="card-title">Jornada e Horas Extras</div>
-    <div class="grid2">
-      <div class="field"><label>Início da jornada</label><input type="time" id="cfg-ji" value="${config.jornadaIni}"/></div>
-      <div class="field"><label>Fim da jornada</label><input type="time" id="cfg-jf" value="${config.jornadaFim}"/></div>
-    </div>
-    <div class="field"><label>Intervalo (horas descontadas)</label>
-      <input type="number" id="cfg-int" value="${config.intervalo}" step="0.5" min="0"/>
-    </div>
+    <div class="card-title">Horas Extras</div>
     <div class="field"><label>Valor hora extra padrão (R$/hora)</label>
       <input type="number" id="cfg-hevalor" value="${config.heValor}" step="0.50" min="0"/>
       <span style="font-size:11px;color:var(--dim)">Usado quando o operador não tem valor individual definido.</span>
