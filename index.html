@@ -928,6 +928,7 @@ function verOS(id){
           ${r.assinatura?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura cliente</div><img src="${r.assinatura}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
           ${r.assinaturaOp?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura operador</div><img src="${r.assinaturaOp}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
         </div>
+        ${sessaoAtual.perfil==='admin'?`<button class="btn btn-ghost btn-sm" style="width:auto;margin-top:6px;font-size:11px;color:var(--yellow);border-color:rgba(234,179,8,.3)" onclick="editarHEReg('${r.id}')">✏️ Editar HE do operador</button>`:''}
       </div>`).join(''):'<p style="color:var(--dim);font-size:13px">Nenhum registro ainda.</p>'}
   </div>
   ${os.status!=='fechada'?`<button class="btn btn-green" onclick="fecharOSConf('${os.id}')">✓ Fechar OS</button>`:''}
@@ -1882,6 +1883,71 @@ function delUser(id){if(confirm('Remover usuário?')){usuarios=usuarios.filter(u
 function expBackup(){const d=JSON.stringify({ordens,registros,usuarios,config},null,2);const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(d);a.download='sos-backup-'+new Date().toISOString().split('T')[0]+'.json';a.click();}
 function impBackup(e){const f=e.target.files[0];if(!f) return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(confirm(`Importar ${d.ordens?.length||0} OS, ${d.registros?.length||0} registros, ${d.usuarios?.length||0} usuários?`)){ordens=d.ordens||[];registros=d.registros||[];usuarios=d.usuarios||usuarios;config={...config,...(d.config||{})};saveAll();renderUsers();alert('Importado!')}}catch{alert('Arquivo inválido.')}};r.readAsText(f);}
 function limparTudo(){if(confirm('Apagar TODOS os dados?')){ordens=[];registros=[];saveAll();renderOSList();alert('Dados apagados.');}}
+
+// ════════════════════════════════════════
+// EDIÇÃO DE HE PELO ADMIN
+// ════════════════════════════════════════
+function editarHEReg(regId){
+  const r=registros.find(x=>x.id===regId);
+  if(!r) return;
+  // Remove modal anterior se existir
+  document.getElementById('modal-he-edit')?.remove();
+  const pop=document.createElement('div');
+  pop.id='modal-he-edit';
+  pop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px';
+  pop.innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--yellow);border-radius:16px;padding:24px;max-width:360px;width:100%">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">✏️ Editar HE — ${fmtData(r.data)}</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">OS ${r.osNum} · ${r.operadorNome}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div class="field" style="margin:0"><label>Início HE</label><input type="time" id="mhe-ini" value="${r.heIni||''}"/></div>
+        <div class="field" style="margin:0"><label>Fim HE</label><input type="time" id="mhe-fim" value="${r.heFim||''}"/></div>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:16px">Deixe em branco para zerar a HE deste registro.</div>
+      <div id="mhe-preview" style="font-size:13px;color:var(--yellow);margin-bottom:14px;min-height:18px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" style="flex:1" onclick="salvarHEReg('${regId}')">💾 Salvar</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="document.getElementById('modal-he-edit').remove()">Cancelar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(pop);
+  // Preview ao alterar horários
+  ['mhe-ini','mhe-fim'].forEach(id=>document.getElementById(id).addEventListener('input',_previewHE));
+  _previewHE();
+}
+function _previewHE(){
+  const ini=document.getElementById('mhe-ini')?.value;
+  const fim=document.getElementById('mhe-fim')?.value;
+  const prev=document.getElementById('mhe-preview');
+  if(!prev) return;
+  if(ini&&fim){
+    const iM=toMin(ini),fM=toMin(fim);
+    const h=(fM>iM?fM-iM:fM+1440-iM)/60;
+    prev.textContent=`HE calculada: ${fmtHE(h)}`;
+  } else {
+    prev.textContent=ini||fim?'Preencha os dois campos.':'HE será zerada.';
+  }
+}
+function salvarHEReg(regId){
+  const r=registros.find(x=>x.id===regId);
+  if(!r) return;
+  const ini=document.getElementById('mhe-ini')?.value||'';
+  const fim=document.getElementById('mhe-fim')?.value||'';
+  let heH=0;
+  if(ini&&fim){
+    const iM=toMin(ini),fM=toMin(fim);
+    heH=(fM>iM?fM-iM:fM+1440-iM)/60;
+  }
+  r.heIni=ini;
+  r.heFim=fim;
+  r.heOperador=heH;
+  delete r.valorHEOperador; // força recálculo pelo valor atual
+  fbSaveRegistros().then(()=>{
+    document.getElementById('modal-he-edit')?.remove();
+    showToast('HE atualizada com sucesso.');
+    verOS(r.osId); // re-renderiza o detalhe da OS
+  }).catch(()=>showToast('Erro ao salvar.','err'));
+}
 
 // ════════════════════════════════════════
 // GERAÇÃO DE PDF
