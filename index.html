@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v6.8</title>
+  <title>SOS Energia — OS Digital v6.9</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
@@ -1148,8 +1148,9 @@ function buildOpForm(os){
   <div id="op2" style="display:none">
     ${(()=>{
       const rascunhosOS=registros.filter(r=>r.osId===os.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
-      const primeiroDia=rascunhosOS.length===0; // ainda não tem rascunhos = é o primeiro dia
-      const ultimoDia=rascunhosOS.length>0;     // já tem pelo menos 1 rascunho = pode ser o último
+      const dataHoje2=new Date().toISOString().split('T')[0];
+      const primeiroDia=os.dataSaida ? dataHoje2<=os.dataSaida : rascunhosOS.length===0;
+      const ultimoDia=os.dataRetorno ? dataHoje2>=os.dataRetorno : rascunhosOS.length>0;
       const refPlaca=rascunhosOS[0]?.placa||'';
       const refMot=rascunhosOS[0]?.motorista||'';
       if(primeiroDia){
@@ -1196,7 +1197,9 @@ function buildOpForm(os){
   <div id="op3" style="display:none">
     ${(()=>{
       const rascunhosOS=registros.filter(r=>r.osId===os.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
-      const ultimoDia=rascunhosOS.length>0;
+      const dataHoje=document.getElementById('op-data')?.value||new Date().toISOString().split('T')[0];
+      // Último dia = data do retorno contratado (ou, se não tiver, fallback para ter rascunhos)
+      const ultimoDia=os.dataRetorno ? dataHoje>=os.dataRetorno : rascunhosOS.length>0;
       if(!ultimoDia){
         // Dias intermediários: sem assinatura, salva direto
         return `
