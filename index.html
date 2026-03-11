@@ -1070,9 +1070,15 @@ function buildOpForm(os){
       <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}"/></div>
       ${geradores.map((g,gi)=>`
       <div style="border:1px solid ${g.standby?'rgba(234,179,8,.3)':'var(--border)'};border-radius:10px;padding:12px;margin-bottom:10px;background:${g.standby?'rgba(234,179,8,.04)':'transparent'}">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">
           <span style="font-weight:700;font-size:13px">⚡ ${g.potencia||'Gerador'}${g.patrimonio?' ('+g.patrimonio+')':''}</span>
-          ${g.standby?`<span style="background:rgba(234,179,8,.15);color:var(--yellow);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid rgba(234,179,8,.3)">STAND-BY</span>`:''}
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${g.standby?`<span style="background:rgba(234,179,8,.15);color:var(--yellow);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid rgba(234,179,8,.3)">STAND-BY</span>`:''}
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:20px;padding:2px 8px">
+              <input type="checkbox" id="g-meia-${gi}" onchange="calcHEGerador(${gi})" style="width:13px;height:13px;accent-color:var(--blue);cursor:pointer"/>
+              <span style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap">½ DIÁRIA</span>
+            </label>
+          </div>
         </div>
         ${g.standby?`
         <div style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(234,179,8,.08);border-radius:8px;margin-bottom:4px">
@@ -1329,10 +1335,12 @@ function calcHEGerador(gi){
   // Horímetro final
   const hfEl=document.getElementById(`g-hf-${gi}`);
   if(hfEl&&hi) hfEl.value=(hi+totH).toFixed(1);
-  // HE máquina
-  const heM=Math.max(0,totH-12);
+  // Limite contratado: meia diária = 6h, diária completa = 12h
+  const meiadiaria=document.getElementById(`g-meia-${gi}`)?.checked||false;
+  const limiteH=meiadiaria?6:12;
+  const heM=Math.max(0,totH-limiteH);
   if(wEl&&txt){
-    if(heM>0){txt.textContent=`Operou ${totH.toFixed(1)}h — excedeu ${fmtHE(heM)} do contrato de 12h.`;wEl.classList.add('show');}
+    if(heM>0){txt.textContent=`Operou ${totH.toFixed(1)}h — excedeu ${fmtHE(heM)} do contrato de ${limiteH}h (${meiadiaria?'meia diária':'diária'}).`;wEl.classList.add('show');}
     else wEl.classList.remove('show');
   }
 }
@@ -1348,9 +1356,11 @@ function coletarGeradoresReg(){
     const par=document.getElementById(`g-par-${gi}`)?.value||'';
     const hi=document.getElementById(`g-hi-${gi}`)?.value||'';
     const hf=document.getElementById(`g-hf-${gi}`)?.value||'';
+    const meiadiaria=document.getElementById(`g-meia-${gi}`)?.checked||false;
+    const limiteH=meiadiaria?6:12;
     let totH=0,heM=0;
-    if(part&&par){const pM=toMin(part),sM=toMin(par);totH=(sM>pM?sM-pM:sM+1440-pM)/60;heM=Math.max(0,totH-12);}
-    return {eqId:g.id,potencia:g.potencia||'',patrimonio:g.patrimonio||'',standby:isStandby,rodou,part,par,horIni:hi,horFim:hf,totalHoras:totH,heM};
+    if(part&&par){const pM=toMin(part),sM=toMin(par);totH=(sM>pM?sM-pM:sM+1440-pM)/60;heM=Math.max(0,totH-limiteH);}
+    return {eqId:g.id,potencia:g.potencia||'',patrimonio:g.patrimonio||'',standby:isStandby,rodou,part,par,horIni:hi,horFim:hf,totalHoras:totH,heM,meiadiaria};
   });
 }
 
