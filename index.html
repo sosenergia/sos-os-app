@@ -1117,6 +1117,17 @@ function buildOpForm(os){
           <div class="field"><label>Fim da HE</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
         </div>
         <p style="font-size:11px;color:var(--dim);margin-top:-6px;margin-bottom:8px">Preencha apenas se houver HE. Seg-Sex das 18h às 08h | Sáb a partir das 12h.</p>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;margin-bottom:6px;cursor:pointer" onclick="toggleCedoCampos()">
+          <input type="checkbox" id="op-chegou-cedo" style="width:15px;height:15px;accent-color:var(--blue);cursor:pointer" onclick="event.stopPropagation();toggleCedoCampos()"/>
+          <label for="op-chegou-cedo" style="font-size:12px;color:var(--blue);cursor:pointer;margin:0;font-weight:600">Chegou mais cedo na empresa?</label>
+        </div>
+        <div id="op-cedo-container" style="display:none;margin-bottom:8px">
+          <div class="grid2">
+            <div class="field" style="margin-bottom:6px"><label>Chegada na empresa</label><input type="time" id="op-cedo-ini"/></div>
+            <div class="field" style="margin-bottom:6px"><label>Saída da empresa</label><input type="time" id="op-cedo-fim"/></div>
+          </div>
+          <p style="font-size:11px;color:var(--dim);margin-top:-4px;margin-bottom:4px">Horas antes das 08h contam como HE e serão somadas automaticamente.</p>
+        </div>
       </div>
       <div class="field" style="margin-top:12px">
         <label>Gerador foi abastecido?</label>
@@ -1153,6 +1164,17 @@ function buildOpForm(os){
         <div class="field"><label>Fim da HE</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
       </div>
       <p style="font-size:11px;color:var(--dim);margin-top:-6px;margin-bottom:8px">Preencha apenas se houver HE. Seg-Sex das 18h às 08h | Sáb a partir das 12h.</p>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;margin-bottom:6px;cursor:pointer" onclick="toggleCedoCampos()">
+        <input type="checkbox" id="op-chegou-cedo" style="width:15px;height:15px;accent-color:var(--blue);cursor:pointer" onclick="event.stopPropagation();toggleCedoCampos()"/>
+        <label for="op-chegou-cedo" style="font-size:12px;color:var(--blue);cursor:pointer;margin:0;font-weight:600">Chegou mais cedo na empresa?</label>
+      </div>
+      <div id="op-cedo-container" style="display:none;margin-bottom:8px">
+        <div class="grid2">
+          <div class="field" style="margin-bottom:6px"><label>Chegada na empresa</label><input type="time" id="op-cedo-ini"/></div>
+          <div class="field" style="margin-bottom:6px"><label>Saída da empresa</label><input type="time" id="op-cedo-fim"/></div>
+        </div>
+        <p style="font-size:11px;color:var(--dim);margin-top:-4px;margin-bottom:4px">Horas antes das 08h contam como HE e serão somadas automaticamente.</p>
+      </div>
       <div class="field"><label>Observações</label><textarea id="op-obs" placeholder="Ocorrências, solicitações..."></textarea></div>
     </div>`;
     })()}
@@ -1405,6 +1427,13 @@ function toggleAbastecimento(){
   if(c) c.style.display=val==='sim'?'block':'none';
 }
 
+function toggleCedoCampos(){
+  const cb=document.getElementById('op-chegou-cedo');
+  const c=document.getElementById('op-cedo-container');
+  if(!cb||!c) return;
+  c.style.display=cb.checked?'block':'none';
+}
+
 const sigPads={};
 function initSigPad(id){
   const canvas=document.getElementById(id);if(!canvas) return;
@@ -1487,7 +1516,7 @@ function finalizarReg(){
   const par=gRef?.par||'00:00';
   const pM=toMin(part),sM=toMin(par);
   const totH=gRef?(sM>pM?sM-pM:sM+1440-pM)/60:0;
-  // HE do operador = diferença entre heIni e heFim que ele informou
+  // HE do operador = período de HE informado + chegada antecipada (se marcado)
   const _heIni=document.getElementById('op-he-ini')?.value||'';
   const _heFim=document.getElementById('op-he-fim')?.value||'';
   let heO=0;
@@ -1495,6 +1524,16 @@ function finalizarReg(){
     const hIniM=toMin(_heIni),hFimM=toMin(_heFim);
     heO=(hFimM>hIniM?hFimM-hIniM:hFimM+1440-hIniM)/60;
   }
+  // Chegada antecipada: soma horas antes das 08h ao heO
+  const _cedoAtivo=document.getElementById('op-chegou-cedo')?.checked||false;
+  const _cedoIni=document.getElementById('op-cedo-ini')?.value||'';
+  const _cedoFim=document.getElementById('op-cedo-fim')?.value||'';
+  let heCedo=0;
+  if(_cedoAtivo&&_cedoIni&&_cedoFim){
+    const cIniM=toMin(_cedoIni),cFimM=toMin(_cedoFim);
+    heCedo=(cFimM>cIniM?cFimM-cIniM:cFimM+1440-cIniM)/60;
+  }
+  heO+=heCedo;
   const _opUser=opOS?usuarios.find(u=>u.id===sessaoAtual.id):null;
   const _heValorOp=(_opUser&&_opUser.heValor>0)?_opUser.heValor:config.heValor;
   const valHEop=heO*_heValorOp;
@@ -1511,6 +1550,10 @@ function finalizarReg(){
     obs:document.getElementById('op-obs')?.value||'',
     heIni: document.getElementById('op-he-ini')?.value || '',
     heFim: document.getElementById('op-he-fim')?.value || '',
+    chegouCedo: _cedoAtivo,
+    cedoIni: _cedoAtivo?_cedoIni:'',
+    cedoFim: _cedoAtivo?_cedoFim:'',
+    heCedo,
     abastecido: document.getElementById('op-abastecido')?.value||'nao',
     litros: document.getElementById('op-litros')?.value||'',
     placa:document.getElementById('op-placa')?.value||'',
