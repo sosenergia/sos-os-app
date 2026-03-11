@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v6.6</title>
+  <title>SOS Energia — OS Digital v6.7</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
@@ -624,12 +624,18 @@ function renderEquip(){
         <button class="equip-remove" onclick="removeEquip('${eq.id}')" title="Remover">×</button>
         <div class="grid2">
           <div class="field" style="margin:0 0 6px">
-            <label style="font-size:10px">Potência (KVA)</label>
-            <input value="${eq.potencia}" placeholder="Ex: 180 KVA" oninput="equipamentosOS[${i}].potencia=this.value"/>
+            <label style="font-size:10px">Potência</label>
+            <div style="display:flex;align-items:center;gap:0">
+              <input style="border-radius:8px 0 0 8px;border-right:none;flex:1" value="${eq.potencia.replace(/\s*kva$/i,'').trim()}" placeholder="180" oninput="equipamentosOS[${i}].potencia=this.value.trim()+' kVA'"/>
+              <span style="background:var(--card2);border:1px solid var(--border);border-left:none;border-radius:0 8px 8px 0;padding:0 10px;height:40px;display:flex;align-items:center;font-size:13px;color:var(--dim);white-space:nowrap;flex-shrink:0">kVA</span>
+            </div>
           </div>
           <div class="field" style="margin:0 0 6px">
             <label style="font-size:10px">Nº Patrimônio</label>
-            <input value="${eq.patrimonio}" placeholder="Ex: G-042" oninput="equipamentosOS[${i}].patrimonio=this.value"/>
+            <div style="display:flex;align-items:center;gap:0">
+              <span style="background:var(--card2);border:1px solid var(--border);border-right:none;border-radius:8px 0 0 8px;padding:0 10px;height:40px;display:flex;align-items:center;font-size:13px;color:var(--dim);white-space:nowrap;flex-shrink:0">GG</span>
+              <input style="border-radius:0 8px 8px 0;border-left:none;flex:1" value="${eq.patrimonio.replace(/^GG/i,'').trim()}" placeholder="042" oninput="equipamentosOS[${i}].patrimonio='GG'+this.value.trim()"/>
+            </div>
           </div>
           <div class="field" style="margin:0 0 6px;grid-column:1/-1">
             <label style="font-size:10px">Valor HE Gerador (R$/hora)</label>
@@ -1140,8 +1146,17 @@ function buildOpForm(os){
   </div>
   <!-- Step 2: Transporte -->
   <div id="op2" style="display:none">
+    ${(()=>{
+      const rascunhosOS=registros.filter(r=>r.osId===os.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
+      const primeiroDia=rascunhosOS.length===0; // ainda não tem rascunhos = é o primeiro dia
+      const ultimoDia=rascunhosOS.length>0;     // já tem pelo menos 1 rascunho = pode ser o último
+      const refPlaca=rascunhosOS[0]?.placa||'';
+      const refMot=rascunhosOS[0]?.motorista||'';
+      if(primeiroDia){
+        return `
     <div class="card">
-      <div class="card-title">Transporte</div>
+      <div class="card-title">Transporte — Ida ao Evento</div>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Preencha os dados da ida. A volta será registrada no último dia.</p>
       <div class="grid2">
         <div class="field"><label>Placa</label><input id="op-placa" style="text-transform:uppercase" placeholder="ABC-1234"/></div>
         <div class="field"><label>Motorista</label><input id="op-mot" placeholder="Nome completo"/></div>
@@ -1151,12 +1166,29 @@ function buildOpForm(os){
         <div class="field"><label>Saída da empresa</label><input type="time" id="op-itin-saida"/></div>
         <div class="field"><label>Chegada no evento</label><input type="time" id="op-itin-chegada"/></div>
       </div>
+      <input type="hidden" id="op-itin-saida-volta"/>
+      <input type="hidden" id="op-itin-chegada-volta"/>
+    </div>`;
+      } else {
+        return `
+    <div class="card">
+      <div class="card-title">Transporte — Volta para Empresa</div>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Dados da ida já registrados. Preencha aqui a volta.</p>
+      <div class="grid2">
+        <div class="field"><label>Placa</label><input id="op-placa" style="text-transform:uppercase" value="${refPlaca}" placeholder="ABC-1234"/></div>
+        <div class="field"><label>Motorista</label><input id="op-mot" value="${refMot}" placeholder="Nome completo"/></div>
+      </div>
+      <input type="hidden" id="op-itin-saida"/>
+      <input type="hidden" id="op-itin-chegada"/>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:10px 0 6px">📍 → 🏢 Volta para empresa</div>
       <div class="grid2">
         <div class="field"><label>Saída do evento</label><input type="time" id="op-itin-saida-volta"/></div>
         <div class="field"><label>Chegada na empresa</label><input type="time" id="op-itin-chegada-volta"/></div>
       </div>
-    </div>
+      <p style="font-size:11px;color:var(--dim);margin-top:6px">Dias intermediários não precisam de transporte.</p>
+    </div>`;
+      }
+    })()}
     <button class="btn btn-primary" onclick="opStep(3)">Próximo: Assinatura →</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(1)">← Voltar</button>
   </div>
@@ -1322,23 +1354,12 @@ function clearSig(id){const p=sigPads[id];if(p){const c=document.getElementById(
 let lastReg=null;
 let regEnviado=false;
 function novoRegistroDia(){
-  // Reseta para registrar outro dia na mesma OS sem sair
+  if(!opOS) return;
+  // Reconstrói o formulário para refletir o novo estado (ex: transporte muda de Ida para Volta)
   regEnviado=false;
-  document.getElementById('op-ok').style.display='none';
-  // Limpa campos do Step 1
-  ['op-he-ini','op-he-fim','op-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  if(opOS){
-    const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
-    geradores.forEach((_,gi)=>{
-      ['g-part-','g-par-','g-hi-','g-hf-'].forEach(p=>{const el=document.getElementById(p+gi);if(el)el.value='';});
-      const warn=document.getElementById('g-he-warn-'+gi);if(warn)warn.classList.remove('show');
-      const rodou=document.getElementById('g-rodou-'+gi);if(rodou){rodou.checked=false;}
-      const campos=document.getElementById('g-campos-'+gi);if(campos)campos.style.display='none';
-    });
-  }
+  buildOpForm(opOS);
   // Avança direto para Step 1
-  opStep(1);
-  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>{opStep(1);window.scrollTo({top:0,behavior:'smooth'});},50);
 }
 
 function finalizarReg(){
