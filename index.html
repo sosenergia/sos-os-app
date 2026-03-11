@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="SOS OS"/>
-  <title>SOS Energia — OS Digital v6.7</title>
+  <title>SOS Energia — OS Digital v6.8</title>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
@@ -88,7 +88,7 @@
     .os-item:hover{border-color:var(--red)}
     .os-item-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
     /* ── SIG ── */
-    #sigCanvas{border:1px solid var(--border);border-radius:8px;background:#fff;touch-action:none;width:100%;display:block}
+    #sigCanvas,#sigCanvasOp{border:1px solid var(--border);border-radius:8px;background:#fff;touch-action:none;width:100%;display:block}
     /* ── ALERT ── */
     .alert{border-radius:9px;padding:11px 13px;margin-bottom:13px;font-size:13px;display:flex;gap:9px;align-items:flex-start}
     .alert-red{background:rgba(204,0,0,.13);border:1px solid rgba(204,0,0,.28);color:#ff9090}
@@ -1192,11 +1192,54 @@ function buildOpForm(os){
     <button class="btn btn-primary" onclick="opStep(3)">Próximo: Assinatura →</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(1)">← Voltar</button>
   </div>
-  <!-- Step 3: Assinaturas -->
+  <!-- Step 3: Assinaturas (só no último dia) -->
   <div id="op3" style="display:none">
+    ${(()=>{
+      const rascunhosOS=registros.filter(r=>r.osId===os.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
+      const ultimoDia=rascunhosOS.length>0;
+      if(!ultimoDia){
+        // Dias intermediários: sem assinatura, salva direto
+        return `
+    <div class="card">
+      <div style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:28px;margin-bottom:6px">📋</div>
+        <div style="font-weight:700;color:var(--yellow);margin-bottom:4px">Dia intermediário</div>
+        <div style="font-size:12px;color:var(--dim)">A assinatura do cliente será coletada somente no último dia, com o resumo completo de todas as rodagens.</div>
+      </div>
+      <canvas id="sigCanvas" style="display:none"></canvas>
+      <canvas id="sigCanvasOp" style="display:none"></canvas>
+      <input type="hidden" id="op-resp"/>
+      <input type="hidden" id="op-nome-op" value="${os.operadorNome||''}"/>
+    </div>
+    <button class="btn btn-green" id="btn-finalizar" onclick="finalizarReg()" style="margin-top:8px">💾 Salvar este dia</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>`;
+      }
+      // Último dia: mostra resumo de rodagens + assinatura
+      const todosRascunhos=[...rascunhosOS].sort((a,b)=>a.data.localeCompare(b.data));
+      const resumoRodagens=todosRascunhos.map(r=>{
+        const linhasG=r.geradoresReg&&r.geradoresReg.length
+          ? r.geradoresReg.map(g=>g.standby&&!g.rodou
+              ? `<div style="font-size:12px;color:var(--dim);margin-left:8px">⚡ ${g.potencia||'Gerador'}${g.patrimonio?' ('+g.patrimonio+')':''} — <em>Stand-by (não operou)</em></div>`
+              : `<div style="font-size:12px;color:var(--dim);margin-left:8px">⚡ ${g.potencia||'Gerador'}${g.patrimonio?' ('+g.patrimonio+')':''} — ${g.part} às ${g.par} (${g.totalHoras?g.totalHoras.toFixed(1)+'h':'—'})${g.heM>0?' <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE</span>':''}</div>`
+            ).join('')
+          : `<div style="font-size:12px;color:var(--dim);margin-left:8px">Liga: ${r.partida} · Desliga: ${r.parada} · ${r.totalHoras?r.totalHoras.toFixed(1)+'h':'—'}</div>`;
+        return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${fmtData(r.data)}</div>
+          ${linhasG}
+        </div>`;
+      }).join('');
+      return `
+    <div class="card">
+      <div class="card-title">Resumo de Operação</div>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:10px">Apresente ao cliente para conferência antes de assinar.</p>
+      <div style="background:var(--dark);border-radius:10px;padding:12px;margin-bottom:4px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">OS ${os.num} — ${os.cliente}${os.evento?' · '+os.evento:''}</div>
+        ${resumoRodagens}
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">Assinatura do Cliente</div>
-      <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Peça ao cliente para assinar confirmando os horários.</p>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Peça ao cliente para assinar confirmando os horários acima.</p>
       <canvas id="sigCanvas" width="400" height="155"></canvas>
       <div style="display:flex;gap:8px;margin-top:7px">
         <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvas')">Limpar</button>
@@ -1205,15 +1248,16 @@ function buildOpForm(os){
     </div>
     <div class="card">
       <div class="card-title">Assinatura do Operador</div>
-      <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Agora assine você como operador responsável.</p>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Assine como operador responsável.</p>
       <canvas id="sigCanvasOp" width="400" height="155"></canvas>
       <div style="display:flex;gap:8px;margin-top:7px">
         <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvasOp')">Limpar</button>
       </div>
       <div class="field" style="margin-top:12px"><label>Nome do operador</label><input id="op-nome-op" value="${os.operadorNome||''}" placeholder="Nome do operador"/></div>
     </div>
-    <button class="btn btn-green" id="btn-finalizar" onclick="finalizarReg()">✓ Enviar Assinaturas e Finalizar OS</button>
-    <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>
+    <button class="btn btn-green" id="btn-finalizar" onclick="finalizarReg()">✓ Salvar e Finalizar último dia</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>`;
+    })()}
   </div>
   <!-- Confirmação -->
   <div id="op-ok" style="display:none;">
@@ -1348,7 +1392,13 @@ function initSigPad(id){
   canvas.onmousemove=canvas.ontouchmove=e=>{e.preventDefault();if(!sigPads[id].drawing) return;const p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();sigPads[id].hasData=true};
   canvas.onmouseup=canvas.ontouchend=()=>{sigPads[id].drawing=false};
 }
-function initSig(){initSigPad('sigCanvas');initSigPad('sigCanvasOp');}
+function initSig(){
+  // Só inicializa canvas que estão visíveis (dias intermediários têm display:none)
+  const sc=document.getElementById('sigCanvas');
+  const so=document.getElementById('sigCanvasOp');
+  if(sc&&sc.style.display!=='none') initSigPad('sigCanvas');
+  if(so&&so.style.display!=='none') initSigPad('sigCanvasOp');
+}
 function clearSig(id){const p=sigPads[id];if(p){const c=document.getElementById(id);p.ctx.clearRect(0,0,c.width,c.height);p.hasData=false;}}
 
 let lastReg=null;
