@@ -1101,9 +1101,14 @@ function buildOpForm(os){
       <input type="hidden" id="op-hi" value=""/>
       <input type="hidden" id="op-hf" value=""/>
       <div id="he-periodo-container">
+        <div style="display:flex;align-items:center;gap:10px;margin:16px 0 12px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:11px;font-weight:700;color:var(--yellow);letter-spacing:.8px;white-space:nowrap">⏱ HORA EXTRA DO OPERADOR</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
         <div class="grid2">
-          <div class="field"><label>Início da HE do operador</label><input type="time" id="op-he-ini" oninput="calcHE()"/></div>
-          <div class="field"><label>Fim da HE do operador</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
+          <div class="field"><label>Início da HE</label><input type="time" id="op-he-ini" oninput="calcHE()"/></div>
+          <div class="field"><label>Fim da HE</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
         </div>
         <p style="font-size:11px;color:var(--dim);margin-top:-6px;margin-bottom:8px">Preencha apenas se houver HE. Seg-Sex das 18h às 08h | Sáb a partir das 12h.</p>
       </div>
@@ -1132,9 +1137,14 @@ function buildOpForm(os){
       <input type="hidden" id="op-par" value="00:00"/>
       <input type="hidden" id="op-hi" value=""/>
       <input type="hidden" id="op-hf" value=""/>
+      <div style="display:flex;align-items:center;gap:10px;margin:16px 0 12px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:11px;font-weight:700;color:var(--yellow);letter-spacing:.8px;white-space:nowrap">⏱ HORA EXTRA DO OPERADOR</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
       <div class="grid2">
-        <div class="field"><label>Início da HE do operador</label><input type="time" id="op-he-ini" oninput="calcHE()"/></div>
-        <div class="field"><label>Fim da HE do operador</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
+        <div class="field"><label>Início da HE</label><input type="time" id="op-he-ini" oninput="calcHE()"/></div>
+        <div class="field"><label>Fim da HE</label><input type="time" id="op-he-fim" oninput="calcHE()"/></div>
       </div>
       <p style="font-size:11px;color:var(--dim);margin-top:-6px;margin-bottom:8px">Preencha apenas se houver HE. Seg-Sex das 18h às 08h | Sáb a partir das 12h.</p>
       <div class="field"><label>Observações</label><textarea id="op-obs" placeholder="Ocorrências, solicitações..."></textarea></div>
