@@ -359,6 +359,11 @@ function fbUpdate(path, data) {
   const p = db.ref(path).update(data).catch(e => console.warn('Firebase write error:', e));
   return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000))]);
 }
+function fbRemove(path) {
+  // remove() deleta o nó permanentemente no Firebase
+  const p = db.ref(path).remove().catch(e => console.warn('Firebase remove error:', e));
+  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000))]);
+}
 function fbSaveOrdens() {
   const obj = {};
   ordens.forEach(o => { obj[o.id] = o; });
@@ -1043,16 +1048,19 @@ function fecharDet(){document.getElementById('os-detalhe').style.display='none';
 function fecharOSConf(id){if(confirm('Confirmar fechamento desta OS?')){const os=ordens.find(o=>o.id===id);if(os){os.status='fechada';saveAll();verOS(id);}}}
 function excluirOS(id){
   const os=ordens.find(o=>o.id===id);if(!os) return;
-  const regsCount=registros.filter(r=>r.osId===id).length;
-  const aviso=regsCount>0?`\n\n⚠️ Esta OS tem ${regsCount} registro(s) de operador. Eles também serão excluídos.`:'';
+  const regsIds=registros.filter(r=>r.osId===id).map(r=>r.id);
+  const aviso=regsIds.length>0?`\n\n⚠️ Esta OS tem ${regsIds.length} registro(s) de operador. Eles também serão excluídos.`:'';
   if(!confirm(`Excluir permanentemente a OS ${os.num} — ${os.cliente}?${aviso}\n\nEsta ação não pode ser desfeita.`)) return;
+  // 1. Remove do estado local e localStorage
   ordens=ordens.filter(o=>o.id!==id);
   registros=registros.filter(r=>r.osId!==id);
-  fbSaveWithFeedback(()=>saveAll(), null, null).then(()=>{
-    showToast(`OS ${os.num} excluída`);
-    fecharDet();
-    renderOSList();
-  }).catch(e=>showToast('Erro ao excluir: '+(e&&e.message?e.message:'falha'),'err'));
+  DB.set('sos_ordens',ordens);
+  DB.set('sos_registros',registros);
+  // 2. Remove os nós diretamente no Firebase (fbUpdate/merge NÃO apaga nós — precisa de remove())
+  const removes=[fbRemove('ordens/'+id), ...regsIds.map(rid=>fbRemove('registros/'+rid))];
+  Promise.all(removes)
+    .then(()=>{showToast(`OS ${os.num} excluída`);fecharDet();renderOSList();})
+    .catch(e=>showToast('Erro ao excluir: '+(e&&e.message?e.message:'falha'),'err'));
 }
 
 // ════════════════════════════════════════
@@ -1718,7 +1726,10 @@ function _renderResumoOS(){
 function excluirRascunho(regId){
   if(!confirm('Remover este dia do registro?')) return;
   registros=registros.filter(r=>r.id!==regId);
-  saveAll().then(()=>{_renderResumoOS();showToast('Dia removido.');});
+  DB.set('sos_registros',registros);
+  fbRemove('registros/'+regId)
+    .then(()=>{_renderResumoOS();showToast('Dia removido.');})
+    .catch(e=>showToast('Erro ao remover: '+(e?.message||'falha'),'err'));
 }
 
 function enviarParaAdmin(){
