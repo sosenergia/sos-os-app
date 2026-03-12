@@ -1075,7 +1075,10 @@ function verOS(id){
             ${g.standby&&!g.rodou?`<span style="color:var(--yellow)">⚡ ${g.potencia||'Gerador'}${g.patrimonio?' ('+g.patrimonio+')':''} — <strong>Stand-by (não rodou)</strong></span>`:`<span>⚡ ${g.potencia||'Gerador'}${g.patrimonio?' ('+g.patrimonio+')':''} — Liga: ${g.part} · Desliga: ${g.par} · Hor: ${g.horIni}→${g.horFim}${g.heM>0?' · <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE máq.</span>':''}</span>`}
           </div>`).join(''):`<div style="font-size:12px;color:var(--dim)">Liga: ${r.partida} · Desliga: ${r.parada} · Hor: ${r.horIni}→${r.horFim}</div>`}
         ${r.obs?`<div style="font-size:12px;color:var(--dim);margin-top:3px">${r.obs}</div>`:''}
-        ${r.heOperador>0?`<div style="font-size:12px;color:var(--yellow);margin-top:3px">HE operador: ${fmtHE(r.heOperador)} → R$ ${(()=>{const _u=usuarios.find(u=>u.id===r.operadorId);const _v=(_u&&_u.heValor>0)?_u.heValor:config.heValor;return(r.heOperador*_v).toFixed(2);})()}</div>`:''}
+        ${(r.heOperador>0||r.refeicoes>0)?`<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          ${r.heOperador>0?`<span style="font-size:12px;background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.25);border-radius:6px;padding:3px 8px;font-weight:600">⏱ HE: ${fmtHE(r.heOperador)} → R$ ${(()=>{const _u=usuarios.find(u=>u.id===r.operadorId);const _v=(_u&&_u.heValor>0)?_u.heValor:config.heValor;return(r.heOperador*_v).toFixed(2);})()}</span>`:''}
+          ${r.refeicoes>0?`<span style="font-size:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.25);border-radius:6px;padding:3px 8px;font-weight:600">🍽 Refeição${r.refeicoes>1?'(×'+r.refeicoes+')':''}: R$ ${(r.valorRefeicao||r.refeicoes*25).toFixed(2)}</span>`:''}
+        </div>`:''}
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           ${r.assinatura?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura cliente</div><img src="${r.assinatura}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
           ${r.assinaturaOp?`<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura operador</div><img src="${r.assinaturaOp}" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>`:''}
@@ -1266,6 +1269,20 @@ function buildOpForm(os){
             <div class="field" style="margin-bottom:6px"><label>Saída da empresa</label><input type="time" id="op-cedo-fim"/></div>
           </div>
           <p style="font-size:11px;color:var(--dim);margin-top:-4px;margin-bottom:4px">Horas antes das 08h contam como HE e serão somadas automaticamente.</p>
+        </div>
+        <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:10px 12px;margin-top:4px">
+          <div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🍽 Refeições durante a HE</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="op-ref1" style="width:15px;height:15px;accent-color:#10b981;cursor:pointer"/>
+              <span>Refeição 1 <span style="font-size:11px;color:var(--dim)">(R$ 25,00)</span></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="op-ref2" style="width:15px;height:15px;accent-color:#10b981;cursor:pointer"/>
+              <span>Refeição 2 <span style="font-size:11px;color:var(--dim)">(R$ 25,00)</span></span>
+            </label>
+          </div>
+          <p style="font-size:11px;color:var(--dim);margin:6px 0 0">Marque cada refeição feita durante a HE. Valor somado separadamente ao total.</p>
         </div>
       </div>
       <div class="field" style="margin-top:12px">
@@ -1739,6 +1756,8 @@ function finalizarReg(){
     assinatura:sigCliente,assinaturaOp:sigOperador,
     geradoresReg,
     heOperador:heO,valorHEOperador:valHEop,heMaquina:heM,totalHoras:totH,
+    refeicoes:(document.getElementById('op-ref1')?.checked?1:0)+(document.getElementById('op-ref2')?.checked?1:0),
+    valorRefeicao:((document.getElementById('op-ref1')?.checked?1:0)+(document.getElementById('op-ref2')?.checked?1:0))*25,
     status:'rascunho',
     criadoEm:new Date().toISOString()
   };
@@ -2234,43 +2253,49 @@ function gerarHE(){
 
   const regsDoMes=registros.filter(r=>r.data&&r.data.startsWith(mes));
 
-  let totalHEGeral=0,totalValorGeral=0,opComHE=0;
+  let totalHEGeral=0,totalValorHEGeral=0,totalRefGeral=0,totalValorRefGeral=0,opComHE=0;
   const cards=operadores.map(u=>{
     const regsOp=regsDoMes.filter(r=>r.operadorId===u.id);
     const totalHE=regsOp.reduce((a,r)=>a+(r.heOperador||0),0);
-    if(!totalHE) return ''; // oculta operadores sem HE no mês
+    const totalRef=regsOp.reduce((a,r)=>a+(r.refeicoes||0),0);
+    if(!totalHE&&!totalRef) return ''; // oculta operadores sem HE nem refeições
     opComHE++;
     const valorHora=(u.heValor&&u.heValor>0)?u.heValor:config.heValor;
-    const totalValor=totalHE*valorHora;
+    const totalValorHE=totalHE*valorHora;
+    const totalValorRef=totalRef*25;
     totalHEGeral+=totalHE;
-    totalValorGeral+=totalValor;
-    const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
+    totalValorHEGeral+=totalValorHE;
+    totalRefGeral+=totalRef;
+    totalValorRefGeral+=totalValorRef;
+    const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0||(r.refeicoes||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
     const linhasHE=regsComHE.map(r=>{
-      const valR=(r.heOperador||0)*valorHora;
-      const heHorario=(r.heIni&&r.heFim)?`${r.heIni} → ${r.heFim}`:'—';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap">
-        <div style="min-width:0;font-size:12px">
-          <span style="color:var(--dim)">${fmtData(r.data)}</span>
-          ${r.osNum?`<span style="font-weight:600;margin-left:8px">OS ${r.osNum}</span>`:''}
-          ${r.evento?`<span style="margin-left:8px;color:var(--text)">${r.evento}</span>`:''}
-          <span style="color:var(--yellow);margin-left:8px">${heHorario}</span>
-        </div>
-        <div style="display:flex;gap:10px;flex-shrink:0;align-items:center">
-          <span style="font-size:13px;font-weight:700;color:var(--yellow)">${fmtHE(r.heOperador)}</span>
-          <span style="font-size:12px;color:var(--green);font-weight:600">R$ ${valR.toFixed(2)}</span>
+      const valHE=(r.heOperador||0)*valorHora;
+      const valRef=(r.valorRefeicao||((r.refeicoes||0)*25));
+      const heHorario=(r.heIni&&r.heFim)?`${r.heIni} → ${r.heFim}`:'';
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="min-width:0;font-size:12px">
+            <span style="color:var(--dim)">${fmtData(r.data)}</span>
+            ${r.osNum?`<span style="font-weight:600;margin-left:8px">OS ${r.osNum}</span>`:''}
+            ${r.evento?`<span style="margin-left:8px;color:var(--dim)">${r.evento}</span>`:''}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            ${(r.heOperador||0)>0?`<span style="font-size:12px;background:rgba(234,179,8,.1);color:var(--yellow);border-radius:5px;padding:2px 7px;font-weight:600">⏱ ${fmtHE(r.heOperador)}${heHorario?' ('+heHorario+')':''} → R$ ${valHE.toFixed(2)}</span>`:''}
+            ${(r.refeicoes||0)>0?`<span style="font-size:12px;background:rgba(16,185,129,.1);color:#10b981;border-radius:5px;padding:2px 7px;font-weight:600">🍽 ×${r.refeicoes} → R$ ${valRef.toFixed(2)}</span>`:''}
+          </div>
         </div>
       </div>`;
     }).join('');
     return `
     <div class="card" style="margin-bottom:0;border-left:3px solid var(--yellow)">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         <div>
           <div style="font-weight:600;font-size:15px">${u.nome}</div>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${regsComHE.length} ocorrência${regsComHE.length!==1?'s':''} no mês · R$${valorHora.toFixed(2)}/h HE</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${regsComHE.length} ocorrência${regsComHE.length!==1?'s':''} · R$${valorHora.toFixed(2)}/h HE</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:20px;font-weight:700;color:var(--yellow)">${fmtHE(totalHE)}</div>
-          <div style="font-size:13px;color:var(--green);font-weight:600">R$ ${totalValor.toFixed(2)}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          ${totalHE>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--dim)">HE</div><div style="font-size:18px;font-weight:700;color:var(--yellow)">${fmtHE(totalHE)}</div><div style="font-size:12px;color:var(--yellow);font-weight:600">R$ ${totalValorHE.toFixed(2)}</div></div>`:''}
+          ${totalRef>0?`<div style="text-align:right"><div style="font-size:11px;color:var(--dim)">Refeições</div><div style="font-size:18px;font-weight:700;color:#10b981">×${totalRef}</div><div style="font-size:12px;color:#10b981;font-weight:600">R$ ${totalValorRef.toFixed(2)}</div></div>`:''}
         </div>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:6px">${linhasHE}</div>
@@ -2285,7 +2310,10 @@ function gerarHE(){
   <div class="metric-grid" style="margin-bottom:12px">
     <div class="metric-card"><div class="metric-label">Com HE no mês</div><div class="metric-value" style="color:${opComHE?'var(--yellow)':'var(--dim)'}">${opComHE}</div></div>
     <div class="metric-card"><div class="metric-label">Total HE</div><div class="metric-value" style="color:var(--yellow)">${totalHEGeral>0?fmtHE(totalHEGeral):'—'}</div></div>
-    <div class="metric-card"><div class="metric-label">Total a Pagar</div><div class="metric-value" style="color:var(--green)">${totalValorGeral>0?'R$ '+totalValorGeral.toFixed(2):'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Total HE R$</div><div class="metric-value" style="color:var(--green)">${totalValorHEGeral>0?'R$ '+totalValorHEGeral.toFixed(2):'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Refeições</div><div class="metric-value" style="color:#10b981">${totalRefGeral>0?'×'+totalRefGeral:'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Total Refeições R$</div><div class="metric-value" style="color:#10b981">${totalValorRefGeral>0?'R$ '+totalValorRefGeral.toFixed(2):'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Total Geral</div><div class="metric-value" style="color:var(--green);font-size:18px">${(totalValorHEGeral+totalValorRefGeral)>0?'R$ '+(totalValorHEGeral+totalValorRefGeral).toFixed(2):'—'}</div></div>
   </div>
   <div class="card">
     <div class="card-title">Detalhamento — ${nomeMes}</div>
@@ -2737,6 +2765,7 @@ function _gerarPDF(os, regsOS){
         <div><span class="lbl">Saída evento</span><span class="val">${r.itinerarioSaidaVolta||'—'}</span></div>
         <div><span class="lbl">Chegada empresa</span><span class="val">${r.itinerarioChegadaVolta||'—'}</span></div>
         ${heO>0?`<div class="span2"><span class="lbl">HE Operador</span><span class="val he-val">${fmtHE(heO)} → R$ ${valHE.toFixed(2)}</span></div>`:''}
+        ${(r.refeicoes||0)>0?`<div class="span2"><span class="lbl">Refeições (×${r.refeicoes})</span><span class="val" style="color:#059669;font-weight:700">R$ ${(r.valorRefeicao||r.refeicoes*25).toFixed(2)}</span></div>`:''}
         ${r.obs?`<div class="span2"><span class="lbl">Observações</span><span class="val">${r.obs}</span></div>`:''}
       </div>
       <div class="sig-row">
