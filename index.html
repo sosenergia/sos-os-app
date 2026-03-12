@@ -634,7 +634,7 @@ let _editandoOSId=null; // null = criação, string = edição
 
 function addEquip(tipo){
   equipamentosOS.push(tipo==='gerador'
-    ? {id:'eq_'+Date.now(),tipo:'gerador',potencia:'',patrimonio:'',heValorGerador:'',standby:false}
+    ? {id:'eq_'+Date.now(),tipo:'gerador',potencia:'',patrimonio:'',atuacao:'',heValorGerador:'',standby:false}
     : {id:'eq_'+Date.now(),tipo:'acessorio',nome:'',quantidade:'1'});
   renderEquip();
   // foco no primeiro campo do item adicionado
@@ -674,6 +674,22 @@ function renderEquip(){
               <span style="background:var(--card2);border:1px solid var(--border);border-right:none;border-radius:8px 0 0 8px;padding:0 10px;height:40px;display:flex;align-items:center;font-size:13px;color:var(--dim);white-space:nowrap;flex-shrink:0">GG</span>
               <input style="border-radius:0 8px 8px 0;border-left:none;flex:1" value="${eq.patrimonio.replace(/^GG/i,'').trim()}" placeholder="042" oninput="equipamentosOS[${i}].patrimonio='GG'+this.value.trim()"/>
             </div>
+          </div>
+          <div class="field" style="margin:0 0 6px;grid-column:1/-1">
+            <label style="font-size:10px">Local de atuação</label>
+            <input list="atuacao-sugestoes-${eq.id}" value="${eq.atuacao||''}" placeholder="Ex: Palco, LED, Luz, Banheiro..." oninput="equipamentosOS[${i}].atuacao=this.value"/>
+            <datalist id="atuacao-sugestoes-${eq.id}">
+              <option value="Palco"/>
+              <option value="LED"/>
+              <option value="Luz"/>
+              <option value="Banheiro"/>
+              <option value="Estrutura"/>
+              <option value="Camarim"/>
+              <option value="Cozinha"/>
+              <option value="Estacionamento"/>
+              <option value="Área VIP"/>
+              <option value="Som"/>
+            </datalist>
           </div>
           <div class="field" style="margin:0 0 6px;grid-column:1/-1">
             <label style="font-size:10px">Valor HE Gerador (R$/hora)</label>
