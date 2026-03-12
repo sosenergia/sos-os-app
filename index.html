@@ -2234,16 +2234,16 @@ function gerarHE(){
 
   const regsDoMes=registros.filter(r=>r.data&&r.data.startsWith(mes));
 
-  let totalHEGeral=0,totalValorGeral=0;
+  let totalHEGeral=0,totalValorGeral=0,opComHE=0;
   const cards=operadores.map(u=>{
     const regsOp=regsDoMes.filter(r=>r.operadorId===u.id);
     const totalHE=regsOp.reduce((a,r)=>a+(r.heOperador||0),0);
+    if(!totalHE) return ''; // oculta operadores sem HE no mês
+    opComHE++;
     const valorHora=(u.heValor&&u.heValor>0)?u.heValor:config.heValor;
-    const totalValor=regsOp.reduce((a,r)=>a+(r.heOperador||0)*valorHora,0);
+    const totalValor=totalHE*valorHora;
     totalHEGeral+=totalHE;
     totalValorGeral+=totalValor;
-    const heStr=fmtHE(totalHE);
-    const temHE=totalHE>0;
     const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
     const linhasHE=regsComHE.map(r=>{
       const valR=(r.heOperador||0)*valorHora;
@@ -2262,33 +2262,37 @@ function gerarHE(){
       </div>`;
     }).join('');
     return `
-    <div class="card" style="margin-bottom:0;border-left:3px solid ${temHE?'var(--yellow)':'var(--border)'}">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${temHE?'10px':'0'}">
+    <div class="card" style="margin-bottom:0;border-left:3px solid var(--yellow)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         <div>
           <div style="font-weight:600;font-size:15px">${u.nome}</div>
-          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${regsOp.length} registro${regsOp.length!==1?'s':''} no mês · R$${valorHora.toFixed(2)}/h HE</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${regsComHE.length} ocorrência${regsComHE.length!==1?'s':''} no mês · R$${valorHora.toFixed(2)}/h HE</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:20px;font-weight:700;color:${temHE?'var(--yellow)':'var(--text-secondary)'}">${temHE?heStr:'—'}</div>
-          ${temHE?`<div style="font-size:13px;color:var(--green);font-weight:600">R$ ${totalValor.toFixed(2)}</div>`:'<div style="font-size:12px;color:var(--text-secondary)">sem HE</div>'}
+          <div style="font-size:20px;font-weight:700;color:var(--yellow)">${fmtHE(totalHE)}</div>
+          <div style="font-size:13px;color:var(--green);font-weight:600">R$ ${totalValor.toFixed(2)}</div>
         </div>
       </div>
-      ${temHE?`<div style="border-top:1px solid var(--border);padding-top:6px">${linhasHE}</div>`:''}
+      <div style="border-top:1px solid var(--border);padding-top:6px">${linhasHE}</div>
     </div>`;
   }).join('');
 
   const [ano,mesN]=mes.split('-');
   const nomeMes=new Date(parseInt(ano),parseInt(mesN)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
 
+  const semHE=!cards.replace(/\s/g,'');
   out.innerHTML=`
   <div class="metric-grid" style="margin-bottom:12px">
-    <div class="metric-card"><div class="metric-label">Operadores</div><div class="metric-value">${operadores.length}</div></div>
-    <div class="metric-card"><div class="metric-label">Total HE</div><div class="metric-value" style="color:var(--yellow)">${fmtHE(totalHEGeral)}</div></div>
-    <div class="metric-card"><div class="metric-label">Total a Pagar</div><div class="metric-value" style="color:var(--green)">R$ ${totalValorGeral.toFixed(2)}</div></div>
+    <div class="metric-card"><div class="metric-label">Com HE no mês</div><div class="metric-value" style="color:${opComHE?'var(--yellow)':'var(--dim)'}">${opComHE}</div></div>
+    <div class="metric-card"><div class="metric-label">Total HE</div><div class="metric-value" style="color:var(--yellow)">${totalHEGeral>0?fmtHE(totalHEGeral):'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Total a Pagar</div><div class="metric-value" style="color:var(--green)">${totalValorGeral>0?'R$ '+totalValorGeral.toFixed(2):'—'}</div></div>
   </div>
   <div class="card">
     <div class="card-title">Detalhamento — ${nomeMes}</div>
-    <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>
+    ${semHE
+      ? `<div style="text-align:center;color:var(--dim);font-size:13px;padding:16px 0">Nenhum operador registrou HE neste mês.</div>`
+      : `<div style="display:flex;flex-direction:column;gap:10px">${cards}</div>`
+    }
   </div>`;
 }
 
