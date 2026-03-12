@@ -2585,6 +2585,8 @@ function editarRegistroAdmin(regId){
     ${geradores.map((g,gi)=>{
       const gd=(r.geradoresReg||[]).find(x=>x.eqId===g.id)||{};
       if(gd.standby&&!gd.rodou) return `<div style="font-size:12px;color:var(--yellow);padding:6px 0">⚡ ${g.potencia||'Gerador'} (${g.patrimonio||'—'}) — Stand-by (não rodou)</div>`;
+      const hcVal=gd.hContratadas||12;
+      const hcOpts=[12,13,14,15,16,17,18,19,20,21,22,23,24].map(h=>`<option value="${h}"${h===hcVal?' selected':''}>${h}h</option>`).join('');
       return `
       <div style="background:var(--dark);border-radius:8px;padding:10px;margin-bottom:8px">
         <div style="font-size:12px;font-weight:700;margin-bottom:8px">⚡ ${g.potencia||'Gerador'} (${g.patrimonio||'—'})</div>
@@ -2593,6 +2595,11 @@ function editarRegistroAdmin(regId){
           <div class="field" style="margin:0"><label style="font-size:11px">Desliga</label><input type="time" id="ead-par-${gi}" value="${gd.par||''}"/></div>
           <div class="field" style="margin:0"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="ead-hi-${gi}" step="0.1" value="${gd.horIni||''}"/></div>
           <div class="field" style="margin:0"><label style="font-size:11px">Horímetro Final</label><input type="number" id="ead-hf-${gi}" step="0.1" value="${gd.horFim||''}"/></div>
+          <div class="field" style="margin:0"><label style="font-size:11px">Horas contratadas</label><select id="ead-hc-${gi}">${hcOpts}</select></div>
+          <div class="field" style="margin:0;display:flex;align-items:center;gap:6px;padding-top:18px">
+            <input type="checkbox" id="ead-meia-${gi}" ${gd.meiadiaria?'checked':''} style="width:16px;height:16px;accent-color:var(--blue)"/>
+            <label for="ead-meia-${gi}" style="font-size:11px;margin:0;cursor:pointer">Meia diária</label>
+          </div>
         </div>
       </div>`;
     }).join('')}`:'';
@@ -2605,9 +2612,23 @@ function editarRegistroAdmin(regId){
       <div style="font-weight:700;font-size:15px;margin-bottom:2px">✏️ Editar Registro — ${fmtData(r.data)}</div>
       <div style="font-size:12px;color:var(--dim);margin-bottom:16px">OS ${r.osNum} · ${r.operadorNome}</div>
 
-      <div class="field"><label>Data</label><input type="date" id="ead-data" value="${r.data||''}"/></div>
+      <div style="font-weight:700;font-size:13px;color:var(--text);margin:0 0 8px">📋 Identificação</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="field" style="margin:0"><label style="font-size:11px">Data</label><input type="date" id="ead-data" value="${r.data||''}"/></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">Nome do Operador</label><input type="text" id="ead-nome-op" value="${r.operadorNome||r.nomeOperador||''}" placeholder="Nome"/></div>
+        <div class="field" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Responsável no cliente</label><input type="text" id="ead-resp" value="${r.respCliente||''}" placeholder="Nome do responsável"/></div>
+      </div>
 
       ${geradoresHTML}
+
+      <div style="font-weight:700;font-size:13px;color:var(--text);margin:14px 0 8px;border-top:1px solid var(--border);padding-top:12px">⛽ Abastecimento</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="field" style="margin:0;display:flex;align-items:center;gap:6px;padding-top:18px">
+          <input type="checkbox" id="ead-abast" ${r.abastecido?'checked':''} style="width:16px;height:16px;accent-color:var(--blue)"/>
+          <label for="ead-abast" style="font-size:11px;margin:0;cursor:pointer">Abasteceu</label>
+        </div>
+        <div class="field" style="margin:0"><label style="font-size:11px">Litros</label><input type="number" id="ead-litros" step="0.1" min="0" value="${r.litros||''}" placeholder="0"/></div>
+      </div>
 
       <div style="font-weight:700;font-size:13px;color:var(--text);margin:14px 0 8px;border-top:1px solid var(--border);padding-top:12px">🚗 Transporte</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -2620,9 +2641,30 @@ function editarRegistroAdmin(regId){
       </div>
 
       <div style="font-weight:700;font-size:13px;color:var(--text);margin:14px 0 8px;border-top:1px solid var(--border);padding-top:12px">⏱ HE do Operador</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="field" style="margin:0"><label style="font-size:11px">Início HE</label><input type="time" id="ead-he-ini" value="${r.heIni||''}"/></div>
         <div class="field" style="margin:0"><label style="font-size:11px">Fim HE</label><input type="time" id="ead-he-fim" value="${r.heFim||''}"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px">
+        <div class="field" style="margin:0;display:flex;align-items:center;gap:6px;padding-top:4px">
+          <input type="checkbox" id="ead-cedo" ${r.chegouCedo?'checked':''} style="width:16px;height:16px;accent-color:var(--blue)"/>
+          <label for="ead-cedo" style="font-size:11px;margin:0;cursor:pointer">Chegou cedo</label>
+        </div>
+        <div></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">Início (cedo)</label><input type="time" id="ead-cedo-ini" value="${r.cedoIni||''}"/></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">Fim (cedo)</label><input type="time" id="ead-cedo-fim" value="${r.cedoFim||''}"/></div>
+      </div>
+
+      <div style="font-weight:700;font-size:13px;color:var(--text);margin:14px 0 8px;border-top:1px solid var(--border);padding-top:12px">🍽 Refeições</div>
+      <div style="display:flex;gap:16px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="ead-ref1" ${(r.refeicoes||0)>=1?'checked':''} style="width:16px;height:16px;accent-color:var(--blue)"/>
+          <label for="ead-ref1" style="font-size:12px;cursor:pointer">Refeição 1 (R$25)</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="ead-ref2" ${(r.refeicoes||0)>=2?'checked':''} style="width:16px;height:16px;accent-color:var(--blue)"/>
+          <label for="ead-ref2" style="font-size:12px;cursor:pointer">Refeição 2 (R$25)</label>
+        </div>
       </div>
 
       <div class="field" style="margin-top:14px"><label>Observações</label><textarea id="ead-obs" rows="3" placeholder="Ocorrências, anotações...">${r.obs||''}</textarea></div>
@@ -2642,27 +2684,40 @@ function salvarRegistroAdmin(regId){
   const os=ordens.find(o=>o.id===r.osId);
   const geradores=(os?.equipamentos||[]).filter(e=>e.tipo==='gerador');
 
-  // Atualiza data
+  // Identificação
   r.data=document.getElementById('ead-data')?.value||r.data;
+  const nomeOpEdit=document.getElementById('ead-nome-op')?.value;
+  if(nomeOpEdit!==undefined){r.operadorNome=nomeOpEdit;r.nomeOperador=nomeOpEdit;}
+  const respEdit=document.getElementById('ead-resp')?.value;
+  if(respEdit!==undefined) r.respCliente=respEdit;
+
+  // Abastecimento
+  r.abastecido=document.getElementById('ead-abast')?.checked||false;
+  const litrosVal=parseFloat(document.getElementById('ead-litros')?.value||'0');
+  r.litros=isNaN(litrosVal)?0:litrosVal;
 
   // Atualiza geradores
   if(r.geradoresReg&&geradores.length){
     geradores.forEach((g,gi)=>{
       const gd=r.geradoresReg.find(x=>x.eqId===g.id);
-      if(!gd||( gd.standby&&!gd.rodou)) return;
+      if(!gd||(gd.standby&&!gd.rodou)) return;
       const part=document.getElementById(`ead-part-${gi}`)?.value;
       const par=document.getElementById(`ead-par-${gi}`)?.value;
       const hi=document.getElementById(`ead-hi-${gi}`)?.value;
       const hf=document.getElementById(`ead-hf-${gi}`)?.value;
+      const hcRaw=parseInt(document.getElementById(`ead-hc-${gi}`)?.value||'12');
+      const meia=document.getElementById(`ead-meia-${gi}`)?.checked||false;
       if(part!==undefined) gd.part=part;
       if(par!==undefined) gd.par=par;
-      if(hi!==undefined) gd.horIni=hi;
-      if(hf!==undefined) gd.horFim=hf;
+      if(hi!==undefined) gd.horIni=parseFloat(hi)||gd.horIni;
+      if(hf!==undefined) gd.horFim=parseFloat(hf)||gd.horFim;
+      gd.hContratadas=isNaN(hcRaw)?12:hcRaw;
+      gd.meiadiaria=meia;
       // Recalcula totalHoras e heM
       if(gd.part&&gd.par){
         const pM=toMin(gd.part),sM=toMin(gd.par);
         gd.totalHoras=(sM>pM?sM-pM:sM+1440-pM)/60;
-        const limH=gd.meiadiaria?6:12;
+        const limH=meia?6:gd.hContratadas;
         gd.heM=Math.max(0,gd.totalHoras-limH);
       }
     });
@@ -2673,23 +2728,38 @@ function salvarRegistroAdmin(regId){
   }
 
   // Atualiza transporte
-  r.placa=document.getElementById('ead-placa')?.value||r.placa;
-  r.motorista=document.getElementById('ead-mot')?.value||r.motorista;
-  r.itinerarioSaida=document.getElementById('ead-itin-saida')?.value||r.itinerarioSaida;
-  r.itinerarioChegada=document.getElementById('ead-itin-cheg')?.value||r.itinerarioChegada;
-  r.itinerarioSaidaVolta=document.getElementById('ead-itin-saida-v')?.value||r.itinerarioSaidaVolta;
-  r.itinerarioChegadaVolta=document.getElementById('ead-itin-cheg-v')?.value||r.itinerarioChegadaVolta;
+  r.placa=document.getElementById('ead-placa')?.value??r.placa;
+  r.motorista=document.getElementById('ead-mot')?.value??r.motorista;
+  r.itinerarioSaida=document.getElementById('ead-itin-saida')?.value??r.itinerarioSaida;
+  r.itinerarioChegada=document.getElementById('ead-itin-cheg')?.value??r.itinerarioChegada;
+  r.itinerarioSaidaVolta=document.getElementById('ead-itin-saida-v')?.value??r.itinerarioSaidaVolta;
+  r.itinerarioChegadaVolta=document.getElementById('ead-itin-cheg-v')?.value??r.itinerarioChegadaVolta;
 
-  // Atualiza HE operador
+  // HE operador principal
   const heIni=document.getElementById('ead-he-ini')?.value||'';
   const heFim=document.getElementById('ead-he-fim')?.value||'';
   r.heIni=heIni; r.heFim=heFim;
-  if(heIni&&heFim){const iM=toMin(heIni),fM=toMin(heFim);r.heOperador=(fM>iM?fM-iM:fM+1440-iM)/60;}
-  else r.heOperador=0;
+  let heHBase=0;
+  if(heIni&&heFim){const iM=toMin(heIni),fM=toMin(heFim);heHBase=(fM>iM?fM-iM:fM+1440-iM)/60;}
+
+  // Chegou cedo
+  r.chegouCedo=document.getElementById('ead-cedo')?.checked||false;
+  const cedoIni=document.getElementById('ead-cedo-ini')?.value||'';
+  const cedoFim=document.getElementById('ead-cedo-fim')?.value||'';
+  r.cedoIni=cedoIni; r.cedoFim=cedoFim;
+  let heCedo=0;
+  if(r.chegouCedo&&cedoIni&&cedoFim){const cIM=toMin(cedoIni),cFM=toMin(cedoFim);heCedo=(cFM>cIM?cFM-cIM:cFM+1440-cIM)/60;}
+  r.heOperador=heHBase+heCedo;
   delete r.valorHEOperador;
 
-  // Atualiza obs
-  r.obs=document.getElementById('ead-obs')?.value||r.obs;
+  // Refeições
+  const ref1=document.getElementById('ead-ref1')?.checked?1:0;
+  const ref2=document.getElementById('ead-ref2')?.checked?1:0;
+  r.refeicoes=ref1+ref2;
+  r.valorRefeicao=r.refeicoes*25;
+
+  // Observações
+  r.obs=document.getElementById('ead-obs')?.value??r.obs;
 
   // Marca correção administrativa
   r.corrigidoPor=sessaoAtual.nome;
