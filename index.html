@@ -506,13 +506,43 @@ function renderOSList(){
   const lista=ordens.filter(o=>o.status!=='fechada').slice().reverse();
   if(!lista.length){el.innerHTML='<p style="color:var(--dim);font-size:13px;padding:6px 0">Nenhuma OS ativa. OS encerradas estão na aba <strong style="color:var(--dim)">Status</strong>.</p>';return;}
   el.innerHTML=lista.map(os=>{
-    const regs=registros.filter(r=>r.osId===os.id);
-    const cls=regs.length?'badge-blue':'badge-yellow';
-    const lbl=regs.length?regs.length+'reg.':'Aguardando';
+    const regsEnviados=registros.filter(r=>r.osId===os.id&&(r.status==='enviado'||!r.status));
+    const datasEnviadas=new Set(regsEnviados.map(r=>r.data));
+    const abrev=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    // Bolinhas de dias
+    let diasHTML='';
+    if(os.dataSaida&&os.dataRetorno){
+      const dias=[];
+      const d=new Date(os.dataSaida+'T12:00:00');
+      const fim=new Date(os.dataRetorno+'T12:00:00');
+      while(d<=fim){dias.push(d.toISOString().split('T')[0]);d.setDate(d.getDate()+1);}
+      diasHTML=`<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:6px">
+        ${dias.map(dt=>{
+          const enviado=datasEnviadas.has(dt);
+          const [,m,d2]=dt.split('-');
+          const dow=abrev[new Date(dt+'T12:00:00').getDay()];
+          return enviado
+            ?`<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:26px;height:26px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">✓</div>
+                <span style="font-size:9px;color:var(--green);font-weight:600">${d2}/${m}</span>
+               </div>`
+            :`<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--dim)">${dow}</div>
+                <span style="font-size:9px;color:var(--dim)">${d2}/${m}</span>
+               </div>`;
+        }).join('')}
+      </div>`;
+    }
+
     return`<div class="os-item" onclick="verOS('${os.id}')">
-      <div class="os-item-header"><span style="font-weight:700">OS ${os.num}</span><span class="badge ${cls}">${lbl}</span></div>
+      <div class="os-item-header">
+        <span style="font-weight:700">OS ${os.num}</span>
+        ${!os.dataSaida||!os.dataRetorno?(regsEnviados.length?`<span class="badge badge-green">✓ ${regsEnviados.length} dia${regsEnviados.length!==1?'s':''}</span>`:`<span class="badge badge-yellow">Aguardando</span>`):''}
+      </div>
       <div style="font-size:14px;color:var(--dim);margin-bottom:3px">${os.cliente}${os.evento?' · '+os.evento:''}</div>
-      <div style="font-size:12px;color:var(--dim)">${os.dataSaida}→${os.dataRetorno} · ${os.potencia} · ${os.patrimonio}</div>
+      <div style="font-size:12px;color:var(--dim)">${os.dataSaida||''}→${os.dataRetorno||''} · ${os.potencia||''} · ${os.patrimonio||''}</div>
+      ${diasHTML}
     </div>`;
   }).join('');
 }
