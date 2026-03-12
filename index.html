@@ -1012,15 +1012,15 @@ function showLinkPopup(os,link){
 
 function verOS(id){
   const os=ordens.find(o=>o.id===id);if(!os) return;
-  // Se chamado da aba OS, esconde a lista; se chamado da aba Status, garante que a aba OS está ativa
-  const osList=document.getElementById('os-list');
-  if(osList){
-    osList.closest('.card').style.display='none';
-  } else {
-    // Vem da aba Status — navega para aba OS primeiro e renderiza o detalhe lá
-    const btnOS=Array.from(document.querySelectorAll('.nav-tab')).find(b=>b.textContent.trim()==='OS');
+  // Garante que a aba OS (admin) está ativa antes de tentar renderizar
+  const pageAdmin=document.getElementById('page-admin');
+  if(!pageAdmin||!pageAdmin.classList.contains('active')){
+    const btnOS=Array.from(document.querySelectorAll('.nav-tab')).find(b=>b.dataset.page==='admin'||b.textContent.trim()==='OS');
     if(btnOS) switchPage('admin',btnOS);
   }
+  // Esconde a lista de OS para mostrar o detalhe
+  const osList=document.getElementById('os-list');
+  if(osList) osList.closest('.card').style.display='none';
   const det=document.getElementById('os-detalhe');
   if(!det) return;
   det.style.display='block';
