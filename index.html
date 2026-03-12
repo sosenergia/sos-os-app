@@ -2459,6 +2459,18 @@ function salvarHETimeReg(regId){
   gerarHE();
 }
 
+function excluirHETimeReg(regId){
+  const r=registros.find(x=>x.id===regId);
+  if(!r) return;
+  const label=r.heAvulsa?`HE Avulsa de ${r.operadorNome} em ${fmtData(r.data)}`:`registro OS ${r.osNum} de ${r.operadorNome} em ${fmtData(r.data)}`;
+  if(!confirm(`Excluir ${label}?\n\nEsta ação não pode ser desfeita.`)) return;
+  registros=registros.filter(x=>x.id!==regId);
+  DB.set('sos_registros',registros);
+  fbRemove('registros/'+regId).catch(()=>{});
+  showToast('Registro excluído.');
+  gerarHE();
+}
+
 function gerarHE(){
   const mes=document.getElementById('he-mes')?.value;
   if(!mes) return;
@@ -2500,7 +2512,10 @@ function gerarHE(){
               ${(r.refeicoes||0)>0?`<span style="font-size:12px;background:rgba(16,185,129,.1);color:#10b981;border-radius:5px;padding:2px 7px;font-weight:600">🍽 ×${r.refeicoes} → R$ ${valRef.toFixed(2)}</span>`:''}
             </div>
           </div>
-          <button onclick="editarHETimeReg('${r.id}')" style="background:none;border:1px solid rgba(59,130,246,.3);color:var(--blue);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0">✏️ Editar</button>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="editarHETimeReg('${r.id}')" style="background:none;border:1px solid rgba(59,130,246,.3);color:var(--blue);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap">✏️ Editar</button>
+            <button onclick="excluirHETimeReg('${r.id}')" style="background:none;border:1px solid rgba(204,0,0,.3);color:var(--red-light);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap">🗑</button>
+          </div>
         </div>
       </div>`;
     }).join('');
