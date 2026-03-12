@@ -621,8 +621,14 @@ function showFormOS(osId){
   } else {
     operadoresOS=[];
   }
+  // Garante previsaoDias nos geradores já existentes
+  equipamentosOS.forEach(eq=>{
+    if(eq.tipo==='gerador'&&!eq.previsaoDias) eq.previsaoDias=[];
+  });
   renderEquip();
   renderOperadores();
+  // Gera previsão por dia se as datas já estiverem preenchidas (ex: modo edição)
+  setTimeout(refreshDias, 50);
 }
 
 // ── EQUIPAMENTOS DA OS ──
@@ -633,7 +639,7 @@ let _editandoOSId=null; // null = criação, string = edição
 
 function addEquip(tipo){
   equipamentosOS.push(tipo==='gerador'
-    ? {id:'eq_'+Date.now(),tipo:'gerador',potencia:'',patrimonio:'',atuacao:'',heValorGerador:'',standby:false,hIni:'07:00',hFim:'19:00'}
+    ? {id:'eq_'+Date.now(),tipo:'gerador',potencia:'',patrimonio:'',atuacao:'',heValorGerador:'',standby:false,previsaoDias:[]}
     : {id:'eq_'+Date.now(),tipo:'acessorio',nome:'',quantidade:'1'});
   renderEquip();
   // foco no primeiro campo do item adicionado
@@ -694,18 +700,32 @@ function renderEquip(){
             <label style="font-size:10px">Valor HE Gerador (R$/hora)</label>
             <input type="number" step="0.50" min="0" value="${eq.heValorGerador||''}" placeholder="Ex: 50.00" oninput="equipamentosOS[${i}].heValorGerador=this.value"/>
           </div>
-          <div style="grid-column:1/-1;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 10px 6px;margin-top:2px">
-            <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">⏰ Previsão de horário (referência para o operador)</div>
-            <div class="grid2" style="gap:8px">
-              <div class="field" style="margin:0">
-                <label style="font-size:10px">Liga previsto</label>
-                <input type="time" value="${eq.hIni||'07:00'}" oninput="equipamentosOS[${i}].hIni=this.value"/>
-              </div>
-              <div class="field" style="margin:0">
-                <label style="font-size:10px">Desliga previsto</label>
-                <input type="time" value="${eq.hFim||'19:00'}" oninput="equipamentosOS[${i}].hFim=this.value"/>
-              </div>
-            </div>
+          <div style="grid-column:1/-1;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 10px 8px;margin-top:2px" id="prev-container-${eq.id}">
+            <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">⏰ Previsão de horário por dia (referência para o operador)</div>
+            ${(()=>{
+              const prev=eq.previsaoDias||[];
+              if(!prev.length) return `<p style="font-size:12px;color:var(--dim);margin:0">Preencha as datas de saída e retorno acima para gerar a previsão por dia.</p>`;
+              const abrev=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+              return prev.map((dp,di)=>{
+                const dow=abrev[new Date(dp.data+'T12:00:00').getDay()];
+                const [,m,d2]=dp.data.split('-');
+                return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;padding:6px 8px;border-radius:6px;background:${dp.naoRoda?'rgba(204,0,0,.07)':'rgba(255,255,255,.03)'};border:1px solid ${dp.naoRoda?'rgba(204,0,0,.2)':'var(--border)'}">
+                  <span style="font-size:12px;font-weight:700;min-width:68px;color:var(--dim)">${dow} ${d2}/${m}</span>
+                  <div class="field" style="margin:0;flex:1;min-width:80px;${dp.naoRoda?'opacity:.35;pointer-events:none':''}">
+                    <label style="font-size:9px">Liga previsto</label>
+                    <input type="time" value="${dp.hIni||'07:00'}" oninput="equipamentosOS[${i}].previsaoDias[${di}].hIni=this.value" style="padding:4px 8px;height:32px;font-size:12px"/>
+                  </div>
+                  <div class="field" style="margin:0;flex:1;min-width:80px;${dp.naoRoda?'opacity:.35;pointer-events:none':''}">
+                    <label style="font-size:9px">Desliga previsto</label>
+                    <input type="time" value="${dp.hFim||'19:00'}" oninput="equipamentosOS[${i}].previsaoDias[${di}].hFim=this.value" style="padding:4px 8px;height:32px;font-size:12px"/>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;font-size:11px;color:var(--red-light)">
+                    <input type="checkbox" ${dp.naoRoda?'checked':''} onchange="equipamentosOS[${i}].previsaoDias[${di}].naoRoda=this.checked;renderEquip()" style="width:13px;height:13px;accent-color:var(--red);cursor:pointer"/>
+                    Não roda
+                  </label>
+                </div>`;
+              }).join('');
+            })()}
           </div>
           <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:6px 0;margin-top:2px">
             <input type="checkbox" id="eq-standby-${eq.id}" ${eq.standby?'checked':''} onchange="equipamentosOS[${i}].standby=this.checked" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer"/>
@@ -841,8 +861,24 @@ function atualizarAcessorioCheck(){
 }
 
 function refreshDias(){
-  // diasContratados agora é gerado automaticamente em criarOS() a partir dos horários dos geradores
-  // Esta função é mantida para compatibilidade mas não precisa mais renderizar nada
+  // Regenera previsaoDias de cada gerador quando as datas mudam
+  const s=document.getElementById('f-saida')?.value;
+  const r=document.getElementById('f-ret')?.value;
+  if(!s||!r) return;
+  const d1=new Date(s+'T12:00'),d2=new Date(r+'T12:00');
+  const novasDatas=[];
+  for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1))
+    novasDatas.push(d.toISOString().split('T')[0]);
+  equipamentosOS.forEach(eq=>{
+    if(eq.tipo!=='gerador') return;
+    const prevAtual=eq.previsaoDias||[];
+    // Monta novo array preservando horários já preenchidos
+    eq.previsaoDias=novasDatas.map(dt=>{
+      const exist=prevAtual.find(p=>p.data===dt);
+      return exist || {data:dt,hIni:'07:00',hFim:'19:00',naoRoda:false};
+    });
+  });
+  renderEquip();
 }
 function addDia(){} // removido — horários ficam por gerador
 function renderDias(){} // removido — horários ficam por gerador
@@ -887,17 +923,17 @@ function criarOS(){
     potencia:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).potencia||'',
     patrimonio:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).patrimonio||'',
     diasContratados:(()=>{
-      // Gera diasContratados automaticamente a partir das datas e dos horários definidos por gerador
+      // Gera diasContratados a partir de previsaoDias do primeiro gerador (compatibilidade com calcHE)
+      const priGer=equipamentosOS.find(e=>e.tipo==='gerador');
+      if(priGer?.previsaoDias?.length) return priGer.previsaoDias.map(dp=>({data:dp.data,hIni:dp.hIni||'07:00',hFim:dp.hFim||'19:00',naoRoda:!!dp.naoRoda}));
+      // Fallback: gera a partir das datas
       const s=document.getElementById('f-saida').value;
       const r=document.getElementById('f-ret').value;
       if(!s||!r) return [];
-      const priGer=equipamentosOS.find(e=>e.tipo==='gerador');
-      const hIni=priGer?.hIni||'07:00';
-      const hFim=priGer?.hFim||'19:00';
       const dias=[];
       const d1=new Date(s+'T12:00'),d2=new Date(r+'T12:00');
       for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1))
-        dias.push({data:d.toISOString().split('T')[0],hIni,hFim});
+        dias.push({data:d.toISOString().split('T')[0],hIni:'07:00',hFim:'19:00',naoRoda:false});
       return dias;
     })(),
     operadores:[...opsValidos],
@@ -1144,7 +1180,7 @@ function buildOpForm(os){
       return temGerador?`
     <div class="card">
       <div class="card-title">Registro do Dia</div>
-      <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}"/></div>
+      <div class="field"><label>Data</label><input type="date" id="op-data" value="${hoje}" onchange="atualizarPrevisaoHint()"/></div>
       ${geradores.map((g,gi)=>`
       <div style="border:1px solid ${g.standby?'rgba(234,179,8,.3)':'var(--border)'};border-radius:10px;padding:12px;margin-bottom:10px;background:${g.standby?'rgba(234,179,8,.04)':'transparent'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap">
@@ -1157,7 +1193,7 @@ function buildOpForm(os){
             </label>
           </div>
         </div>
-        ${(g.hIni||g.hFim)?`<div style="font-size:11px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;padding:5px 10px;margin-bottom:8px;display:inline-block">⏰ Previsão: <strong style="color:var(--fg)">${g.hIni||'--:--'} → ${g.hFim||'--:--'}</strong> <span style="font-size:10px;color:var(--dim)">(o horário real prevalece)</span></div>`:''}
+        <div id="prev-hint-${gi}" style="margin-bottom:8px"></div>
         ${g.standby?`
         <div style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(234,179,8,.08);border-radius:8px;margin-bottom:4px">
           <input type="checkbox" id="g-rodou-${gi}" onchange="toggleStandbyRodou(${gi})" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer"/>
@@ -1411,6 +1447,7 @@ function opStep(n){
     const s=document.getElementById('st'+i);
     if(s) s.className='step '+(i<n?'done':i===n?'active':'');
   }
+  if(n===1) setTimeout(atualizarPrevisaoHint,50);
   if(n===3){
     _renderStep3(); // gera o HTML com a data real do operador antes de inicializar assinatura
     setTimeout(initSig,80);
@@ -1443,6 +1480,28 @@ function calcHEGerador(gi){
     if(heM>0){txt.textContent=`Operou ${totH.toFixed(1)}h — excedeu ${fmtHE(heM)} do contrato de ${limiteH}h (${meiadiaria?'meia diária':'diária'}).`;wEl.classList.add('show');}
     else wEl.classList.remove('show');
   }
+}
+
+function atualizarPrevisaoHint(){
+  if(!opOS) return;
+  const data=document.getElementById('op-data')?.value;
+  const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+  geradores.forEach((g,gi)=>{
+    const el=document.getElementById(`prev-hint-${gi}`);
+    if(!el) return;
+    const prev=(g.previsaoDias||[]).find(p=>p.data===data);
+    // Fallback: hIni/hFim antigo (OS criadas antes desta versão)
+    const hIni=prev?.hIni||g.hIni;
+    const hFim=prev?.hFim||g.hFim;
+    const naoRoda=prev?.naoRoda||false;
+    if(naoRoda){
+      el.innerHTML=`<div style="font-size:11px;background:rgba(204,0,0,.08);border:1px solid rgba(204,0,0,.25);border-radius:6px;padding:5px 10px;display:inline-block;color:var(--red-light)">🚫 Gerador não opera neste dia (conforme planejamento)</div>`;
+    } else if(hIni||hFim){
+      el.innerHTML=`<div style="font-size:11px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;padding:5px 10px;display:inline-block">⏰ Previsão: <strong style="color:var(--fg)">${hIni||'--:--'} → ${hFim||'--:--'}</strong> <span style="font-size:10px;color:var(--dim)">(o horário real prevalece)</span></div>`;
+    } else {
+      el.innerHTML='';
+    }
+  });
 }
 
 function coletarGeradoresReg(){
