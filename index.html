@@ -502,12 +502,13 @@ function loadAdmin(){
 function renderOSList(){
   const el=document.getElementById('os-list');
   if(!el) return;
-  const lista=ordens.slice().reverse();
-  if(!lista.length){el.innerHTML='<p style="color:var(--dim);font-size:13px;padding:6px 0">Nenhuma OS. Crie a primeira.</p>';return;}
+  // OS fechadas não aparecem aqui — ficam na aba Status
+  const lista=ordens.filter(o=>o.status!=='fechada').slice().reverse();
+  if(!lista.length){el.innerHTML='<p style="color:var(--dim);font-size:13px;padding:6px 0">Nenhuma OS ativa. OS encerradas estão na aba <strong style="color:var(--dim)">Status</strong>.</p>';return;}
   el.innerHTML=lista.map(os=>{
     const regs=registros.filter(r=>r.osId===os.id);
-    const cls=os.status==='fechada'?'badge-green':regs.length?'badge-blue':'badge-yellow';
-    const lbl=os.status==='fechada'?'Fechada':regs.length?regs.length+'reg.':'Aguardando';
+    const cls=regs.length?'badge-blue':'badge-yellow';
+    const lbl=regs.length?regs.length+'reg.':'Aguardando';
     return`<div class="os-item" onclick="verOS('${os.id}')">
       <div class="os-item-header"><span style="font-weight:700">OS ${os.num}</span><span class="badge ${cls}">${lbl}</span></div>
       <div style="font-size:14px;color:var(--dim);margin-bottom:3px">${os.cliente}${os.evento?' · '+os.evento:''}</div>
@@ -902,8 +903,17 @@ function showLinkPopup(os,link){
 
 function verOS(id){
   const os=ordens.find(o=>o.id===id);if(!os) return;
-  document.getElementById('os-list').closest('.card').style.display='none';
+  // Se chamado da aba OS, esconde a lista; se chamado da aba Status, garante que a aba OS está ativa
+  const osList=document.getElementById('os-list');
+  if(osList){
+    osList.closest('.card').style.display='none';
+  } else {
+    // Vem da aba Status — navega para aba OS primeiro e renderiza o detalhe lá
+    const btnOS=Array.from(document.querySelectorAll('.nav-tab')).find(b=>b.textContent.trim()==='OS');
+    if(btnOS) switchPage('admin',btnOS);
+  }
   const det=document.getElementById('os-detalhe');
+  if(!det) return;
   det.style.display='block';
   det.innerHTML='<div style="text-align:center;padding:40px;color:var(--dim)">Carregando...</div>';
   function _renderVerOS_inner(){
@@ -1781,7 +1791,14 @@ function loadRelatorio(){
     ${futuras.sort((a,b)=>(a.dataSaida||'').localeCompare(b.dataSaida||'')).map(os=>cardOS(os,'rgba(139,92,246,.35)')).join('')}
   </div>`:''}
 
-  ${!emAndamento.length&&!futuras.length?`<div class="card"><p style="color:var(--dim);font-size:13px;text-align:center;padding:12px 0">Nenhuma OS ativa ou futura no momento.</p></div>`:''}`;
+  ${!emAndamento.length&&!futuras.length?`<div class="card"><p style="color:var(--dim);font-size:13px;text-align:center;padding:12px 0">Nenhuma OS ativa ou futura no momento.</p></div>`:''}
+
+  <!-- Encerradas do mês -->
+  ${encerradasMes.length?`
+  <div class="card" style="border-left:3px solid var(--dim);margin-top:8px">
+    <div class="card-title" style="color:var(--dim)">✅ Encerradas no mês (${encerradasMes.length})</div>
+    ${encerradasMes.sort((a,b)=>(b.dataRetorno||b.dataSaida||'').localeCompare(a.dataRetorno||a.dataSaida||'')).map(os=>cardOS(os,'rgba(136,136,136,.25)')).join('')}
+  </div>`:''}`;
 }
 
 // ════════════════════════════════════════
