@@ -1273,13 +1273,19 @@ function buildOpForm(os){
           </div>
           <div class="he-warn" id="g-he-warn-${gi}"><strong style="color:var(--yellow)">⚠️ HE de máquina</strong><p id="g-he-txt-${gi}" style="font-size:13px;margin-top:4px"></p></div>
         </div>`:`
-        <div class="grid2">
-          <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Liga</label><input type="time" id="g-part-${gi}" oninput="calcHEGerador(${gi})"/></div>
-          <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Desliga</label><input type="time" id="g-par-${gi}" oninput="calcHEGerador(${gi})"/></div>
-          <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-${gi}" step="0.1" placeholder="0.0" oninput="calcHEGerador(${gi})"/></div>
-          <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-${gi}" step="0.1" placeholder="Auto"/></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(204,0,0,.07);border:1px solid rgba(204,0,0,.2);border-radius:8px;margin-bottom:8px">
+          <input type="checkbox" id="g-nao-rodou-${gi}" onchange="toggleNaoRodou(${gi})" style="width:16px;height:16px;accent-color:var(--red-light);cursor:pointer"/>
+          <label for="g-nao-rodou-${gi}" style="font-size:12px;color:var(--red-light);cursor:pointer;margin:0;font-weight:600">🚫 Gerador não rodou hoje</label>
         </div>
-        <div class="he-warn" id="g-he-warn-${gi}"><strong style="color:var(--yellow)">⚠️ HE de máquina</strong><p id="g-he-txt-${gi}" style="font-size:13px;margin-top:4px"></p></div>`}
+        <div id="g-campos-normal-${gi}">
+          <div class="grid2">
+            <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Liga</label><input type="time" id="g-part-${gi}" oninput="calcHEGerador(${gi})"/></div>
+            <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Desliga</label><input type="time" id="g-par-${gi}" oninput="calcHEGerador(${gi})"/></div>
+            <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-${gi}" step="0.1" placeholder="0.0" oninput="calcHEGerador(${gi})"/></div>
+            <div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-${gi}" step="0.1" placeholder="Auto"/></div>
+          </div>
+          <div class="he-warn" id="g-he-warn-${gi}"><strong style="color:var(--yellow)">⚠️ HE de máquina</strong><p id="g-he-txt-${gi}" style="font-size:13px;margin-top:4px"></p></div>
+        </div>`}
       </div>`).join('')}
       <input type="hidden" id="op-part" value=""/>
       <input type="hidden" id="op-par" value=""/>
@@ -1533,6 +1539,12 @@ function toggleStandbyRodou(gi){
   if(campos) campos.style.display=rodou?'block':'none';
 }
 
+function toggleNaoRodou(gi){
+  const naoRodou=document.getElementById(`g-nao-rodou-${gi}`)?.checked;
+  const campos=document.getElementById(`g-campos-normal-${gi}`);
+  if(campos) campos.style.display=naoRodou?'none':'block';
+}
+
 function calcHEGerador(gi){
   const part=document.getElementById(`g-part-${gi}`)?.value;
   const par=document.getElementById(`g-par-${gi}`)?.value;
@@ -1589,8 +1601,11 @@ function coletarGeradoresReg(){
   const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
   return geradores.map((g,gi)=>{
     const isStandby=!!g.standby;
-    const rodou=isStandby?(document.getElementById(`g-rodou-${gi}`)?.checked||false):true;
-    if(isStandby&&!rodou) return {eqId:g.id,potencia:g.potencia||'',patrimonio:g.patrimonio||'',standby:true,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
+    const rodouStandby=isStandby?(document.getElementById(`g-rodou-${gi}`)?.checked||false):true;
+    const naoRodouNormal=!isStandby&&(document.getElementById(`g-nao-rodou-${gi}`)?.checked||false);
+    const rodou=isStandby?rodouStandby:!naoRodouNormal;
+    if(isStandby&&!rodouStandby) return {eqId:g.id,potencia:g.potencia||'',patrimonio:g.patrimonio||'',standby:true,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
+    if(naoRodouNormal) return {eqId:g.id,potencia:g.potencia||'',patrimonio:g.patrimonio||'',standby:false,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
     const part=document.getElementById(`g-part-${gi}`)?.value||'';
     const par=document.getElementById(`g-par-${gi}`)?.value||'';
     const hi=document.getElementById(`g-hi-${gi}`)?.value||'';
