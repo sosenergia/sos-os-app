@@ -561,6 +561,7 @@ function renderOSList(){
         ${!os.dataSaida||!os.dataRetorno?(regsEnviados.length?`<span class="badge badge-green">✓ ${regsEnviados.length} dia${regsEnviados.length!==1?'s':''}</span>`:`<span class="badge badge-yellow">Aguardando</span>`):''}
       </div>
       <div style="font-size:14px;color:var(--dim);margin-bottom:3px">${os.cliente}${os.evento?' · '+os.evento:''}</div>
+      ${os.operadorNome?`<div style="font-size:12px;color:var(--dim);margin-bottom:2px">👷 ${os.operadorNome}</div>`:''}
       <div style="font-size:12px;color:var(--dim)">${fmtData(os.dataSaida)}→${fmtData(os.dataRetorno)} · ${os.potencia||''} · ${os.patrimonio||''}</div>
       ${diasHTML}
     </div>`;
