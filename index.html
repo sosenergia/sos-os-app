@@ -314,6 +314,12 @@ function initFirebaseListeners() {
       DB.set('sos_config', config);
     }
   });
+  db.ref('descontos_he').on('value', snap => {
+    if (snap.val()) {
+      descontosHE = snap.val();
+      DB.set('sos_descontos_he', descontosHE);
+    }
+  });
 }
 
 // Login via Firebase — busca usuários diretamente do DB (fix: novos usuários não ficam presos no cache local)
@@ -386,6 +392,9 @@ function fbSaveUsuarios() {
 function fbSaveConfig() {
   return fbSet('config', config); // config é global, set() está correto aqui
 }
+function fbSaveDescontos() {
+  return fbSet('descontos_he', descontosHE);
+}
 
 
 // ════════════════════════════════════════
@@ -404,12 +413,17 @@ let config     = DB.get('sos_config',{
   jornadaIni:'07:00',jornadaFim:'17:00',intervalo:1,
   heValor:18,webhook:'',openaiKey:'',wppNumero:'5561999852409'
 });
+let descontosHE = DB.get('sos_descontos_he',{}); // {opId_mes: [{id,valor,motivo,criadoEm}]}
 let sessaoAtual = null; // usuário logado
 
 function saveAll(){
   DB.set('sos_ordens',ordens);DB.set('sos_registros',registros);
   DB.set('sos_usuarios',usuarios);DB.set('sos_config',config);
   return Promise.all([fbSaveOrdens(),fbSaveRegistros(),fbSaveUsuarios(),fbSaveConfig()]);
+}
+function saveDescontos(){
+  DB.set('sos_descontos_he',descontosHE);
+  fbSaveDescontos().catch(()=>{});
 }
 
 // ════════════════════════════════════════
@@ -2812,6 +2826,33 @@ function excluirHETimeReg(regId){
   gerarHE();
 }
 
+function aplicarDescontoHE(opId, mes){
+  const valor=parseFloat(document.getElementById(`desc-val-${opId}`)?.value?.replace(',','.'));
+  const motivo=(document.getElementById(`desc-mot-${opId}`)?.value||'').trim();
+  if(!valor||valor<=0){showToast('Informe um valor válido para o desconto.','err');return;}
+  if(!motivo){showToast('Informe o motivo do desconto.','err');return;}
+  const chave=`${opId}_${mes}`;
+  if(!descontosHE[chave]) descontosHE[chave]=[];
+  descontosHE[chave].push({id:'desc_'+Date.now(),valor,motivo,criadoEm:new Date().toISOString(),criadoPor:sessaoAtual?.nome||''});
+  saveDescontos();
+  // Limpa campos
+  const vEl=document.getElementById(`desc-val-${opId}`);
+  const mEl=document.getElementById(`desc-mot-${opId}`);
+  if(vEl) vEl.value='';
+  if(mEl) mEl.value='';
+  showToast('Desconto aplicado!');
+  gerarHE();
+}
+function removerDescontoHE(opId, mes, descId){
+  const chave=`${opId}_${mes}`;
+  if(!descontosHE[chave]) return;
+  descontosHE[chave]=descontosHE[chave].filter(d=>d.id!==descId);
+  if(!descontosHE[chave].length) delete descontosHE[chave];
+  saveDescontos();
+  showToast('Desconto removido.');
+  gerarHE();
+}
+
 function gerarHE(){
   const mes=document.getElementById('he-mes')?.value;
   if(!mes) return;
@@ -2821,7 +2862,7 @@ function gerarHE(){
 
   const regsDoMes=registros.filter(r=>r.data&&r.data.startsWith(mes));
 
-  let totalHEGeral=0,totalValorHEGeral=0,totalRefGeral=0,totalValorRefGeral=0,opComHE=0;
+  let totalHEGeral=0,totalValorHEGeral=0,totalRefGeral=0,totalValorRefGeral=0,totalDescontoGeral=0,opComHE=0;
   const cards=operadores.map(u=>{
     const regsOp=regsDoMes.filter(r=>r.operadorId===u.id);
     const totalHE=regsOp.reduce((a,r)=>a+(r.heOperador||0),0);
@@ -2835,6 +2876,10 @@ function gerarHE(){
     totalValorHEGeral+=totalValorHE;
     totalRefGeral+=totalRef;
     totalValorRefGeral+=totalValorRef;
+    const chaveDesc=`${u.id}_${mes}`;
+    totalDescontoGeral+=(descontosHE[chaveDesc]||[]).reduce((a,d)=>a+(d.valor||0),0);
+    const descontosOp=descontosHE[chaveDesc]||[];
+    const totalDesconto=descontosOp.reduce((a,d)=>a+(d.valor||0),0);
     const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0||(r.refeicoes||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
     const linhasHE=regsComHE.map(r=>{
       const valHE=(r.heOperador||0)*valorHora;
@@ -2876,6 +2921,45 @@ function gerarHE(){
         </div>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:6px">${linhasHE}</div>
+
+      ${descontosOp.length?`
+      <div style="border-top:1px solid rgba(239,68,68,.2);margin-top:8px;padding-top:8px">
+        <div style="font-size:11px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">🔻 Descontos aplicados</div>
+        ${descontosOp.map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px">
+            <span style="color:#f87171;font-weight:600">− R$ ${d.valor.toFixed(2)}</span>
+            <span style="color:var(--dim);margin-left:8px">${d.motivo}</span>
+            ${d.criadoPor?`<span style="color:var(--dim);font-size:10px;margin-left:6px">por ${d.criadoPor}</span>`:''}
+          </div>
+          <button onclick="removerDescontoHE('${u.id}','${mes}','${d.id}')" style="background:none;border:none;color:var(--red-light);font-size:15px;cursor:pointer;padding:0 4px" title="Remover desconto">×</button>
+        </div>`).join('')}
+        <div style="text-align:right;margin-top:6px;font-size:12px;color:#f87171;font-weight:700">Total descontado: R$ ${totalDesconto.toFixed(2)}</div>
+      </div>`:''}
+
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
+        ${totalDesconto>0?`
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px">
+          <span style="color:var(--dim)">Subtotal bruto</span>
+          <span style="color:var(--dim)">R$ ${(totalValorHE+totalValorRef).toFixed(2)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px">
+          <span style="color:#f87171">Descontos</span>
+          <span style="color:#f87171">− R$ ${totalDesconto.toFixed(2)}</span>
+        </div>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;font-weight:700;color:var(--fg)">Total a pagar</span>
+          <span style="font-size:17px;font-weight:700;color:var(--green)">R$ ${Math.max(0,totalValorHE+totalValorRef-totalDesconto).toFixed(2)}</span>
+        </div>
+        <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
+          <div style="font-size:11px;color:var(--dim);margin-bottom:6px;font-weight:600">🔻 Aplicar desconto</div>
+          <div style="display:grid;grid-template-columns:110px 1fr auto;gap:6px;align-items:center">
+            <input type="number" id="desc-val-${u.id}" placeholder="R$ valor" min="0" step="0.01" style="padding:8px 10px;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--fg);font-size:13px"/>
+            <input type="text" id="desc-mot-${u.id}" placeholder="Motivo (multa, horas devidas...)" maxlength="80" style="padding:8px 10px;background:var(--dark);border:1px solid var(--border);border-radius:8px;color:var(--fg);font-size:13px"/>
+            <button onclick="aplicarDescontoHE('${u.id}','${mes}')" style="padding:8px 12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Aplicar</button>
+          </div>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
@@ -2890,7 +2974,8 @@ function gerarHE(){
     <div class="metric-card"><div class="metric-label">Total HE R$</div><div class="metric-value" style="color:var(--green)">${totalValorHEGeral>0?'R$ '+totalValorHEGeral.toFixed(2):'—'}</div></div>
     <div class="metric-card"><div class="metric-label">Refeições</div><div class="metric-value" style="color:#10b981">${totalRefGeral>0?'×'+totalRefGeral:'—'}</div></div>
     <div class="metric-card"><div class="metric-label">Total Refeições R$</div><div class="metric-value" style="color:#10b981">${totalValorRefGeral>0?'R$ '+totalValorRefGeral.toFixed(2):'—'}</div></div>
-    <div class="metric-card"><div class="metric-label">Total Geral</div><div class="metric-value" style="color:var(--green);font-size:18px">${(totalValorHEGeral+totalValorRefGeral)>0?'R$ '+(totalValorHEGeral+totalValorRefGeral).toFixed(2):'—'}</div></div>
+    ${totalDescontoGeral>0?`<div class="metric-card"><div class="metric-label">Descontos</div><div class="metric-value" style="color:#f87171">− R$ ${totalDescontoGeral.toFixed(2)}</div></div>`:''}
+    <div class="metric-card" style="${totalDescontoGeral>0?'border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)':''}"><div class="metric-label">Total a Pagar</div><div class="metric-value" style="color:var(--green);font-size:18px">${(totalValorHEGeral+totalValorRefGeral)>0?'R$ '+Math.max(0,totalValorHEGeral+totalValorRefGeral-totalDescontoGeral).toFixed(2):'—'}</div></div>
   </div>
   <div class="card">
     <div class="card-title">Detalhamento — ${nomeMes}</div>
