@@ -3244,7 +3244,7 @@ function gerarPDFOperador(){
   const totalBruto=totalValorHE+totalValorRef;
   const totalLiquido=Math.max(0,totalBruto-totalDesc);
 
-  const diasSemana=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const diasSemana=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
   function diaSemana(dataStr){
     const [y,m,d]=dataStr.split('-').map(Number);
     return diasSemana[new Date(y,m-1,d).getDay()];
@@ -3390,7 +3390,7 @@ function gerarPDFOperador(){
 <!-- Tabela de registros -->
 <table class="tbl-main" style="margin-bottom:0">
   <colgroup>
-    <col style="width:54px"/><col style="width:62px"/><col style="width:auto"/>
+    <col style="width:54px"/><col style="width:40px"/><col style="width:auto"/>
     <col style="width:auto"/><col style="width:56px"/>
     <col style="width:56px"/><col style="width:56px"/>
     ${temPeriodo2?'<col style="width:56px"/><col style="width:56px"/>':''}
