@@ -3277,6 +3277,10 @@ function gerarPDFOperador(){
   const dataExtenso=`Brasília/DF, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
   const cpfOp=op.cpf||'';
 
+  // Verifica se algum registro tem segundo período
+  const temPeriodo2=regsOp.some(r=>r.heIni2&&r.heFim2);
+  const nCols=temPeriodo2?10:8; // 8 sem período2, 10 com
+
   const linhas=regsOp.map((r,i)=>{
     const d=r.data||'';
     const dt=d?`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(2,4)}`:'—';
@@ -3288,18 +3292,20 @@ function gerarPDFOperador(){
     const s1=r.heFim||'—';
     const sub=fmtHE(r.heOperador||0);
     const bg=i%2===0?'#fff':'#f5f5f5';
+    const tdStyle='text-align:center';
+    const p2=temPeriodo2?`<td style="${tdStyle}">${r.heIni2||'—'}</td><td style="${tdStyle}">${r.heFim2||'—'}</td>`:'';
     return `<tr style="background:${bg}">
       <td>${dt}</td><td>${dia}</td><td>${local}</td><td>${evento}</td>
-      <td style="text-align:center">${os}</td>
-      <td style="text-align:center">${e1}</td><td style="text-align:center">${s1}</td>
-      <td style="text-align:center">—</td><td style="text-align:center">—</td>
-      <td style="text-align:center;font-weight:700;color:#111">${sub}</td>
+      <td style="${tdStyle}">${os}</td>
+      <td style="${tdStyle}">${e1}</td><td style="${tdStyle}">${s1}</td>
+      ${p2}
+      <td style="${tdStyle};font-weight:700;color:#111">${sub}</td>
     </tr>`;
   }).join('');
 
   const descontosLinhas=descontosOp.map(d=>`
     <tr>
-      <td colspan="9" style="color:#555">${d.motivo}</td>
+      <td colspan="${nCols-1}" style="color:#555">${d.motivo}</td>
       <td style="text-align:right;color:#c0392b;font-weight:700">− R$ ${d.valor.toFixed(2)}</td>
     </tr>`).join('');
 
@@ -3386,9 +3392,9 @@ function gerarPDFOperador(){
   <colgroup>
     <col style="width:62px"/><col style="width:62px"/><col style="width:auto"/>
     <col style="width:auto"/><col style="width:56px"/>
-    <col style="width:52px"/><col style="width:52px"/>
-    <col style="width:52px"/><col style="width:52px"/>
-    <col style="width:60px"/>
+    <col style="width:56px"/><col style="width:56px"/>
+    ${temPeriodo2?'<col style="width:56px"/><col style="width:56px"/>':''}
+    <col style="width:64px"/>
   </colgroup>
   <thead>
     <tr>
@@ -3396,7 +3402,7 @@ function gerarPDFOperador(){
       <th class="th-left">Local</th><th class="th-left">Evento</th>
       <th>N.° OS</th>
       <th>Entrada</th><th>Saída</th>
-      <th>Entrada</th><th>Saída</th>
+      ${temPeriodo2?'<th>Entrada 2</th><th>Saída 2</th>':''}
       <th>Sub Total</th>
     </tr>
   </thead>
@@ -3408,26 +3414,26 @@ function gerarPDFOperador(){
   <colgroup>
     <col style="width:62px"/><col style="width:62px"/><col style="width:auto"/>
     <col style="width:auto"/><col style="width:56px"/>
-    <col style="width:52px"/><col style="width:52px"/>
-    <col style="width:52px"/><col style="width:52px"/>
-    <col style="width:60px"/>
+    <col style="width:56px"/><col style="width:56px"/>
+    ${temPeriodo2?'<col style="width:56px"/><col style="width:56px"/>':''}
+    <col style="width:64px"/>
   </colgroup>
   <tbody>
     <tr style="background:#f0f0f0">
-      <td colspan="9" style="font-weight:700;text-transform:uppercase;font-size:8.5pt;letter-spacing:.3px">TOTAL GERAL</td>
+      <td colspan="${nCols-1}" style="font-weight:700;text-transform:uppercase;font-size:8.5pt;letter-spacing:.3px">TOTAL GERAL</td>
       <td style="text-align:center;font-weight:900;font-size:10pt;color:#E8191A">${fmtHE(totalHE)}</td>
     </tr>
     ${totalValorRef>0?`<tr style="background:#fff">
-      <td colspan="9" style="color:#555;font-size:8pt">Refeições (${totalRef}× R$ 25,00)</td>
+      <td colspan="${nCols-1}" style="color:#555;font-size:8pt">Refeições (${totalRef}× R$ 25,00)</td>
       <td style="text-align:right;font-weight:700">R$ ${totalValorRef.toFixed(2)}</td>
     </tr>`:''}
     ${descontosLinhas}
     ${totalDesc>0?`<tr style="background:#fff3f3">
-      <td colspan="9" style="font-weight:700;color:#c0392b;font-size:8.5pt">TOTAL DESCONTOS</td>
+      <td colspan="${nCols-1}" style="font-weight:700;color:#c0392b;font-size:8.5pt">TOTAL DESCONTOS</td>
       <td style="text-align:right;font-weight:800;color:#c0392b">− R$ ${totalDesc.toFixed(2)}</td>
     </tr>`:''}
     <tr style="background:#E8191A">
-      <td colspan="9" style="font-weight:800;color:#fff;font-size:9.5pt;text-transform:uppercase;letter-spacing:.5px">A RECEBER</td>
+      <td colspan="${nCols-1}" style="font-weight:800;color:#fff;font-size:9.5pt;text-transform:uppercase;letter-spacing:.5px">A RECEBER</td>
       <td style="text-align:center;font-weight:900;color:#fff;font-size:11pt">R$ ${totalLiquido.toFixed(2)}</td>
     </tr>
   </tbody>
