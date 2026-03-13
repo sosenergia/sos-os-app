@@ -3287,7 +3287,7 @@ function gerarPDFOperador(){
     const dia=d?diaSemana(d):'';
     const local=(r.local||r.cliente||'').toUpperCase()||'—';
     const evento=(r.evento||'').toUpperCase()||'—';
-    const os=r.heAvulsa?'AVULSA':(r.osNum||'—');
+    const os=r.osNum||'—';
     const e1=r.heIni||'—';
     const s1=r.heFim||'—';
     const sub=fmtHE(r.heOperador||0);
