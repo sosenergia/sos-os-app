@@ -3222,7 +3222,9 @@ function gerarPDFOperador(){
   const op=usuarios.find(u=>u.id===opId);
   if(!op) return;
   const [ano,mesN]=mes.split('-');
-  const nomeMes=new Date(parseInt(ano),parseInt(mesN)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const dtMes=new Date(parseInt(ano),parseInt(mesN)-1,1);
+  const nomeMes=dtMes.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const nomeMesCaps=nomeMes.toUpperCase();
   const regsOp=registros.filter(r=>r.operadorId===opId&&r.data&&r.data.startsWith(mes)&&(r.status==='enviado'||r.heAvulsa)).sort((a,b)=>a.data.localeCompare(b.data));
   const valorHora=(op.heValor&&op.heValor>0)?op.heValor:config.heValor;
   const chaveDesc=`${opId}_${mes}`;
@@ -3238,180 +3240,201 @@ function gerarPDFOperador(){
   // Totais
   const totalHE=regsOp.reduce((a,r)=>a+(r.heOperador||0),0);
   const totalRef=regsOp.reduce((a,r)=>a+(r.refeicoes||0),0);
-  const totalCedo=regsOp.reduce((a,r)=>a+(r.heCedo||0),0);
   const totalValorHE=totalHE*valorHora;
   const totalValorRef=totalRef*25;
   const totalBruto=totalValorHE+totalValorRef;
   const totalLiquido=Math.max(0,totalBruto-totalDesc);
 
-  // Linhas de cada registro
-  const linhasRegs=regsOp.map((r,i)=>{
-    const isAvulsa=r.heAvulsa===true;
-    const geradores=r.geradoresReg&&r.geradoresReg.length
-      ? r.geradoresReg.filter(g=>!g.standby||g.rodou).map(g=>`<div style="font-size:11px;color:#aaa;margin-top:2px;padding-left:8px">⚡ ${g.potencia||'Gerador'}${g.patrimonio?' ('+g.patrimonio+')':''} — Liga: ${g.part||'—'} / Desliga: ${g.par||'—'}${g.heM>0?' · HE Máq: '+fmtHE(g.heM):''}</div>`).join('')
-      : '';
-    const valHE=(r.heOperador||0)*valorHora;
-    const valRef=(r.refeicoes||0)*25;
-    return `
-    <tr style="border-bottom:1px solid #2a2a2a;${i%2===0?'background:#1a1a1a':'background:#161616'}">
-      <td style="padding:10px 12px;font-size:12px;color:#fff;font-weight:600;vertical-align:top;white-space:nowrap">${fmtData(r.data)}</td>
-      <td style="padding:10px 12px;font-size:12px;color:#ccc;vertical-align:top">
-        ${isAvulsa
-          ?`<span style="background:rgba(139,92,246,.2);color:#a78bfa;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">HE AVULSA</span>`
-          :`<span style="color:#818cf8;font-weight:700">OS ${r.osNum}</span>`}
-        ${r.cliente&&!isAvulsa?`<div style="font-size:11px;color:#888;margin-top:2px">${r.cliente}</div>`:''}
-        ${r.evento?`<div style="font-size:11px;color:#aaa;margin-top:2px">📍 ${r.evento}</div>`:''}
-        ${r.local?`<div style="font-size:11px;color:#aaa;margin-top:2px">📍 ${r.local}</div>`:''}
-        ${r.motivoHE?`<div style="font-size:11px;color:#f1c40f;margin-top:2px">Motivo: ${r.motivoHE}</div>`:''}
-        ${geradores}
-      </td>
-      <td style="padding:10px 12px;font-size:12px;color:#e67e22;vertical-align:top;text-align:center;white-space:nowrap">
-        ${r.heIni&&r.heFim?`${r.heIni}–${r.heFim}`:'—'}<br>
-        <span style="font-weight:700;color:#f1c40f">${fmtHE(r.heOperador||0)}</span>
-        ${r.chegouCedo&&(r.heCedo||0)>0?`<br><span style="font-size:10px;color:#818cf8">🏢 Cedo +${fmtHE(r.heCedo)}</span>`:''}
-      </td>
-      <td style="padding:10px 12px;font-size:12px;color:#2ecc71;vertical-align:top;text-align:center">
-        ${(r.refeicoes||0)>0?`×${r.refeicoes}<br><span style="font-size:11px">R$ ${valRef.toFixed(2)}</span>`:'—'}
-      </td>
-      <td style="padding:10px 12px;font-size:12px;vertical-align:top;text-align:right">
-        ${(r.heOperador||0)>0?`<span style="color:#e67e22;font-weight:700">R$ ${valHE.toFixed(2)}</span>`:''}
-        ${(r.refeicoes||0)>0?`<br><span style="color:#2ecc71;font-size:11px">+R$ ${valRef.toFixed(2)}</span>`:''}
-        <br><span style="color:#fff;font-weight:700;border-top:1px solid #333;display:inline-block;padding-top:2px;margin-top:2px">R$ ${(valHE+valRef).toFixed(2)}</span>
-      </td>
-      <td style="padding:10px 12px;font-size:11px;color:#666;vertical-align:top">
-        ${r.abastecido&&r.abastecido!=='nao'?`<div>⛽ ${r.litros||'?'}L</div>`:''}
-        ${r.placa?`<div>🚗 ${r.placa}</div>`:''}
-        ${r.respCliente?`<div>👤 ${r.respCliente}</div>`:''}
-        ${r.obs?`<div style="color:#888;font-style:italic;margin-top:2px">${r.obs}</div>`:''}
-      </td>
+  // Dia da semana
+  const diasSemana=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  function diaSemana(dataStr){
+    const [y,m,d]=dataStr.split('-').map(Number);
+    return diasSemana[new Date(y,m-1,d).getDay()];
+  }
+
+  // Valor por extenso (simplificado)
+  function valorExtenso(v){
+    const n=Math.round(v*100);
+    const reais=Math.floor(n/100);
+    const cents=n%100;
+    const unidades=['','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+    const dezenas=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+    const centenas=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+    function numParaExtenso(n){
+      if(n===0) return 'zero';
+      if(n===100) return 'cem';
+      let s='';
+      if(n>=1000){const m=Math.floor(n/1000);s+=(m===1?'mil':numParaExtenso(m)+' mil');n=n%1000;if(n>0)s+=' e ';}
+      if(n>=100){s+=centenas[Math.floor(n/100)];n=n%100;if(n>0)s+=' e ';}
+      if(n>=20){s+=dezenas[Math.floor(n/10)];n=n%10;if(n>0)s+=' e ';}
+      if(n>0)s+=unidades[n];
+      return s;
+    }
+    let ext=numParaExtenso(reais)+' reais';
+    if(cents>0) ext+=' e '+numParaExtenso(cents)+' centavos';
+    return ext.charAt(0).toUpperCase()+ext.slice(1);
+  }
+
+  // Cidade/UF e data por extenso
+  const meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const hoje=new Date();
+  const dataExtenso=`Brasília/DF, ${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}.`;
+
+  // CPF do operador (se disponível)
+  const cpfOp=op.cpf||'';
+
+  // Linhas da tabela
+  const linhas=regsOp.map((r,i)=>{
+    const d=r.data||'';
+    const dt=d?`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(2,4)}`:'—';
+    const dia=d?diaSemana(d):'';
+    const local=(r.local||r.cliente||'').toUpperCase()||'—';
+    const evento=(r.evento||'').toUpperCase()||'—';
+    const os=r.heAvulsa?'AVULSA':(r.osNum||'—');
+    const entrada1=r.heIni||'—';
+    const saida1=r.heFim||'—';
+    const entrada2='';
+    const saida2='';
+    const sub=fmtHE(r.heOperador||0);
+    const bg=i%2===0?'#ffffff':'#f7f7f7';
+    return `<tr style="background:${bg};border-bottom:1px solid #ddd">
+      <td style="padding:5px 7px;white-space:nowrap">${dt}</td>
+      <td style="padding:5px 7px">${dia}</td>
+      <td style="padding:5px 7px">${local}</td>
+      <td style="padding:5px 7px">${evento}</td>
+      <td style="padding:5px 7px;text-align:center">${os}</td>
+      <td style="padding:5px 7px;text-align:center">${entrada1}</td>
+      <td style="padding:5px 7px;text-align:center">${saida1}</td>
+      <td style="padding:5px 7px;text-align:center">${entrada2}</td>
+      <td style="padding:5px 7px;text-align:center">${saida2}</td>
+      <td style="padding:5px 7px;text-align:center;font-weight:700">${sub}</td>
     </tr>`;
   }).join('');
 
   // Descontos
-  const descontosHTML=descontosOp.length?`
-  <div style="background:#1a1a1a;border:1px solid #e74c3c33;border-radius:8px;padding:14px 16px;margin-bottom:16px">
-    <div style="font-size:11px;font-weight:700;color:#e74c3c;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">🔻 DESCONTOS APLICADOS</div>
-    ${descontosOp.map(d=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-size:12px">
-      <span style="color:#ccc">${d.motivo}</span>
-      <span style="color:#e74c3c;font-weight:700">− R$ ${d.valor.toFixed(2)}</span>
-    </div>`).join('')}
-    <div style="text-align:right;margin-top:8px;font-size:13px;font-weight:700;color:#e74c3c">Total descontado: R$ ${totalDesc.toFixed(2)}</div>
-  </div>`:'';
+  const descontosLinhas=descontosOp.map(d=>`
+    <tr>
+      <td colspan="8" style="padding:4px 8px;font-size:10px;color:#555">${d.motivo}</td>
+      <td colspan="2" style="padding:4px 8px;font-size:10px;text-align:right;color:#c0392b;font-weight:700">− R$ ${d.valor.toFixed(2)}</td>
+    </tr>`).join('');
 
   const html=`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<title>Relatório HE — ${op.nome} — ${nomeMes}</title>
+<title>Recibo — ${op.nome} — ${nomeMes}</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:#141414;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:28px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{background:#fff;color:#111;font-family:'Montserrat',Arial,sans-serif;padding:20mm 18mm;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  @media print{body{padding:12mm;} @page{margin:10mm;size:A4 portrait;}}
   table{width:100%;border-collapse:collapse;}
-  @media print{body{padding:16px;} @page{margin:10mm;size:A4 landscape;}}
+  th{background:#E8191A;color:#fff;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:6px 7px;text-align:center;}
+  .th-left{text-align:left;}
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #333">
-  <div style="display:flex;align-items:center;gap:14px">
-    <div style="width:48px;height:48px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px">👷</div>
+<!-- Cabeçalho SOS -->
+<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #E8191A;padding-bottom:12px;margin-bottom:18px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;background:#E8191A;border-radius:50%;display:flex;align-items:center;justify-content:center">
+      <svg width="26" height="26" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="55,5 25,55 50,55 45,95 75,45 50,45" fill="#000"/>
+      </svg>
+    </div>
     <div>
-      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">Relatório Individual de Horas Extras</div>
-      <div style="font-size:22px;font-weight:800;letter-spacing:.3px">${op.nome.toUpperCase()}</div>
-      <div style="font-size:13px;color:#888;margin-top:2px">${nomeMes.toUpperCase()} · R$ ${valorHora.toFixed(2)}/hora HE</div>
+      <div style="font-size:18px;font-weight:800;letter-spacing:1px;color:#E8191A">SOS</div>
+      <div style="font-size:9px;font-weight:600;color:#555;letter-spacing:.8px;text-transform:uppercase">Energia</div>
     </div>
   </div>
-  <div style="text-align:right;font-size:11px;color:#555;line-height:1.8">
-    <div>Gerado em ${new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}</div>
-    <div>${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
-    <div style="margin-top:4px;color:#444">SOS OS App</div>
+  <div style="text-align:right;font-size:10px;color:#555;line-height:1.7">
+    <div style="font-weight:700;font-size:11px;color:#111">SOS MÓVEL TRÊS R LTDA</div>
+    <div>CNPJ: 72.642.655/0001-74</div>
+    <div>${dataExtenso}</div>
   </div>
 </div>
 
-<!-- Cards de resumo -->
-<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
-  <div style="background:#1e1e1e;border:1px solid #333;border-top:3px solid #e67e22;border-radius:8px;padding:14px 12px">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">TOTAL HE</div>
-    <div style="font-size:24px;font-weight:800;color:#e67e22">${fmtHE(totalHE)}</div>
-    <div style="font-size:11px;color:#555;margin-top:2px">${regsOp.length} registro${regsOp.length!==1?'s':''}</div>
-  </div>
-  <div style="background:#1e1e1e;border:1px solid #333;border-top:3px solid #9b59b6;border-radius:8px;padding:14px 12px">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">VALOR HE</div>
-    <div style="font-size:20px;font-weight:800;color:#9b59b6">R$ ${totalValorHE.toFixed(2)}</div>
-    <div style="font-size:11px;color:#555;margin-top:2px">${fmtHE(totalHE)} × R$ ${valorHora.toFixed(2)}</div>
-  </div>
-  <div style="background:#1e1e1e;border:1px solid #333;border-top:3px solid #2ecc71;border-radius:8px;padding:14px 12px">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">REFEIÇÕES</div>
-    <div style="font-size:24px;font-weight:800;color:#2ecc71">×${totalRef}</div>
-    <div style="font-size:11px;color:#555;margin-top:2px">R$ ${totalValorRef.toFixed(2)}</div>
-  </div>
-  ${totalCedo>0?`<div style="background:#1e1e1e;border:1px solid #333;border-top:3px solid #818cf8;border-radius:8px;padding:14px 12px">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">HE CEDO</div>
-    <div style="font-size:24px;font-weight:800;color:#818cf8">${fmtHE(totalCedo)}</div>
-    <div style="font-size:11px;color:#555;margin-top:2px">chegada antecipada</div>
-  </div>`:`<div style="background:#1e1e1e;border:1px solid #333;border-top:3px solid #e74c3c;border-radius:8px;padding:14px 12px">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px">DESCONTOS</div>
-    <div style="font-size:20px;font-weight:800;color:#e74c3c">${totalDesc>0?'− R$ '+totalDesc.toFixed(2):'—'}</div>
-    <div style="font-size:11px;color:#555;margin-top:2px">${descontosOp.length} desconto${descontosOp.length!==1?'s':''}</div>
-  </div>`}
-  <div style="background:#1e1e1e;border:1px solid #2ecc71;border-top:3px solid #2ecc71;border-radius:8px;padding:14px 12px">
-    <div style="font-size:10px;color:#2ecc71;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;font-weight:700">TOTAL A PAGAR</div>
-    <div style="font-size:22px;font-weight:800;color:#2ecc71">R$ ${totalLiquido.toFixed(2)}</div>
-    <div style="font-size:11px;color:#555;margin-top:2px">bruto R$ ${totalBruto.toFixed(2)}${totalDesc>0?' · desc. −R$ '+totalDesc.toFixed(2):''}</div>
-  </div>
+<!-- Título -->
+<div style="text-align:center;margin-bottom:16px">
+  <div style="font-size:18px;font-weight:800;letter-spacing:6px;color:#111;text-transform:uppercase">R E C I B O</div>
+  <div style="font-size:22px;font-weight:800;color:#E8191A;margin-top:4px">R$ ${totalLiquido.toFixed(2)}</div>
+</div>
+
+<!-- Texto declarativo -->
+<div style="font-size:11px;line-height:1.8;color:#222;margin-bottom:16px;text-align:justify">
+  Pelo presente eu <strong>${op.nome.toUpperCase()}</strong>${cpfOp?`, CPF sob o n.º <strong>${cpfOp}</strong>,`:','} declaro que na data de hoje recebi
+  o valor de <strong>R$ ${totalLiquido.toFixed(2)}</strong> (<em>${valorExtenso(totalLiquido)}</em>)
+  referente ao pagamento por serviços prestados avulso no mês de <strong>${nomeMesCaps}</strong>,
+  pago pela empresa <strong>SOS MÓVEL TRÊS R LTDA</strong>, inscrita no CNPJ: <strong>72.642.655/0001-74</strong>.
+</div>
+
+<div style="font-size:11px;margin-bottom:10px;color:#333">Conforme a tabela abaixo:</div>
+
+<!-- Nome e título da tabela -->
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+  <div style="font-size:12px;font-weight:800;color:#111;text-transform:uppercase">${op.nome}</div>
+  <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">HORAS GERADAS — ${nomeMesCaps}</div>
 </div>
 
 <!-- Tabela de registros -->
-<div style="background:#1a1a1a;border:1px solid #333;border-radius:8px;overflow:hidden;margin-bottom:16px">
-  <div style="padding:12px 16px;border-bottom:1px solid #333;font-size:11px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:.7px">
-    📋 DETALHAMENTO DE REGISTROS — ${nomeMes.toUpperCase()}
-  </div>
-  <table>
-    <thead>
-      <tr style="background:#111;border-bottom:2px solid #333">
-        <th style="padding:10px 12px;font-size:10px;color:#666;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Data</th>
-        <th style="padding:10px 12px;font-size:10px;color:#666;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.5px">OS / Evento / Local</th>
-        <th style="padding:10px 12px;font-size:10px;color:#666;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período HE</th>
-        <th style="padding:10px 12px;font-size:10px;color:#666;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Refeições</th>
-        <th style="padding:10px 12px;font-size:10px;color:#666;text-align:right;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Valor</th>
-        <th style="padding:10px 12px;font-size:10px;color:#666;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Obs.</th>
-      </tr>
-    </thead>
-    <tbody>${linhasRegs}</tbody>
-    <tfoot>
-      <tr style="background:#111;border-top:2px solid #444">
-        <td colspan="2" style="padding:10px 12px;font-size:13px;font-weight:700;color:#fff">TOTAL DO MÊS</td>
-        <td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:800;color:#f1c40f">${fmtHE(totalHE)}</td>
-        <td style="padding:10px 12px;text-align:center;font-size:13px;font-weight:700;color:#2ecc71">×${totalRef}<br><span style="font-size:11px">R$ ${totalValorRef.toFixed(2)}</span></td>
-        <td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:800;color:#2ecc71">R$ ${totalBruto.toFixed(2)}</td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>
+<table style="margin-bottom:0;font-size:10px">
+  <thead>
+    <tr>
+      <th class="th-left" style="width:60px">Data</th>
+      <th class="th-left" style="width:60px">Dia</th>
+      <th class="th-left" style="min-width:90px">Local</th>
+      <th class="th-left" style="min-width:80px">Evento</th>
+      <th style="width:60px">N.° OS</th>
+      <th style="width:48px">Entrada</th>
+      <th style="width:48px">Saída</th>
+      <th style="width:48px">Entrada</th>
+      <th style="width:48px">Saída</th>
+      <th style="width:54px">Sub Total</th>
+    </tr>
+  </thead>
+  <tbody>${linhas}</tbody>
+</table>
+
+<!-- Totais -->
+<table style="margin-top:0;font-size:10px;border-top:2px solid #E8191A">
+  <tbody>
+    <tr style="background:#f0f0f0">
+      <td colspan="9" style="padding:5px 8px;font-weight:700;text-transform:uppercase;font-size:10px">TOTAL GERAL</td>
+      <td style="padding:5px 8px;text-align:center;font-weight:800;font-size:12px;color:#E8191A">${fmtHE(totalHE)}</td>
+    </tr>
+    ${totalValorRef>0?`<tr style="background:#fff">
+      <td colspan="9" style="padding:4px 8px;color:#555;font-size:10px">Refeições (${totalRef}× R$ 25,00)</td>
+      <td style="padding:4px 8px;text-align:center;font-weight:700">R$ ${totalValorRef.toFixed(2)}</td>
+    </tr>`:''}
+    ${descontosLinhas}
+    ${totalDesc>0?`<tr style="background:#fff3f3">
+      <td colspan="9" style="padding:4px 8px;font-weight:700;color:#c0392b;font-size:10px">TOTAL DESCONTOS</td>
+      <td style="padding:4px 8px;text-align:center;font-weight:800;color:#c0392b">− R$ ${totalDesc.toFixed(2)}</td>
+    </tr>`:''}
+    <tr style="background:#E8191A">
+      <td colspan="9" style="padding:6px 8px;font-weight:800;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.5px">A RECEBER</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:900;color:#fff;font-size:13px">R$ ${totalLiquido.toFixed(2)}</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Frase de quitação -->
+<div style="font-size:11px;color:#333;margin-top:18px;margin-bottom:28px;text-align:justify;line-height:1.7">
+  Para maior clareza firmo o presente recibo, dando plena e geral quitação.
 </div>
 
-${descontosHTML}
-
-<!-- Total final -->
-<div style="background:#1a1a1a;border:2px solid #2ecc7155;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
-  <div>
-    <div style="font-size:12px;color:#888;margin-bottom:4px">Subtotal bruto (HE + refeições)</div>
-    <div style="font-size:16px;color:#ccc;font-weight:700">R$ ${totalBruto.toFixed(2)}</div>
-  </div>
-  ${totalDesc>0?`<div>
-    <div style="font-size:12px;color:#e74c3c;margin-bottom:4px">Descontos</div>
-    <div style="font-size:16px;color:#e74c3c;font-weight:700">− R$ ${totalDesc.toFixed(2)}</div>
-  </div>`:''}
-  <div style="text-align:right">
-    <div style="font-size:12px;color:#2ecc71;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">✅ Total a Pagar</div>
-    <div style="font-size:28px;font-weight:900;color:#2ecc71">R$ ${totalLiquido.toFixed(2)}</div>
+<!-- Linha de assinatura -->
+<div style="margin-top:32px;text-align:center">
+  <div style="display:inline-block;border-top:1.5px solid #111;padding-top:8px;min-width:280px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase">${op.nome}</div>
+    ${cpfOp?`<div style="font-size:10px;color:#555;margin-top:3px">CPF: ${cpfOp}</div>`:''}
   </div>
 </div>
 
 <!-- Rodapé -->
-<div style="border-top:1px solid #2a2a2a;margin-top:20px;padding-top:10px;display:flex;justify-content:space-between;font-size:10px;color:#444">
-  <span>SOS OS App · Relatório Individual de HE</span>
+<div style="border-top:1px solid #ddd;margin-top:28px;padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:#aaa">
+  <span>SOS OS App · Recibo Individual de HE</span>
   <span>${op.nome} · ${nomeMes}</span>
   <span>Gerado em ${new Date().toLocaleDateString('pt-BR')}</span>
 </div>
@@ -3419,11 +3442,12 @@ ${descontosHTML}
 </body></html>`;
 
   document.getElementById('modal-pdf-op')?.remove();
-  const win=window.open('','_blank','width=1200,height=850');
+  const win=window.open('','_blank','width=900,height=1100');
   win.document.write(html);
   win.document.close();
-  setTimeout(()=>win.print(),600);
+  setTimeout(()=>win.print(),800);
 }
+
 
 function abrirLiveDashboardHE(){
   const mes=document.getElementById('rhe-mes')?.value||new Date().toISOString().slice(0,7);
