@@ -557,7 +557,18 @@ function renderOSList(){
     if(isPeriodica){
       const temEntrega=regsEnviados.some(r=>r.checkEntrega);
       const temDevolucao=regsEnviados.some(r=>r.checkDevolucao);
-      diasHTML=`<div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      const _vencBadge=(()=>{
+        if(!os.diaVencimento) return '';
+        const hj=new Date(); hj.setHours(0,0,0,0);
+        const dv=os.diaVencimento;
+        let prox=new Date(hj.getFullYear(),hj.getMonth(),dv);
+        if(prox<hj) prox=new Date(hj.getFullYear(),hj.getMonth()+1,dv);
+        const diff=Math.round((prox-hj)/(1000*60*60*24));
+        const cor=diff<=3?'#f87171':diff<=7?'#f59e0b':'#94a3b8';
+        const bg=diff<=3?'rgba(248,113,113,.12)':diff<=7?'rgba(245,158,11,.1)':'rgba(148,163,184,.08)';
+        return '<span style="font-size:11px;font-weight:700;color:'+cor+';background:'+bg+';border:1px solid '+cor+'40;border-radius:10px;padding:2px 9px;margin-left:4px">📆 Vence dia '+dv+(diff===0?' (hoje)':diff===1?' (amanhã)':' (em '+diff+'d)')+'</span>';
+      })();
+      diasHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
         <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid ${temEntrega?'var(--green)':'var(--border)'};background:${temEntrega?'rgba(16,185,129,.12)':'var(--card2)'}">
           <span style="font-size:13px">${temEntrega?'✅':'📦'}</span>
           <span style="font-size:11px;font-weight:700;color:${temEntrega?'var(--green)':'var(--dim)'}">Entrega</span>
@@ -568,6 +579,7 @@ function renderOSList(){
           <span style="font-size:11px;font-weight:700;color:${temDevolucao?'var(--green)':'var(--dim)'}">Devolução</span>
         </div>
         <span style="font-size:11px;color:var(--dim);margin-left:4px;background:rgba(204,0,0,.1);border:1px solid rgba(204,0,0,.18);border-radius:10px;padding:2px 8px">${os.tipoLocacao?.charAt(0).toUpperCase()+os.tipoLocacao?.slice(1)||''}</span>
+        ${_vencBadge}
       </div>`;
     } else if(os.dataSaida&&os.dataRetorno){
       const dias=[];
@@ -677,6 +689,14 @@ function showFormOS(osId){
         <option value="semanal" ${osEdit&&osEdit.tipoLocacao==='semanal'?' selected':''}>📅 Locação Semanal</option>
       </select>
       <p id="f-tipo-locacao-hint" style="font-size:11px;color:var(--dim);margin-top:4px;display:none">⚡ O operador só precisará coletar a assinatura do cliente confirmando o recebimento dos itens.</p>
+    </div>
+    <div class="field" id="f-vencimento-wrap" style="display:${osEdit&&osEdit.tipoLocacao==='mensal'?'block':'none'}">
+      <label>Dia de Vencimento (cobrança mensal)</label>
+      <select id="f-dia-vencimento" style="font-weight:600">
+        <option value="">— Selecione o dia —</option>
+        ${Array.from({length:28},(_,i)=>`<option value="${i+1}" ${osEdit&&osEdit.diaVencimento===(i+1)?' selected':''}>${i+1}</option>`).join('')}
+      </select>
+      <p style="font-size:11px;color:var(--dim);margin-top:4px">Será exibido como alerta no card da OS ativa.</p>
     </div>
     <div class="grid2">
       <div class="field"><label>Data Saída</label><input type="date" id="f-saida" value="${osEdit?osEdit.dataSaida:hoje}" onchange="refreshDias()"/></div>
@@ -1042,6 +1062,7 @@ function criarOS(){
     num,cliente:cli,
     evento:document.getElementById('f-evt').value,
     tipoLocacao:document.getElementById('f-tipo-locacao')?.value||'evento',
+    diaVencimento:(()=>{const v=document.getElementById('f-dia-vencimento')?.value;return v?parseInt(v):null;})(),
     dataSaida:document.getElementById('f-saida').value,
     dataRetorno:document.getElementById('f-ret').value,
     endereco:document.getElementById('f-end').value,
@@ -1756,6 +1777,8 @@ function toggleTipoLocacao(){
   const v=document.getElementById('f-tipo-locacao')?.value;
   const hint=document.getElementById('f-tipo-locacao-hint');
   if(hint) hint.style.display=(v&&v!=='evento')?'block':'none';
+  const wrapVenc=document.getElementById('f-vencimento-wrap');
+  if(wrapVenc) wrapVenc.style.display=(v==='mensal')?'block':'none';
 }
 
 function toggleStandbyRodou(gi){
@@ -2429,7 +2452,18 @@ function loadRelatorio(){
       const temEntrega=regsOS.some(r=>r.checkEntrega);
       const temDevolucao=regsOS.some(r=>r.checkDevolucao);
       const tipoLabel={'mensal':'Mensal','quinzenal':'Quinzenal','semanal':'Semanal'}[os.tipoLocacao]||os.tipoLocacao;
-      diasHTML=`<div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      const _vencBadge2=(()=>{
+        if(!os.diaVencimento) return '';
+        const hoje=new Date(); hoje.setHours(0,0,0,0);
+        const dv=os.diaVencimento;
+        let prox=new Date(hoje.getFullYear(),hoje.getMonth(),dv);
+        if(prox<hoje) prox=new Date(hoje.getFullYear(),hoje.getMonth()+1,dv);
+        const diff=Math.round((prox-hoje)/(1000*60*60*24));
+        const cor=diff<=3?'#f87171':diff<=7?'#f59e0b':'#94a3b8';
+        const bg=diff<=3?'rgba(248,113,113,.12)':diff<=7?'rgba(245,158,11,.1)':'rgba(148,163,184,.08)';
+        return `<span style="font-size:11px;font-weight:700;color:${cor};background:${bg};border:1px solid ${cor}40;border-radius:10px;padding:2px 9px;margin-left:6px">📆 Vence dia ${dv}${diff===0?' (hoje)':diff===1?' (amanhã)':' (em '+diff+'d)'}</span>`;
+      })();
+      diasHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
         <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid ${temEntrega?'var(--green)':'var(--border)'};background:${temEntrega?'rgba(16,185,129,.12)':'var(--card2)'}">
           <span style="font-size:13px">${temEntrega?'✅':'📦'}</span>
           <span style="font-size:11px;font-weight:700;color:${temEntrega?'var(--green)':'var(--dim)'}">Entrega</span>
@@ -2439,7 +2473,8 @@ function loadRelatorio(){
           <span style="font-size:13px">${temDevolucao?'✅':'🔄'}</span>
           <span style="font-size:11px;font-weight:700;color:${temDevolucao?'var(--green)':'var(--dim)'}">Devolução</span>
         </div>
-        <span style="font-size:11px;color:var(--dim);margin-left:2px;background:rgba(204,0,0,.1);border:1px solid rgba(204,0,0,.2);border-radius:10px;padding:2px 8px;color:#CC0000">${tipoLabel}</span>
+        <span style="font-size:11px;color:#CC0000;margin-left:2px;background:rgba(204,0,0,.1);border:1px solid rgba(204,0,0,.2);border-radius:10px;padding:2px 8px">${tipoLabel}</span>
+        ${_vencBadge2}
       </div>`;
     } else if(os.dataSaida&&os.dataRetorno){
       // OS de evento — grade de dias
