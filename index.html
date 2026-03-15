@@ -547,9 +547,25 @@ function renderOSList(){
     const datasEnviadas=new Set(regsEnviados.map(r=>r.data));
     const abrev=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-    // Bolinhas de dias
+    // Bolinhas de dias — periódica mostra só entrega/devolução
     let diasHTML='';
-    if(os.dataSaida&&os.dataRetorno){
+    const isPeriodica=os.tipoLocacao&&os.tipoLocacao!=='evento';
+    if(isPeriodica){
+      const temEntrega=regsEnviados.some(r=>r.checkEntrega);
+      const temDevolucao=regsEnviados.some(r=>r.checkDevolucao);
+      diasHTML=`<div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid ${temEntrega?'var(--green)':'var(--border)'};background:${temEntrega?'rgba(16,185,129,.12)':'var(--card2)'}">
+          <span style="font-size:13px">${temEntrega?'✅':'📦'}</span>
+          <span style="font-size:11px;font-weight:700;color:${temEntrega?'var(--green)':'var(--dim)'}">Entrega</span>
+        </div>
+        <div style="font-size:14px;color:var(--border)">→</div>
+        <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid ${temDevolucao?'var(--green)':'var(--border)'};background:${temDevolucao?'rgba(16,185,129,.12)':'var(--card2)'}">
+          <span style="font-size:13px">${temDevolucao?'✅':'🔄'}</span>
+          <span style="font-size:11px;font-weight:700;color:${temDevolucao?'var(--green)':'var(--dim)'}">Devolução</span>
+        </div>
+        <span style="font-size:11px;color:var(--dim);margin-left:4px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:2px 8px">${os.tipoLocacao?.charAt(0).toUpperCase()+os.tipoLocacao?.slice(1)||''}</span>
+      </div>`;
+    } else if(os.dataSaida&&os.dataRetorno){
       const dias=[];
       const d=new Date(os.dataSaida+'T12:00:00');
       const fim=new Date(os.dataRetorno+'T12:00:00');
@@ -991,6 +1007,9 @@ function criarOS(){
     potencia:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).potencia||'',
     patrimonio:(equipamentosOS.find(e=>e.tipo==='gerador')||{}).patrimonio||'',
     diasContratados:(()=>{
+      // Locação periódica não tem grade de dias
+      const _tipo=document.getElementById('f-tipo-locacao')?.value||'evento';
+      if(_tipo&&_tipo!=='evento') return [];
       // Gera diasContratados a partir de previsaoDias do primeiro gerador (compatibilidade com calcHE)
       const priGer=equipamentosOS.find(e=>e.tipo==='gerador');
       if(priGer?.previsaoDias?.length) return priGer.previsaoDias.map(dp=>({data:dp.data,hIni:dp.hIni||'07:00',hFim:dp.hFim||'19:00',naoRoda:!!dp.naoRoda}));
@@ -1542,6 +1561,10 @@ function opIniciarLocacaoPeriodica(){
   const hoje=new Date().toISOString().split('T')[0];
   const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   const os=opOS;
+  // Verifica quais checks já foram feitos
+  const regsOS=registros.filter(r=>r.osId===os.id);
+  const jaEntregou=regsOS.some(r=>r.checkEntrega);
+  const jaDevolveu=regsOS.some(r=>r.checkDevolucao);
   el.innerHTML=`
   <div class="card">
     <div class="card-title">📅 Locação ${os.tipoLocacao?os.tipoLocacao.charAt(0).toUpperCase()+os.tipoLocacao.slice(1):'Periódica'} — OS ${os.num}</div>
@@ -1550,18 +1573,51 @@ function opIniciarLocacaoPeriodica(){
       ${os.evento?`<tr><td style="color:var(--dim)">Evento/Ref.</td><td>${os.evento}</td></tr>`:''}
       <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''} ${os.cidade?'— '+os.cidade:''}${os.uf?'/'+os.uf:''}</td></tr>
       <tr><td style="color:var(--dim)">Equipamentos</td><td>${renderEquipTexto(os)}</td></tr>
+      <tr><td style="color:var(--dim)">Período</td><td>${fmtData(os.dataSaida)} → ${fmtData(os.dataRetorno)}</td></tr>
     </table>
   </div>
   <div class="card">
-    <div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.7;text-align:justify">
-      Declaro que recebi os equipamentos acima listados em perfeito estado de funcionamento e conservação, responsabilizando-me pelo uso e guarda durante o período de locação.
+    <div class="card-title">Tipo de Registro</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;border:2px solid ${jaEntregou?'var(--green)':'rgba(16,185,129,.3)'};background:${jaEntregou?'rgba(16,185,129,.08)':'var(--card2)'};cursor:pointer;opacity:${jaEntregou?'.6':'1'}">
+        <input type="radio" name="lp-tipo" value="entrega" id="lp-entrega" ${jaEntregou?'disabled':''} style="width:18px;height:18px;accent-color:var(--green)"/>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:${jaEntregou?'var(--green)':'var(--fg)'}">📦 Entrega ${jaEntregou?'✅ (já realizada)':''}</div>
+          <div style="font-size:12px;color:var(--dim)">Cliente recebeu os equipamentos</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;border:2px solid ${jaDevolveu?'var(--green)':'rgba(99,102,241,.3)'};background:${jaDevolveu?'rgba(16,185,129,.08)':'var(--card2)'};cursor:pointer;opacity:${jaDevolveu?'.6':'1'}">
+        <input type="radio" name="lp-tipo" value="devolucao" id="lp-devolucao" ${jaDevolveu?'disabled':(!jaEntregou?'disabled':'')} style="width:18px;height:18px;accent-color:#818cf8"/>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:${jaDevolveu?'var(--green)':'var(--fg)'}">🔄 Devolução ${jaDevolveu?'✅ (já realizada)':(!jaEntregou?'(disponível após entrega)':'')}</div>
+          <div style="font-size:12px;color:var(--dim)">Equipamentos foram devolvidos</div>
+        </div>
+      </label>
+    </div>
+    <div id="lp-texto-decl" style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.7;text-align:justify">
+      📦 <strong>Entrega:</strong> Declaro que recebi os equipamentos acima listados em perfeito estado de funcionamento e conservação, responsabilizando-me pelo uso e guarda durante o período de locação.
     </div>
     <div class="grid2" style="margin-bottom:12px">
       <div class="field"><label>Data</label><input type="date" id="lp-data" value="${hoje}"/></div>
       <div class="field"><label>Hora</label><input type="time" id="lp-hora" value="${agora}"/></div>
     </div>
     <div class="field"><label>Nome do responsável (cliente)</label><input id="lp-resp" placeholder="Quem está assinando"/></div>
-  </div>
+  </div>`;
+  // Atualiza texto ao mudar tipo
+  document.querySelectorAll('input[name="lp-tipo"]').forEach(r=>{
+    r.addEventListener('change',()=>{
+      const t=document.querySelector('input[name="lp-tipo"]:checked')?.value;
+      const decl=document.getElementById('lp-texto-decl');
+      if(decl){
+        if(t==='devolucao') decl.innerHTML='🔄 <strong>Devolução:</strong> Declaro que devolvo os equipamentos acima listados em perfeito estado, confirmando o encerramento do período de locação.';
+        else decl.innerHTML='📦 <strong>Entrega:</strong> Declaro que recebi os equipamentos acima listados em perfeito estado de funcionamento e conservação, responsabilizando-me pelo uso e guarda durante o período de locação.';
+      }
+    });
+  });
+  // Seleciona automaticamente o próximo passo disponível
+  if(!jaEntregou) document.getElementById('lp-entrega')?.click();
+  else if(!jaDevolveu) document.getElementById('lp-devolucao')?.click();
+  el.innerHTML+=`
   <div class="card">
     <div class="card-title">Assinatura do Cliente</div>
     <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Peça ao cliente para assinar abaixo.</p>
@@ -1592,6 +1648,8 @@ function finalizarLocacaoPeriodica(){
   if(!sigOperador){alert('A assinatura do operador é obrigatória.');return;}
   const btn=document.getElementById('btn-finalizar-lp');
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  const _lpTipo=document.querySelector('input[name="lp-tipo"]:checked')?.value;
+  if(!_lpTipo){alert('Selecione o tipo de registro: Entrega ou Devolução.');return;}
   const reg={
     id:'reg_'+Date.now(),
     osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
@@ -1600,9 +1658,16 @@ function finalizarLocacaoPeriodica(){
     respCliente:resp,
     assinatura:sigCliente,assinaturaOp:sigOperador,
     tipoLocacao:opOS.tipoLocacao||'',
+    checkEntrega:_lpTipo==='entrega',
+    checkDevolucao:_lpTipo==='devolucao',
     status:'enviado',
     criadoEm:new Date().toISOString()
   };
+  // Se é devolução, fechar a OS
+  if(_lpTipo==='devolucao'){
+    const osIdx=ordens.findIndex(o=>o.id===opOS.id);
+    if(osIdx>=0) ordens[osIdx].status='fechada';
+  }
   registros.push(reg);
   saveAll().then(()=>{
     showToast('Assinatura salva!','ok');
