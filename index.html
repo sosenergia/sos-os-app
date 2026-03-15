@@ -2421,9 +2421,28 @@ function loadRelatorio(){
     const equips=renderEquipTexto(os);
     const ops=(os.operadores||[]).map(op=>{const u=usuarios.find(u=>u.id===op.userId);return u?u.nome:'?';}).filter(Boolean);
 
-    // Gera lista de dias do evento
+    // Gera indicador de progresso
     let diasHTML='';
-    if(os.dataSaida&&os.dataRetorno){
+    const isPeriodica=os.tipoLocacao&&os.tipoLocacao!=='evento';
+    if(isPeriodica){
+      // OS periódica — mostra só entrega/devolução
+      const temEntrega=regsOS.some(r=>r.checkEntrega);
+      const temDevolucao=regsOS.some(r=>r.checkDevolucao);
+      const tipoLabel={'mensal':'Mensal','quinzenal':'Quinzenal','semanal':'Semanal'}[os.tipoLocacao]||os.tipoLocacao;
+      diasHTML=`<div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid ${temEntrega?'var(--green)':'var(--border)'};background:${temEntrega?'rgba(16,185,129,.12)':'var(--card2)'}">
+          <span style="font-size:13px">${temEntrega?'✅':'📦'}</span>
+          <span style="font-size:11px;font-weight:700;color:${temEntrega?'var(--green)':'var(--dim)'}">Entrega</span>
+        </div>
+        <div style="font-size:14px;color:var(--border)">→</div>
+        <div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid ${temDevolucao?'var(--green)':'var(--border)'};background:${temDevolucao?'rgba(16,185,129,.12)':'var(--card2)'}">
+          <span style="font-size:13px">${temDevolucao?'✅':'🔄'}</span>
+          <span style="font-size:11px;font-weight:700;color:${temDevolucao?'var(--green)':'var(--dim)'}">Devolução</span>
+        </div>
+        <span style="font-size:11px;color:var(--dim);margin-left:2px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:2px 8px;color:#a78bfa">${tipoLabel}</span>
+      </div>`;
+    } else if(os.dataSaida&&os.dataRetorno){
+      // OS de evento — grade de dias
       const dias=[];
       const d=new Date(os.dataSaida+'T12:00:00');
       const fim=new Date(os.dataRetorno+'T12:00:00');
