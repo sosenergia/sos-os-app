@@ -2138,8 +2138,9 @@ function _renderResumoOS(){
 
   const faltandoHTML=diasFaltando.length?`
     <div style="background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:10px;margin-top:8px">
-      <div style="font-size:12px;font-weight:700;color:var(--yellow);margin-bottom:4px">⏳ Dias ainda não registrados:</div>
-      ${diasFaltando.map(d=>`<div style="font-size:12px;color:var(--dim);padding:2px 0">• ${fmtData(d)}</div>`).join('')}
+      <div style="font-size:12px;font-weight:700;color:var(--yellow);margin-bottom:4px">⏳ Dias ainda não registrados (${diasFaltando.length}):</div>
+      ${diasFaltando.slice(0,7).map(d=>`<div style="font-size:12px;color:var(--dim);padding:2px 0">• ${fmtData(d)}</div>`).join('')}
+      ${diasFaltando.length>7?`<div style="font-size:11px;color:var(--dim);padding:4px 0 0 0">... e mais ${diasFaltando.length-7} dias</div>`:''}
     </div>`:'';
 
   const totalRegs=rascunhos.length+enviados.length;
