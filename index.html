@@ -603,6 +603,16 @@ function showFormOS(osId){
       <div class="field"><label>Cliente</label><input id="f-cli" value="${osEdit?osEdit.cliente:''}" placeholder="Nome do cliente"/></div>
     </div>
     <div class="field"><label>Nome do Evento</label><input id="f-evt" value="${osEdit?osEdit.evento||'':''}" placeholder="Ex: CORRIDA DAS FLORES"/></div>
+    <div class="field">
+      <label>Tipo de Locação</label>
+      <select id="f-tipo-locacao" onchange="toggleTipoLocacao()" style="font-weight:600">
+        <option value="evento" ${osEdit&&osEdit.tipoLocacao&&osEdit.tipoLocacao!=='evento'?'':' selected'}>🎪 Evento / Serviço (padrão)</option>
+        <option value="mensal" ${osEdit&&osEdit.tipoLocacao==='mensal'?' selected':''}>📅 Locação Mensal</option>
+        <option value="quinzenal" ${osEdit&&osEdit.tipoLocacao==='quinzenal'?' selected':''}>📅 Locação Quinzenal</option>
+        <option value="semanal" ${osEdit&&osEdit.tipoLocacao==='semanal'?' selected':''}>📅 Locação Semanal</option>
+      </select>
+      <p id="f-tipo-locacao-hint" style="font-size:11px;color:var(--dim);margin-top:4px;display:none">⚡ O operador só precisará coletar a assinatura do cliente confirmando o recebimento dos itens.</p>
+    </div>
     <div class="grid2">
       <div class="field"><label>Data Saída</label><input type="date" id="f-saida" value="${osEdit?osEdit.dataSaida:hoje}" onchange="refreshDias()"/></div>
       <div class="field"><label>Data Retorno</label><input type="date" id="f-ret" value="${osEdit?osEdit.dataRetorno:hoje}" onchange="refreshDias()"/></div>
@@ -966,6 +976,7 @@ function criarOS(){
   const dadosComuns={
     num,cliente:cli,
     evento:document.getElementById('f-evt').value,
+    tipoLocacao:document.getElementById('f-tipo-locacao')?.value||'evento',
     dataSaida:document.getElementById('f-saida').value,
     dataRetorno:document.getElementById('f-ret').value,
     endereco:document.getElementById('f-end').value,
@@ -1234,7 +1245,13 @@ function buildOpForm(os){
         ${os.instrucoes?`<tr><td style="color:var(--dim)">Instruções</td><td style="white-space:pre-line">${os.instrucoes}</td></tr>`:''}
       </table>
     </div>
-    <button class="btn btn-primary" onclick="opStep(1)">Iniciar Registro →</button>
+    ${os.tipoLocacao&&os.tipoLocacao!=='evento'?`
+    <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#818cf8;margin-bottom:4px">📅 Locação ${os.tipoLocacao.charAt(0).toUpperCase()+os.tipoLocacao.slice(1)}</div>
+      <div style="font-size:12px;color:var(--dim)">Esta OS não requer registro de horímetro. Colete apenas a assinatura do cliente.</div>
+    </div>
+    <button class="btn btn-primary" onclick="opIniciarLocacaoPeriodica()">Coletar Assinatura →</button>`:`
+    <button class="btn btn-primary" onclick="opStep(1)">Iniciar Registro →</button>`}
     <button class="btn btn-ghost" style="margin-top:8px" onclick="loadOperador()">← Voltar</button>
   </div>
   <!-- Step 1: Horários + Acessórios -->
@@ -1520,6 +1537,88 @@ function _renderStep3(){
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>`;
 }
 
+function opIniciarLocacaoPeriodica(){
+  const el=document.getElementById('page-operador');
+  const hoje=new Date().toISOString().split('T')[0];
+  const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const os=opOS;
+  el.innerHTML=`
+  <div class="card">
+    <div class="card-title">📅 Locação ${os.tipoLocacao?os.tipoLocacao.charAt(0).toUpperCase()+os.tipoLocacao.slice(1):'Periódica'} — OS ${os.num}</div>
+    <table class="tbl">
+      <tr><td style="color:var(--dim)">Cliente</td><td><strong>${os.cliente}</strong></td></tr>
+      ${os.evento?`<tr><td style="color:var(--dim)">Evento/Ref.</td><td>${os.evento}</td></tr>`:''}
+      <tr><td style="color:var(--dim)">Local</td><td>${os.endereco||''} ${os.cidade?'— '+os.cidade:''}${os.uf?'/'+os.uf:''}</td></tr>
+      <tr><td style="color:var(--dim)">Equipamentos</td><td>${renderEquipTexto(os)}</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--dim);line-height:1.7;text-align:justify">
+      Declaro que recebi os equipamentos acima listados em perfeito estado de funcionamento e conservação, responsabilizando-me pelo uso e guarda durante o período de locação.
+    </div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="field"><label>Data</label><input type="date" id="lp-data" value="${hoje}"/></div>
+      <div class="field"><label>Hora</label><input type="time" id="lp-hora" value="${agora}"/></div>
+    </div>
+    <div class="field"><label>Nome do responsável (cliente)</label><input id="lp-resp" placeholder="Quem está assinando"/></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Assinatura do Cliente</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:11px">Peça ao cliente para assinar abaixo.</p>
+    <canvas id="sigCanvas" width="400" height="155"></canvas>
+    <div style="display:flex;gap:8px;margin-top:7px">
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvas')">Limpar</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Assinatura do Operador</div>
+    <canvas id="sigCanvasOp" width="400" height="155"></canvas>
+    <div style="display:flex;gap:8px;margin-top:7px">
+      <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvasOp')">Limpar</button>
+    </div>
+  </div>
+  <button class="btn btn-green" id="btn-finalizar-lp" onclick="finalizarLocacaoPeriodica()" style="margin-top:8px">💾 Salvar Assinatura</button>
+  <button class="btn btn-ghost" style="margin-top:8px" onclick="buildOpForm(opOS)">← Voltar</button>`;
+  setTimeout(initSig,80);
+}
+
+function finalizarLocacaoPeriodica(){
+  const data=document.getElementById('lp-data')?.value;
+  const hora=document.getElementById('lp-hora')?.value;
+  const resp=document.getElementById('lp-resp')?.value||'';
+  if(!data){alert('Preencha a data.');return;}
+  const sigCliente=sigPads['sigCanvas']?.hasData?document.getElementById('sigCanvas').toDataURL('image/png'):null;
+  const sigOperador=sigPads['sigCanvasOp']?.hasData?document.getElementById('sigCanvasOp').toDataURL('image/png'):null;
+  if(!sigOperador){alert('A assinatura do operador é obrigatória.');return;}
+  const btn=document.getElementById('btn-finalizar-lp');
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  const reg={
+    id:'reg_'+Date.now(),
+    osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
+    operadorId:sessaoAtual.id,operadorNome:sessaoAtual.nome,
+    data,horaAssinatura:hora,
+    respCliente:resp,
+    assinatura:sigCliente,assinaturaOp:sigOperador,
+    tipoLocacao:opOS.tipoLocacao||'',
+    status:'enviado',
+    criadoEm:new Date().toISOString()
+  };
+  registros.push(reg);
+  saveAll().then(()=>{
+    showToast('Assinatura salva!','ok');
+    const el=document.getElementById('page-operador');
+    el.innerHTML=`<div class="card" style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">✅</div>
+      <div style="font-weight:700;font-size:18px;margin-bottom:8px">Assinatura Coletada!</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:20px">OS ${opOS.num} — ${opOS.cliente}</div>
+      <button class="btn btn-ghost" onclick="loadOperador()">← Voltar ao início</button>
+    </div>`;
+  }).catch(()=>{
+    if(btn){btn.disabled=false;btn.textContent='💾 Salvar Assinatura';}
+    showToast('Erro ao salvar. Tente novamente.','err');
+  });
+}
+
 function opStep(n){
   for(let i=0;i<4;i++){
     document.getElementById('op'+i).style.display=i===n?'block':'none';
@@ -1531,6 +1630,12 @@ function opStep(n){
     _renderStep3(); // gera o HTML com a data real do operador antes de inicializar assinatura
     setTimeout(initSig,80);
   }
+}
+
+function toggleTipoLocacao(){
+  const v=document.getElementById('f-tipo-locacao')?.value;
+  const hint=document.getElementById('f-tipo-locacao-hint');
+  if(hint) hint.style.display=(v&&v!=='evento')?'block':'none';
 }
 
 function toggleStandbyRodou(gi){
