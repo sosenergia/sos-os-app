@@ -1233,9 +1233,12 @@ function abrirOpOS(id){
   if(!opOS) return;
   regEnviado=false;
   buildOpForm(opOS);
-  // Se já tem rascunhos, vai direto para a tela de resumo
-  const temRascunho=registros.some(r=>r.osId===id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
-  if(temRascunho){
+  const isPeriodica=opOS.tipoLocacao&&opOS.tipoLocacao!=='evento';
+  // Para OS periódica: se já tem registros enviados, vai para tela de resumo
+  const temEnviado=isPeriodica&&registros.some(r=>r.osId===id&&r.operadorId===sessaoAtual.id&&r.status==='enviado');
+  // Para OS de evento: se já tem rascunhos, vai direto para a tela de resumo
+  const temRascunho=!isPeriodica&&registros.some(r=>r.osId===id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
+  if(temRascunho||temEnviado){
     setTimeout(()=>{
       for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
       lastReg=registros.filter(r=>r.osId===id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho').slice(-1)[0]||null;
@@ -1467,12 +1470,15 @@ function buildOpForm(os){
     <!-- Banner de sucesso destacado -->
     <div style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px">
       <div style="font-size:40px;margin-bottom:8px">💾</div>
-      <h2 style="color:var(--yellow);font-size:18px;margin-bottom:4px">Dia salvo!</h2>
-      <p style="color:var(--dim);font-size:13px">Preencha todos os dias do evento para liberar o envio ao administrativo.</p>
+      <h2 style="color:var(--yellow);font-size:18px;margin-bottom:4px">Assinatura registrada!</h2>
+      <p id="op-ok-subtitulo" style="color:var(--dim);font-size:13px">Preencha todos os dias do evento para liberar o envio ao administrativo.</p>
     </div>
     <div id="op-ok-resumo" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--dim)"></div>
     <button class="btn btn-primary" onclick="novoRegistroDia()" style="margin-bottom:10px;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.4);color:var(--yellow)">
       📅 Registrar outro dia desta OS
+    </button>
+    <button id="btn-coletar-assinatura-period" class="btn btn-primary" onclick="opIniciarLocacaoPeriodica()" style="margin-bottom:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;display:none">
+      ✍️ Coletar outra assinatura
     </button>
     <button id="btn-enviar-admin" class="btn btn-green" onclick="enviarParaAdmin()" style="margin-bottom:10px">
       ✅ Enviar para o administrativo
@@ -1671,13 +1677,13 @@ function finalizarLocacaoPeriodica(){
   registros.push(reg);
   saveAll().then(()=>{
     showToast('Assinatura salva!','ok');
-    const el=document.getElementById('page-operador');
-    el.innerHTML=`<div class="card" style="text-align:center;padding:32px 16px">
-      <div style="font-size:48px;margin-bottom:12px">✅</div>
-      <div style="font-weight:700;font-size:18px;margin-bottom:8px">Assinatura Coletada!</div>
-      <div style="font-size:13px;color:var(--dim);margin-bottom:20px">OS ${opOS.num} — ${opOS.cliente}</div>
-      <button class="btn btn-ghost" onclick="loadOperador()">← Voltar ao início</button>
-    </div>`;
+    // Recarrega buildOpForm para ter o bloco op-ok disponível
+    buildOpForm(opOS);
+    // Oculta todos os steps e mostra op-ok
+    for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
+    _renderResumoOS();
+    document.getElementById('op-ok').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
   }).catch(()=>{
     if(btn){btn.disabled=false;btn.textContent='💾 Salvar Assinatura';}
     showToast('Erro ao salvar. Tente novamente.','err');
@@ -2043,6 +2049,44 @@ function _renderResumoOS(){
   const enviados=registros.filter(r=>r.osId===opOS.id&&r.operadorId===sessaoAtual.id&&r.status==='enviado');
   const resumoEl=document.getElementById('op-ok-resumo');
   if(!resumoEl) return;
+
+  // === OS PERIÓDICA (mensal/quinzenal/semanal) — exibe apenas entrega/devolução ===
+  const isPeriodica=opOS.tipoLocacao&&opOS.tipoLocacao!=='evento';
+  if(isPeriodica){
+    const todosRegs=[...rascunhos,...enviados];
+    const regEntrega=todosRegs.find(r=>r.checkEntrega);
+    const regDevolucao=todosRegs.find(r=>r.checkDevolucao);
+    const tipoLabel={'mensal':'Mensal','quinzenal':'Quinzenal','semanal':'Semanal'}[opOS.tipoLocacao]||opOS.tipoLocacao;
+    resumoEl.innerHTML=`
+      <div style="font-weight:700;font-size:13px;margin-bottom:10px">OS ${opOS.num} — ${opOS.cliente}${opOS.evento?' · '+opOS.evento:''}</div>
+      <div style="font-size:11px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);border-radius:6px;padding:4px 10px;display:inline-block;margin-bottom:12px;color:#a5b4fc">📅 Locação ${tipoLabel}</div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <div style="flex:1;background:${regEntrega?'rgba(16,185,129,.12)':'rgba(234,179,8,.08)'};border:1px solid ${regEntrega?'rgba(16,185,129,.3)':'rgba(234,179,8,.2)'};border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:20px;margin-bottom:4px">📦</div>
+          <div style="font-size:12px;font-weight:700;color:${regEntrega?'var(--green)':'var(--yellow)'}">${regEntrega?'✓ Entrega registrada':'Aguardando entrega'}</div>
+          ${regEntrega?`<div style="font-size:11px;color:var(--dim);margin-top:3px">${fmtData(regEntrega.data)}</div>`:''}
+        </div>
+        <div style="flex:1;background:${regDevolucao?'rgba(16,185,129,.12)':'rgba(100,116,139,.08)'};border:1px solid ${regDevolucao?'rgba(16,185,129,.3)':'rgba(100,116,139,.2)'};border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:20px;margin-bottom:4px">🔄</div>
+          <div style="font-size:12px;font-weight:700;color:${regDevolucao?'var(--green)':'var(--dim)'}">${regDevolucao?'✓ Devolução registrada':'Aguardando devolução'}</div>
+          ${regDevolucao?`<div style="font-size:11px;color:var(--dim);margin-top:3px">${fmtData(regDevolucao.data)}</div>`:''}
+        </div>
+      </div>`;
+    // Oculta botões de fluxo de eventos
+    const btnEnv=document.getElementById('btn-enviar-admin');
+    if(btnEnv) btnEnv.style.display='none';
+    const btnNovo=document.querySelector('button[onclick="novoRegistroDia()"]');
+    if(btnNovo) btnNovo.style.display='none';
+    // Mostra botão coletar outra assinatura se ainda não tem devolução
+    const btnPeriod=document.getElementById('btn-coletar-assinatura-period');
+    if(btnPeriod) btnPeriod.style.display=regDevolucao?'none':'block';
+    return;
+  }
+
+  // === OS DE EVENTO (padrão) ===
+  // Controla botão periódico (ocultar no fluxo de evento)
+  const btnPeriod2=document.getElementById('btn-coletar-assinatura-period');
+  if(btnPeriod2) btnPeriod2.style.display='none';
 
   // Calcula dias contratados e quais já foram preenchidos (rascunho OU enviado)
   let todosDiasPreenchidos=true;
