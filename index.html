@@ -694,7 +694,7 @@ function showFormOS(osId){
       <label>Dia de Vencimento (cobrança mensal)</label>
       <select id="f-dia-vencimento" style="font-weight:600">
         <option value="">— Selecione o dia —</option>
-        ${Array.from({length:28},(_,i)=>`<option value="${i+1}" ${osEdit&&osEdit.diaVencimento===(i+1)?' selected':''}>${i+1}</option>`).join('')}
+        ${(()=>{let o='';for(let i=1;i<=28;i++){const sel=osEdit&&osEdit.diaVencimento===i?' selected':'';o+='<option value="'+i+'"'+sel+'>'+i+'</option>';}return o;})()}
       </select>
       <p style="font-size:11px;color:var(--dim);margin-top:4px">Será exibido como alerta no card da OS ativa.</p>
     </div>
