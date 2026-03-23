@@ -1563,7 +1563,7 @@ function _renderStep3(){
       <canvas id="sigCanvas" style="display:none"></canvas>
       <canvas id="sigCanvasOp" style="display:none"></canvas>
       <input type="hidden" id="op-resp"/>
-      <input type="hidden" id="op-nome-op" value="${os.operadorNome||''}"/>
+      <input type="hidden" id="op-nome-op" value="${sessaoAtual.nome||os.operadorNome||''}"/>
     </div>
     <button class="btn btn-green" id="btn-finalizar" onclick="finalizarReg()" style="margin-top:8px">💾 Salvar este dia</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>`;
@@ -1608,7 +1608,7 @@ function _renderStep3(){
       <div style="display:flex;gap:8px;margin-top:7px">
         <button class="btn btn-ghost btn-sm" style="width:auto" onclick="clearSig('sigCanvasOp')">Limpar</button>
       </div>
-      <div class="field" style="margin-top:12px"><label>Nome do operador</label><input id="op-nome-op" value="${os.operadorNome||''}" placeholder="Nome do operador"/></div>
+      <div class="field" style="margin-top:12px"><label>Nome do operador</label><input id="op-nome-op" value="${sessaoAtual.nome||os.operadorNome||''}" placeholder="Nome do operador"/></div>
     </div>
     <button class="btn btn-green" id="btn-finalizar" onclick="finalizarReg()">✓ Salvar e Finalizar último dia</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(2)">← Voltar</button>`;
@@ -2069,7 +2069,7 @@ function finalizarReg(){
     itinerarioSaidaVolta:document.getElementById('op-itin-saida-volta')?.value||'',
     itinerarioChegadaVolta:document.getElementById('op-itin-chegada-volta')?.value||'',
     respCliente:document.getElementById('op-resp')?.value||'',
-    nomeOperador:document.getElementById('op-nome-op')?.value||opOS.operadorNome||'',
+    nomeOperador:document.getElementById('op-nome-op')?.value||sessaoAtual.nome||'',
     assinatura:sigCliente,assinaturaOp:sigOperador,
     geradoresReg,
     heOperador:heO,valorHEOperador:valHEop,heMaquina:heM,totalHoras:totH,
