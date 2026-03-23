@@ -5011,7 +5011,7 @@ function _gerarPDF(os, regsOS){
   <div class="info-row"><span class="info-lbl">Contato</span><span class="info-val">${os.contato||'—'}</span></div>
   <div class="info-row"><span class="info-lbl">Fone</span><span class="info-val">${os.fone||'—'}</span></div>
   <div class="info-row"><span class="info-lbl">CNPJ / CPF</span><span class="info-val">${os.cnpj||'—'}</span></div>
-  <div class="info-row"><span class="info-lbl">Operador</span><span class="info-val">${os.operadorNome||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Operador${regsOS.length>0&&[...new Set(regsOS.map(r=>r.nomeOperador||r.operadorNome).filter(Boolean))].length>1?'es':''}</span><span class="info-val">${(()=>{const nomes=[...new Set(regsOS.map(r=>r.nomeOperador||r.operadorNome).filter(Boolean))];return nomes.length?nomes.join(', '):(os.operadorNome||'—');})()}</span></div>
   <div class="info-row"><span class="info-lbl">Período</span><span class="info-val">${os.dataSaida?fmtData(os.dataSaida):'—'} → ${os.dataRetorno?fmtData(os.dataRetorno):'—'}</span></div>
   ${os.instrucoes?'<div class="info-row info-full"><span class="info-lbl">Instruções</span><span class="info-val">'+os.instrucoes+'</span></div>':''}
 </div>
