@@ -1887,9 +1887,9 @@ function calcHEGerador(gi){
   const limiteH=meiadiaria?6:hContratadas;
   const heM=Math.max(0,totH-limiteH);
   if(wEl&&txt){
-    const labelContrato=meiadiaria?'meia diária':(hContratadas>12?`${hContratadas}h contratadas`:'diária');
+    const labelContrato=meiadiaria?'meia diária':`${hContratadas}h contratadas`;
     if(heM>0){txt.textContent=`Operou ${totH.toFixed(1)}h — excedeu ${fmtHE(heM)} do contrato de ${limiteH}h (${labelContrato}).`;wEl.classList.add('show');}
-    else wEl.classList.remove('show');
+    else{txt.textContent=`Operou ${totH.toFixed(1)}h — dentro do contrato de ${limiteH}h (${labelContrato}).`;wEl.classList.add('show');}
   }
 }
 
@@ -1973,11 +1973,11 @@ function calcHE(){
   if(!part||!par) return;
   const pM=toMin(part),sM=toMin(par);
   const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
-  // HE máquina
-  const dc=opOS.diasContratados?.find(d=>d.data===data);
+  // HE máquina — usa hContratadas do dia configurado pelo admin
+  const _priGer=(opOS?.equipamentos||[]).filter(e=>e.tipo==='gerador')[0];
+  const _prevDiaHE=(_priGer?.previsaoDias||[]).find(p=>p.data===data);
+  const CONTRATO_MAQUINA_H=_prevDiaHE?.hContratadas||12;
   const wEl=document.getElementById('he-maq-warn');
-  // HE máquina — regra: contrato sempre 12h independente do horário
-  const CONTRATO_MAQUINA_H = 12;
   const heM_calc = Math.max(0, totH - CONTRATO_MAQUINA_H);
   if(wEl){
     if(heM_calc > 0){
