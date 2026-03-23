@@ -1218,6 +1218,7 @@ function verOS(id){
         (isAdminView?'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+
           '<button class="btn btn-ghost btn-sm" style="width:auto;font-size:11px;color:var(--blue);border-color:rgba(59,130,246,.3)" onclick="editarRegistroAdmin(\x27'+r.id+'\x27)">✏️ Editar registro</button>'+
           '<button class="btn btn-ghost btn-sm" style="width:auto;font-size:11px;color:var(--yellow);border-color:rgba(234,179,8,.3)" onclick="editarHEReg(\x27'+r.id+'\x27)">⏱ Editar HE</button>'+
+          '<button class="btn btn-ghost btn-sm" style="width:auto;font-size:11px;color:var(--red-light);border-color:rgba(204,0,0,.3)" onclick="excluirRegistroAdmin(\x27'+r.id+'\x27)">🗑 Excluir dia</button>'+
         '</div>':'')+
       '</div>').join(''):'<p style="color:var(--dim);font-size:13px">Nenhum registro ainda.</p>'}
   </div>
@@ -4772,11 +4773,26 @@ function editarRegistroAdmin(regId){
       if(gd.standby&&!gd.rodou) return '<div style="font-size:12px;color:var(--yellow);padding:6px 0">⚡ '+(g.potencia||'Gerador')+' ('+(g.patrimonio||'—')+') — Stand-by (não rodou)</div>';
       const hcVal=gd.hContratadas||12;
       const hcOpts=[12,13,14,15,16,17,18,19,20,21,22,23,24].map(h=>'<option value="'+h+'"'+(h===hcVal?' selected':'')+'>'+h+'h</option>').join('');
+      const isVirou=!!gd.virou;
       return '<div style="background:var(--dark);border-radius:8px;padding:10px;margin-bottom:8px">'
         +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">⚡ '+(g.potencia||'Gerador')+' ('+(g.patrimonio||'—')+')</div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+        // Checkbox virou
+        +'<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.2);border-radius:8px;margin-bottom:8px">'
+        +'<input type="checkbox" id="ead-virou-'+gi+'" '+(isVirou?'checked':'')+' onchange="eadToggleVirou('+gi+')" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer"/>'
+        +'<label for="ead-virou-'+gi+'" style="font-size:12px;color:var(--yellow);cursor:pointer;margin:0;font-weight:600">🔄 Gerador virou (rodou a noite toda)</label>'
+        +'</div>'
+        // Campos normais liga/desliga (ocultos quando virou)
+        +'<div id="ead-normal-'+gi+'" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;'+(isVirou?'display:none':'')+'">'
         +'<div class="field" style="margin:0"><label style="font-size:11px">Liga</label><input type="time" id="ead-part-'+gi+'" value="'+(gd.part||'')+'"/></div>'
         +'<div class="field" style="margin:0"><label style="font-size:11px">Desliga</label><input type="time" id="ead-par-'+gi+'" value="'+(gd.par||'')+'"/></div>'
+        +'</div>'
+        // Campos virou (visíveis apenas quando virou marcado)
+        +'<div id="ead-virou-campos-'+gi+'" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;'+(isVirou?'':'display:none')+'">'
+        +'<div class="field" style="margin:0"><label style="font-size:11px">Data/Hora Liga</label><input type="datetime-local" id="ead-dt-liga-'+gi+'" value="'+(gd.dtLiga||'')+'"/></div>'
+        +'<div class="field" style="margin:0"><label style="font-size:11px">Data/Hora Desliga</label><input type="datetime-local" id="ead-dt-desliga-'+gi+'" value="'+(gd.dtDesliga||'')+'"/></div>'
+        +'</div>'
+        // Horímetro, hContratadas, meia diária (sempre visíveis)
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
         +'<div class="field" style="margin:0"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="ead-hi-'+gi+'" step="0.1" value="'+(gd.horIni||'')+'"/></div>'
         +'<div class="field" style="margin:0"><label style="font-size:11px">Horímetro Final</label><input type="number" id="ead-hf-'+gi+'" step="0.1" value="'+(gd.horFim||'')+'"/></div>'
         +'<div class="field" style="margin:0"><label style="font-size:11px">Horas contratadas</label><select id="ead-hc-'+gi+'">'+hcOpts+'</select></div>'
@@ -4785,6 +4801,15 @@ function editarRegistroAdmin(regId){
         +'<label for="ead-meia-'+gi+'" style="font-size:11px;margin:0;cursor:pointer">Meia diária</label>'
         +'</div></div></div>';
     }).join('')}`:'';
+
+  // Helper para toggle virou no modal admin (definido inline pois o modal é criado dinamicamente)
+  window.eadToggleVirou=function(gi){
+    const virou=document.getElementById('ead-virou-'+gi)?.checked;
+    const normalEl=document.getElementById('ead-normal-'+gi);
+    const virouCamposEl=document.getElementById('ead-virou-campos-'+gi);
+    if(normalEl) normalEl.style.display=virou?'none':'grid';
+    if(virouCamposEl) virouCamposEl.style.display=virou?'grid':'none';
+  };
 
   const pop=document.createElement('div');
   pop.id='modal-reg-edit';
@@ -4877,24 +4902,49 @@ function salvarRegistroAdmin(regId){
     geradores.forEach((g,gi)=>{
       const gd=r.geradoresReg.find(x=>x.eqId===g.id);
       if(!gd||(gd.standby&&!gd.rodou)) return;
-      const part=document.getElementById(`ead-part-${gi}`)?.value;
-      const par=document.getElementById(`ead-par-${gi}`)?.value;
+      const virou=document.getElementById(`ead-virou-${gi}`)?.checked||false;
       const hi=document.getElementById(`ead-hi-${gi}`)?.value;
       const hf=document.getElementById(`ead-hf-${gi}`)?.value;
       const hcRaw=parseInt(document.getElementById(`ead-hc-${gi}`)?.value||'12');
       const meia=document.getElementById(`ead-meia-${gi}`)?.checked||false;
-      if(part!==undefined) gd.part=part;
-      if(par!==undefined) gd.par=par;
       if(hi!==undefined) gd.horIni=parseFloat(hi)||gd.horIni;
       if(hf!==undefined) gd.horFim=parseFloat(hf)||gd.horFim;
       gd.hContratadas=isNaN(hcRaw)?12:hcRaw;
       gd.meiadiaria=meia;
-      // Recalcula totalHoras e heM
-      if(gd.part&&gd.par){
-        const pM=toMin(gd.part),sM=toMin(gd.par);
-        gd.totalHoras=(sM>pM?sM-pM:sM+1440-pM)/60;
-        const limH=meia?6:gd.hContratadas;
-        gd.heM=Math.max(0,gd.totalHoras-limH);
+      gd.virou=virou;
+      if(virou){
+        const dtLiga=document.getElementById(`ead-dt-liga-${gi}`)?.value||'';
+        const dtDesliga=document.getElementById(`ead-dt-desliga-${gi}`)?.value||'';
+        gd.dtLiga=dtLiga; gd.dtDesliga=dtDesliga;
+        gd.part=dtLiga?dtLiga.split('T')[1]?.slice(0,5)||'':'';
+        gd.par=dtDesliga?dtDesliga.split('T')[1]?.slice(0,5)||'':'';
+        if(dtLiga&&dtDesliga){
+          const msL=new Date(dtLiga).getTime(),msD=new Date(dtDesliga).getTime();
+          if(!isNaN(msL)&&!isNaN(msD)&&msD>msL){
+            gd.totalHoras=(msD-msL)/3600000;
+            let limiteTotal=0;
+            const d1=new Date(dtLiga);d1.setHours(0,0,0,0);
+            const d2=new Date(dtDesliga);d2.setHours(0,0,0,0);
+            for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1)){
+              const ds=d.toISOString().split('T')[0];
+              const pd=(g.previsaoDias||[]).find(p=>p.data===ds);
+              limiteTotal+=(meia?6:(pd?.hContratadas||gd.hContratadas||12));
+            }
+            gd.heM=Math.max(0,gd.totalHoras-limiteTotal);
+          }
+        }
+      } else {
+        gd.dtLiga=''; gd.dtDesliga='';
+        const part=document.getElementById(`ead-part-${gi}`)?.value;
+        const par=document.getElementById(`ead-par-${gi}`)?.value;
+        if(part!==undefined) gd.part=part;
+        if(par!==undefined) gd.par=par;
+        if(gd.part&&gd.par){
+          const pM=toMin(gd.part),sM=toMin(gd.par);
+          gd.totalHoras=(sM>pM?sM-pM:sM+1440-pM)/60;
+          const limH=meia?6:gd.hContratadas;
+          gd.heM=Math.max(0,gd.totalHoras-limH);
+        }
       }
     });
     // Atualiza referência legada (primeiro gerador ativo)
@@ -4945,6 +4995,25 @@ function salvarRegistroAdmin(regId){
     showToast('Registro atualizado com sucesso.');
     verOS(r.osId);
   }).catch(()=>showToast('Erro ao salvar.','err'));
+}
+
+function excluirRegistroAdmin(regId){
+  const r=registros.find(x=>x.id===regId);
+  if(!r) return;
+  const confirmMsg='Excluir o registro do dia '+fmtData(r.data)+' (OS '+r.osNum+')?\n\nEsta ação não pode ser desfeita.';
+  if(!confirm(confirmMsg)) return;
+  const osId=r.osId;
+  const idx=registros.findIndex(x=>x.id===regId);
+  if(idx===-1) return;
+  registros.splice(idx,1);
+  fbSaveRegistros().then(()=>{
+    DB.set('sos_registros',registros);
+    showToast('Registro do dia '+fmtData(r.data)+' excluído.');
+    verOS(osId);
+  }).catch(()=>{
+    registros.splice(idx,0,r); // reverte se falhou
+    showToast('Erro ao excluir. Tente novamente.','err');
+  });
 }
 
 // ════════════════════════════════════════
