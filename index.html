@@ -1200,10 +1200,12 @@ function verOS(id){
             })()+
           '</div>'+
         '</div>'+
-        (r.geradoresReg&&r.geradoresReg.length?r.geradoresReg.map(g=>
-          '<div style="font-size:12px;color:var(--dim);margin-bottom:2px">'+
-            (g.standby&&!g.rodou?'<span style="color:var(--yellow)">⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — <strong>Stand-by (não rodou)</strong></span>':'<span>⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — Liga: '+g.part+' · Desliga: '+g.par+' · Hor: '+g.horIni+'→'+g.horFim+(g.heM>0?' · <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE máq.</span>':'')+' </span>')+
-          '</div>').join(''):'<div style="font-size:12px;color:var(--dim)">Liga: '+r.partida+' · Desliga: '+r.parada+' · Hor: '+r.horIni+'→'+r.horFim+'</div>')+
+        (r.geradoresReg&&r.geradoresReg.length?r.geradoresReg.map(g=>{
+          if(g.standby&&!g.rodou) return '<div style="font-size:12px;color:var(--dim);margin-bottom:2px"><span style="color:var(--yellow)">⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — <strong>Stand-by (não rodou)</strong></span></div>';
+          const _fmtDt=function(dt){if(!dt)return'—';const d=new Date(dt);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});};
+          const _horInfo=g.virou?('🔄 Virou · '+_fmtDt(g.dtLiga)+' → '+_fmtDt(g.dtDesliga)+' ('+g.totalHoras.toFixed(1)+'h)'):('Liga: '+g.part+' · Desliga: '+g.par+' · Hor: '+g.horIni+'→'+g.horFim);
+          return '<div style="font-size:12px;color:var(--dim);margin-bottom:2px"><span>⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — '+_horInfo+(g.heM>0?' · <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE máq.</span>':'')+' </span></div>';
+        }).join(''):'<div style="font-size:12px;color:var(--dim)">Liga: '+r.partida+' · Desliga: '+r.parada+' · Hor: '+r.horIni+'→'+r.horFim+'</div>')+
         (r.obs?'<div style="font-size:12px;color:var(--dim);margin-top:3px">'+r.obs+'</div>':'')+
         ((r.heOperador>0||r.refeicoes>0)?'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
           (r.heOperador>0?'<span style="font-size:12px;background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.25);border-radius:6px;padding:3px 8px;font-weight:600">⏱ HE: '+fmtHE(r.heOperador)+' → R$ '+(()=>{const _u=usuarios.find(u=>u.id===r.operadorId);const _v=(_u&&_u.heValor>0)?_u.heValor:config.heValor;return(r.heOperador*_v).toFixed(2);})()+'</span>':'')+
@@ -1351,6 +1353,23 @@ function buildOpForm(os){
         const _corPatrimonio=g.patrimonio?'var(--fg)':'var(--dim)';
         const _bordContainer=g.standby?'rgba(234,179,8,.3)':'var(--border)';
         const _bgContainer=g.standby?'rgba(234,179,8,.04)':'transparent';
+        const _viroupBlock=
+          '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;padding:8px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.2);border-radius:8px">'+
+          '<input type="checkbox" id="g-virou-'+gi+'" onchange="toggleVirou('+gi+')" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer"/>'+
+          '<label for="g-virou-'+gi+'" style="font-size:12px;color:var(--yellow);cursor:pointer;margin:0;font-weight:600">🔄 Gerador virou (rodou a noite toda)</label>'+
+          '</div>'+
+          '<div id="g-virou-campos-'+gi+'" style="display:none;margin-top:8px">'+
+          '<div style="font-size:11px;color:var(--dim);margin-bottom:6px">Informe a data e hora exatas de liga e desliga:</div>'+
+          '<div class="grid2">'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Data/Hora Liga</label><input type="datetime-local" id="g-dt-liga-'+gi+'" oninput="calcHEGerador('+gi+')"/></div>'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Data/Hora Desliga</label><input type="datetime-local" id="g-dt-desliga-'+gi+'" oninput="calcHEGerador('+gi+')"/></div>'+
+          '</div>'+
+          '<div style="font-size:11px;color:var(--dim);margin-bottom:6px;margin-top:2px">Horímetro:</div>'+
+          '<div class="grid2">'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-'+gi+'" step="0.1" placeholder="0.0" oninput="calcHEGerador('+gi+')"/></div>'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-'+gi+'" step="0.1" placeholder="Auto"/></div>'+
+          '</div>'+
+          '</div>';
         const _camposStandby=g.standby?(
           '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(234,179,8,.08);border-radius:8px;margin-bottom:4px">'+
           '<input type="checkbox" id="g-rodou-'+gi+'" onchange="toggleStandbyRodou('+gi+')" style="width:16px;height:16px;accent-color:var(--yellow);cursor:pointer"/>'+
@@ -1358,11 +1377,12 @@ function buildOpForm(os){
           '</div>'+
           '<div id="g-campos-'+gi+'" style="display:none">'+
           '<div class="grid2" style="margin-top:8px">'+
-          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Liga</label><input type="time" id="g-part-'+gi+'" oninput="calcHEGerador('+gi+')"/></div>'+
-          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Desliga</label><input type="time" id="g-par-'+gi+'" oninput="calcHEGerador('+gi+')"/></div>'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Liga</label><input type="time" id="g-part-'+gi+'" oninput="calcHEGerador('+gi+');toggleVirouVisibility('+gi+')"/></div>'+
+          '<div id="g-par-wrap-'+gi+'"><div class="field" style="margin:0 0 6px"><label style="font-size:11px">Desliga</label><input type="time" id="g-par-'+gi+'" oninput="calcHEGerador('+gi+')"/></div></div>'+
           '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-'+gi+'" step="0.1" placeholder="0.0" oninput="calcHEGerador('+gi+')"/></div>'+
           '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-'+gi+'" step="0.1" placeholder="Auto"/></div>'+
           '</div>'+
+          _viroupBlock+
           '<div class="he-warn" id="g-he-warn-'+gi+'"><strong style="color:var(--yellow)">⚠️ HE de máquina</strong><p id="g-he-txt-'+gi+'" style="font-size:13px;margin-top:4px"></p></div>'+
           '</div>'
         ):(
@@ -1372,11 +1392,12 @@ function buildOpForm(os){
           '</div>'+
           '<div id="g-campos-normal-'+gi+'">'+
           '<div class="grid2">'+
-          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Liga</label><input type="time" id="g-part-'+gi+'" oninput="calcHEGerador('+gi+')"/></div>'+
-          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Desliga</label><input type="time" id="g-par-'+gi+'" oninput="calcHEGerador('+gi+')"/></div>'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Liga</label><input type="time" id="g-part-'+gi+'" oninput="calcHEGerador('+gi+');toggleVirouVisibility('+gi+')"/></div>'+
+          '<div id="g-par-wrap-'+gi+'"><div class="field" style="margin:0 0 6px"><label style="font-size:11px">Desliga</label><input type="time" id="g-par-'+gi+'" oninput="calcHEGerador('+gi+')"/></div></div>'+
           '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-'+gi+'" step="0.1" placeholder="0.0" oninput="calcHEGerador('+gi+')"/></div>'+
           '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-'+gi+'" step="0.1" placeholder="Auto"/></div>'+
           '</div>'+
+          _viroupBlock+
           '<div class="he-warn" id="g-he-warn-'+gi+'"><strong style="color:var(--yellow)">⚠️ HE de máquina</strong><p id="g-he-txt-'+gi+'" style="font-size:13px;margin-top:4px"></p></div>'+
           '</div>'
         );
@@ -1572,11 +1593,13 @@ function _renderStep3(){
   // Último dia: resumo de rodagens + assinatura
   const todosRascunhos=[...rascunhosOS].sort((a,b)=>a.data.localeCompare(b.data));
   const resumoRodagens=todosRascunhos.map(r=>{
+    const _fmtDt2=function(dt){if(!dt)return'—';const d=new Date(dt);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});};
     const linhasG=r.geradoresReg&&r.geradoresReg.length
-      ? r.geradoresReg.map(g=>g.standby&&!g.rodou
-          ? '<div style="font-size:12px;color:var(--dim);margin-left:8px">⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — <em>Stand-by (não operou)</em></div>'
-          : '<div style="font-size:12px;color:var(--dim);margin-left:8px">⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — '+g.part+' às '+g.par+' ('+(g.totalHoras?g.totalHoras.toFixed(1)+'h':'—')+')' +(g.heM>0?' <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE</span>':'')+'</div>'
-        ).join('')
+      ? r.geradoresReg.map(g=>{
+          if(g.standby&&!g.rodou) return '<div style="font-size:12px;color:var(--dim);margin-left:8px">⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — <em>Stand-by (não operou)</em></div>';
+          const _horStr=g.virou?('🔄 Virou: '+_fmtDt2(g.dtLiga)+' → '+_fmtDt2(g.dtDesliga)):('Liga: '+g.part+' · Desliga: '+g.par);
+          return '<div style="font-size:12px;color:var(--dim);margin-left:8px">⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — '+_horStr+' ('+(g.totalHoras?g.totalHoras.toFixed(1)+'h':'—')+')' +(g.heM>0?' <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE</span>':'')+'</div>';
+        }).join('')
       : '<div style="font-size:12px;color:var(--dim);margin-left:8px">Liga: '+r.partida+' · Desliga: '+r.parada+' · '+(r.totalHoras?r.totalHoras.toFixed(1)+'h':'—')+'</div>';
     return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
       <div style="font-weight:700;font-size:13px;margin-bottom:4px">${fmtData(r.data)}</div>
@@ -1767,27 +1790,98 @@ function toggleStandbyRodou(gi){
   const rodou=document.getElementById(`g-rodou-${gi}`)?.checked;
   const campos=document.getElementById(`g-campos-${gi}`);
   if(campos) campos.style.display=rodou?'block':'none';
+  if(!rodou){
+    const virouCb=document.getElementById(`g-virou-${gi}`);
+    if(virouCb) virouCb.checked=false;
+    const virouCampos=document.getElementById(`g-virou-campos-${gi}`);
+    if(virouCampos) virouCampos.style.display='none';
+  }
 }
 
 function toggleNaoRodou(gi){
   const naoRodou=document.getElementById(`g-nao-rodou-${gi}`)?.checked;
   const campos=document.getElementById(`g-campos-normal-${gi}`);
   if(campos) campos.style.display=naoRodou?'none':'block';
+  if(naoRodou){
+    const virouCb=document.getElementById(`g-virou-${gi}`);
+    if(virouCb) virouCb.checked=false;
+    const virouCampos=document.getElementById(`g-virou-campos-${gi}`);
+    if(virouCampos) virouCampos.style.display='none';
+  }
+}
+
+function toggleVirouVisibility(gi){
+  // Mostra o bloco "virou" assim que o operador preenche o horário de liga
+  const part=document.getElementById(`g-part-${gi}`)?.value;
+  const virouBloco=document.getElementById(`g-virou-campos-wrap-${gi}`);
+  // O bloco virou (checkbox) é sempre visível; apenas os campos internos são toggled por toggleVirou
+}
+
+function toggleVirou(gi){
+  const virou=document.getElementById(`g-virou-${gi}`)?.checked;
+  const virouCampos=document.getElementById(`g-virou-campos-${gi}`);
+  const parWrap=document.getElementById(`g-par-wrap-${gi}`);
+  if(virouCampos) virouCampos.style.display=virou?'block':'none';
+  // Quando virou, esconde o campo Desliga simples e limpa-o
+  if(parWrap) parWrap.style.display=virou?'none':'block';
+  if(virou){
+    const parEl=document.getElementById(`g-par-${gi}`);
+    if(parEl) parEl.value='';
+    // Pré-preenche data/hora liga com a data atual + hora já digitada
+    const data=document.getElementById('op-data')?.value||'';
+    const partVal=document.getElementById(`g-part-${gi}`)?.value||'';
+    const dtLigaEl=document.getElementById(`g-dt-liga-${gi}`);
+    if(dtLigaEl&&data&&partVal&&!dtLigaEl.value) dtLigaEl.value=data+'T'+partVal;
+  }
+  calcHEGerador(gi);
 }
 
 function calcHEGerador(gi){
-  const part=document.getElementById(`g-part-${gi}`)?.value;
-  const par=document.getElementById(`g-par-${gi}`)?.value;
-  const hi=parseFloat(document.getElementById(`g-hi-${gi}`)?.value)||0;
+  const virou=document.getElementById(`g-virou-${gi}`)?.checked||false;
   const wEl=document.getElementById(`g-he-warn-${gi}`);
   const txt=document.getElementById(`g-he-txt-${gi}`);
+  const hi=parseFloat(document.getElementById(`g-hi-${gi}`)?.value)||0;
+  const hfEl=document.getElementById(`g-hf-${gi}`);
+  let totH=0;
+  if(virou){
+    // Cálculo com datetime: diferença entre dt-liga e dt-desliga
+    const dtLiga=document.getElementById(`g-dt-liga-${gi}`)?.value;
+    const dtDesliga=document.getElementById(`g-dt-desliga-${gi}`)?.value;
+    if(!dtLiga||!dtDesliga){if(wEl)wEl.classList.remove('show');return;}
+    const msLiga=new Date(dtLiga).getTime();
+    const msDesliga=new Date(dtDesliga).getTime();
+    if(isNaN(msLiga)||isNaN(msDesliga)||msDesliga<=msLiga){if(wEl)wEl.classList.remove('show');return;}
+    totH=(msDesliga-msLiga)/3600000;
+    if(hfEl&&hi) hfEl.value=(hi+totH).toFixed(1);
+    // Para HE: soma hContratadas de cada dia abrangido
+    const g=(opOS?.equipamentos||[]).filter(e=>e.tipo==='gerador')[gi];
+    const meiadiaria=document.getElementById(`g-meia-${gi}`)?.checked||false;
+    let limiteTotal=0;
+    if(meiadiaria){
+      limiteTotal=6*Math.ceil(totH/24);
+    } else {
+      // Itera pelos dias entre liga e desliga
+      const d1=new Date(dtLiga);d1.setHours(0,0,0,0);
+      const d2=new Date(dtDesliga);d2.setHours(0,0,0,0);
+      for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1)){
+        const ds=d.toISOString().split('T')[0];
+        const prevDia=(g?.previsaoDias||[]).find(p=>p.data===ds);
+        limiteTotal+=(prevDia?.hContratadas||12);
+      }
+    }
+    const heM=Math.max(0,totH-limiteTotal);
+    if(wEl&&txt){
+      if(heM>0){txt.textContent='Operou '+totH.toFixed(1)+'h ('+new Date(msLiga).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' → '+new Date(msDesliga).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+') — excedeu '+fmtHE(heM)+' do contrato de '+limiteTotal+'h.';wEl.classList.add('show');}
+      else{txt.textContent='Operou '+totH.toFixed(1)+'h ('+new Date(msLiga).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+' → '+new Date(msDesliga).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+') — dentro do contrato.';wEl.classList.add('show');}
+    }
+    return;
+  }
+  const part=document.getElementById(`g-part-${gi}`)?.value;
+  const par=document.getElementById(`g-par-${gi}`)?.value;
   if(!part||!par){if(wEl)wEl.classList.remove('show');return;}
   const pM=toMin(part),sM=toMin(par);
-  const totH=(sM>pM?sM-pM:sM+1440-pM)/60;
-  // Horímetro final
-  const hfEl=document.getElementById(`g-hf-${gi}`);
+  totH=(sM>pM?sM-pM:sM+1440-pM)/60;
   if(hfEl&&hi) hfEl.value=(hi+totH).toFixed(1);
-  // Limite contratado: meia diária = 6h; ou hContratadas do dia; senão 12h padrão
   const meiadiaria=document.getElementById(`g-meia-${gi}`)?.checked||false;
   const data=document.getElementById('op-data')?.value;
   const g=(opOS?.equipamentos||[]).filter(e=>e.tipo==='gerador')[gi];
@@ -1839,18 +1933,38 @@ function coletarGeradoresReg(){
     const rodou=isStandby?rodouStandby:!naoRodouNormal;
     if(isStandby&&!rodouStandby) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:true,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
     if(naoRodouNormal) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:false,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
-    const part=document.getElementById(`g-part-${gi}`)?.value||'';
-    const par=document.getElementById(`g-par-${gi}`)?.value||'';
+    const virou=document.getElementById(`g-virou-${gi}`)?.checked||false;
+    const dtLiga=document.getElementById(`g-dt-liga-${gi}`)?.value||'';
+    const dtDesliga=document.getElementById(`g-dt-desliga-${gi}`)?.value||'';
+    const part=virou?(dtLiga?dtLiga.split('T')[1]?.slice(0,5)||'':''):document.getElementById(`g-part-${gi}`)?.value||'';
+    const par=virou?(dtDesliga?dtDesliga.split('T')[1]?.slice(0,5)||'':''):document.getElementById(`g-par-${gi}`)?.value||'';
     const hi=document.getElementById(`g-hi-${gi}`)?.value||'';
     const hf=document.getElementById(`g-hf-${gi}`)?.value||'';
     const meiadiaria=document.getElementById(`g-meia-${gi}`)?.checked||false;
     const data=document.getElementById('op-data')?.value;
     const prevDia=(g.previsaoDias||[]).find(p=>p.data===data);
     const hContratadas=prevDia?.hContratadas||12;
-    const limiteH=meiadiaria?6:hContratadas;
     let totH=0,heM=0;
-    if(part&&par){const pM=toMin(part),sM=toMin(par);totH=(sM>pM?sM-pM:sM+1440-pM)/60;heM=Math.max(0,totH-limiteH);}
-    return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:isStandby,rodou,part,par,horIni:hi,horFim:hf,totalHoras:totH,heM,meiadiaria,hContratadas:limiteH};
+    if(virou&&dtLiga&&dtDesliga){
+      const msL=new Date(dtLiga).getTime(),msD=new Date(dtDesliga).getTime();
+      if(!isNaN(msL)&&!isNaN(msD)&&msD>msL){
+        totH=(msD-msL)/3600000;
+        let limiteTotal=0;
+        const d1=new Date(dtLiga);d1.setHours(0,0,0,0);
+        const d2=new Date(dtDesliga);d2.setHours(0,0,0,0);
+        for(let d=new Date(d1);d<=d2;d.setDate(d.getDate()+1)){
+          const ds=d.toISOString().split('T')[0];
+          const pd=(g.previsaoDias||[]).find(p=>p.data===ds);
+          limiteTotal+=(meiadiaria?6:(pd?.hContratadas||12));
+        }
+        heM=Math.max(0,totH-limiteTotal);
+      }
+    } else if(part&&par){
+      const pM=toMin(part),sM=toMin(par);totH=(sM>pM?sM-pM:sM+1440-pM)/60;
+      const limiteH=meiadiaria?6:hContratadas;
+      heM=Math.max(0,totH-limiteH);
+    }
+    return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:isStandby,rodou,virou,dtLiga,dtDesliga,part,par,horIni:hi,horFim:hf,totalHoras:totH,heM,meiadiaria,hContratadas};
   });
 }
 
@@ -2004,8 +2118,15 @@ function finalizarReg(){
   // Validação: apenas geradores que rodaram precisam de horários
   if(temGerador){
     const ativos=geradoresReg.filter(g=>g.rodou);
-    const semHorario=ativos.find(g=>!g.part||!g.par);
-    if(semHorario){alert(`Preencha os horários de Liga/Desliga do gerador ${semHorario.potencia||''}.`);return;}
+    const semHorario=ativos.find(g=>{
+      if(g.virou) return !g.dtLiga||!g.dtDesliga;
+      return !g.part||!g.par;
+    });
+    if(semHorario){
+      if(semHorario.virou) alert('Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).');
+      else alert('Preencha os horários de Liga/Desliga do gerador '+(semHorario.potencia||'')+'.');
+      return;
+    }
   }
   // Usa o primeiro gerador ativo como referência para campos legados (compatibilidade)
   const gRef=geradoresReg.find(g=>g.rodou)||geradoresReg[0]||null;
@@ -2166,7 +2287,7 @@ function _renderResumoOS(){
         '<span style="font-size:10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:4px;padding:1px 6px;margin-right:6px;font-weight:600">✓ Enviado</span>'+
         '<strong>'+fmtData(r.data)+'</strong>'+
         (r.geradoresReg&&r.geradoresReg.length?
-          r.geradoresReg.filter(g=>!g.standby||g.rodou).map(g=>'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+(g.potencia||'G')+' '+g.part+'→'+g.par+'</span>').join('')
+          r.geradoresReg.filter(g=>!g.standby||g.rodou).map(g=>g.virou?'<span style="font-size:11px;color:var(--yellow);margin-left:6px">🔄 '+(g.potencia||'G')+'</span>':'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+(g.potencia||'G')+' '+g.part+'→'+g.par+'</span>').join('')
           :'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+r.partida+'→'+r.parada+'</span>')+
         (r.heOperador>0?'<span style="font-size:11px;color:var(--yellow);margin-left:6px">HE '+fmtHE(r.heOperador)+'</span>':'')+
       '</div>'+
@@ -2178,7 +2299,7 @@ function _renderResumoOS(){
         '<div>'+
           '<strong>'+fmtData(r.data)+'</strong>'+
           (r.geradoresReg&&r.geradoresReg.length?
-            r.geradoresReg.filter(g=>!g.standby||g.rodou).map(g=>'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+(g.potencia||'G')+' '+g.part+'→'+g.par+'</span>').join('')
+            r.geradoresReg.filter(g=>!g.standby||g.rodou).map(g=>g.virou?'<span style="font-size:11px;color:var(--yellow);margin-left:6px">🔄 '+(g.potencia||'G')+'</span>':'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+(g.potencia||'G')+' '+g.part+'→'+g.par+'</span>').join('')
             :'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+r.partida+'→'+r.parada+'</span>')+
           (r.heOperador>0?'<span style="font-size:11px;color:var(--yellow);margin-left:6px">HE '+fmtHE(r.heOperador)+'</span>':'')+
         '</div>'+
@@ -4885,8 +5006,14 @@ function _gerarPDF(os, regsOS){
         ${heM>0?'<span class="badge-warn">⚠ HE MÁQUINA: +'+fmtHE(heM)+'</span>':'<span class="badge-ok">✓ Dentro do contrato</span>'}
       </div>
       <div class="reg-grid">
-        <div><span class="lbl">Liga</span><span class="val">${r.partida||'—'}</span></div>
-        <div><span class="lbl">Desliga</span><span class="val">${r.parada||'—'}</span></div>
+        ${(()=>{
+          const _virouG=(r.geradoresReg||[]).find(g=>g.virou&&g.rodou);
+          if(_virouG){
+            const _fDt=function(dt){if(!dt)return'—';const d=new Date(dt);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});};
+            return '<div class="span2"><span class="lbl">🔄 Gerador Virou</span><span class="val" style="color:#f59e0b;font-weight:700">'+_fDt(_virouG.dtLiga)+' → '+_fDt(_virouG.dtDesliga)+' ('+(_virouG.totalHoras||0).toFixed(1)+'h)</span></div>';
+          }
+          return '<div><span class="lbl">Liga</span><span class="val">'+( r.partida||'—')+'</span></div><div><span class="lbl">Desliga</span><span class="val">'+( r.parada||'—')+'</span></div>';
+        })()}
         <div><span class="lbl">Total</span><span class="val">${(r.totalHoras||0).toFixed(1)}h</span></div>
         <div><span class="lbl">Horímetro</span><span class="val">${r.horIni||'—'} → ${r.horFim||'—'}</span></div>
         <div><span class="lbl">Operador</span><span class="val">${r.nomeOperador||r.operadorNome||'—'}</span></div>
