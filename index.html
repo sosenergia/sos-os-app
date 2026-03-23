@@ -5006,12 +5006,13 @@ function excluirRegistroAdmin(regId){
   const idx=registros.findIndex(x=>x.id===regId);
   if(idx===-1) return;
   registros.splice(idx,1);
-  fbSaveRegistros().then(()=>{
-    DB.set('sos_registros',registros);
+  DB.set('sos_registros',registros);
+  fbRemove('registros/'+regId).then(()=>{
     showToast('Registro do dia '+fmtData(r.data)+' excluído.');
     verOS(osId);
   }).catch(()=>{
     registros.splice(idx,0,r); // reverte se falhou
+    DB.set('sos_registros',registros);
     showToast('Erro ao excluir. Tente novamente.','err');
   });
 }
