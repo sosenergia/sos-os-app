@@ -4038,7 +4038,7 @@ function abrirLiveDashboardHE(){
     <div class="kpi" style="--ka:#9F7AEA"><div class="ki">🍽</div><div class="kl">Refeições</div><div class="kv">${totalRef}</div><div class="ks">${fmtR(totalRef*25)}</div></div>`;
 
   const tableFin=byVal.map((f,i)=>{
-    const rph=f.totalHE>0?Math.round(f.liquido/f.totalHE):'-';
+    const rph=f.valorHora>0?f.valorHora.toFixed(2):'-';
     return `<tr>
       <td><span class="rk ${rankClass(i)}">${rankLabel(i)}</span></td>
       <td style="font-weight:700;color:#fff">${f.nome}</td>
