@@ -5578,7 +5578,7 @@ function atualizarBadgeHEMes(){
   // Usa r.heOperador diretamente (mesmo critério do relatório admin)
   // Inclui registros normais (enviados) e HE avulsa registrada pelo admin
   const totalHE=registros
-    .filter(r=>r.operadorId===sessaoAtual.id && r.data && r.data.startsWith(mesAtual) && (r.status==='enviado'||r.heAvulsa))
+    .filter(r=>r.operadorId===sessaoAtual.id && r.data && r.data.startsWith(mesAtual) && (r.status==='enviado'||r.status==='rascunho'||r.heAvulsa))
     .reduce((acc,r)=>acc+(r.heOperador||0),0);
   if(totalHE>0){
     badge.textContent=`⚡ ${fmtHE(totalHE)} HE no mês`;
