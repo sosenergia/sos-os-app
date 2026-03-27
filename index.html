@@ -362,18 +362,18 @@ function doLoginFirebase(userVal, passVal) {
 // Funções de escrita Firebase
 function fbSet(path, data) {
   // set() sobrescreve o nó inteiro — usar apenas para nós que este dispositivo controla totalmente (config)
-  const p = db.ref(path).set(data).catch(e => console.warn('Firebase write error:', e));
-  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000))]);
+  const p = db.ref(path).set(data);
+  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),30000))]);
 }
 function fbUpdate(path, data) {
   // update() faz merge — salva só as chaves enviadas sem apagar as demais
-  const p = db.ref(path).update(data).catch(e => console.warn('Firebase write error:', e));
-  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000))]);
+  const p = db.ref(path).update(data);
+  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),30000))]);
 }
 function fbRemove(path) {
   // remove() deleta o nó permanentemente no Firebase
-  const p = db.ref(path).remove().catch(e => console.warn('Firebase remove error:', e));
-  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),10000))]);
+  const p = db.ref(path).remove();
+  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),30000))]);
 }
 function fbSaveOrdens() {
   const obj = {};
@@ -1750,19 +1750,24 @@ function finalizarLocacaoPeriodica(){
     const osIdx=ordens.findIndex(o=>o.id===opOS.id);
     if(osIdx>=0) ordens[osIdx].status='fechada';
   }
+  // Evita duplicata: remove versão anterior do mesmo registro se já existir (retentativa)
+  registros=registros.filter(r=>r.id!==reg.id);
   registros.push(reg);
-  saveAll().then(()=>{
+  DB.set('sos_registros',registros);
+  // Salva individualmente no Firebase para evitar enviar todo o array com assinaturas pesadas
+  Promise.all([
+    fbUpdate('registros/'+reg.id, reg),
+    _lpTipo==='devolucao'?fbUpdate('ordens/'+opOS.id,{status:'fechada'}):Promise.resolve()
+  ]).then(()=>{
     showToast('Assinatura salva!','ok');
-    // Recarrega buildOpForm para ter o bloco op-ok disponível
     buildOpForm(opOS);
-    // Oculta todos os steps e mostra op-ok
     for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
     _renderResumoOS();
     document.getElementById('op-ok').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
   }).catch(()=>{
     if(btn){btn.disabled=false;btn.textContent='💾 Salvar Assinatura';}
-    showToast('Erro ao salvar. Tente novamente.','err');
+    showToast('Conexão lenta. Tente novamente.','err');
   });
 }
 
@@ -2200,10 +2205,12 @@ function finalizarReg(){
     status:'rascunho',
     criadoEm:new Date().toISOString()
   };
+  registros=registros.filter(r=>r.id!==lastReg.id);
   registros.push(lastReg);
+  DB.set('sos_registros',registros);
   const btnFin=document.getElementById('btn-finalizar');
   if(btnFin){btnFin.disabled=true;btnFin.textContent='Salvando...';}
-  saveAll().then(()=>{
+  fbUpdate('registros/'+lastReg.id, lastReg).then(()=>{
     _finalizarRegUI();
   }).catch(()=>{
     _finalizarRegUI();
