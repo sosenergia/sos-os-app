@@ -5085,15 +5085,31 @@ function _gerarPDF(os, regsOS){
       </div>
       <div class="reg-grid">
         ${(()=>{
-          const _virouG=(r.geradoresReg||[]).find(g=>g.virou&&g.rodou);
-          if(_virouG){
-            const _fDt=function(dt){if(!dt)return'—';const d=new Date(dt);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});};
-            return '<div class="span2"><span class="lbl">🔄 Gerador Virou</span><span class="val" style="color:#f59e0b;font-weight:700">'+_fDt(_virouG.dtLiga)+' → '+_fDt(_virouG.dtDesliga)+' ('+(_virouG.totalHoras||0).toFixed(1)+'h)</span></div>';
+          const _fDt=function(dt){if(!dt)return'—';const d=new Date(dt);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});};
+          const _gRegs=r.geradoresReg&&r.geradoresReg.length?r.geradoresReg:null;
+          if(_gRegs){
+            return _gRegs.map(function(gd){
+              const _patLabel=gd.patrimonio?(' <span style="color:#888;font-size:9px">('+gd.patrimonio+')</span>'):'';
+              const _gTitle='<div class="span2" style="font-weight:700;font-size:10px;color:#CC0000;border-top:1px solid #eee;padding-top:4px;margin-top:2px">⚡ '+(gd.potencia||'Gerador')+_patLabel+'</div>';
+              if(gd.standby&&!gd.rodou) return _gTitle+'<div class="span2"><span class="lbl">Status</span><span class="val" style="color:#f59e0b">Stand-by (não rodou)</span></div>';
+              if(!gd.rodou) return _gTitle+'<div class="span2"><span class="lbl">Status</span><span class="val" style="color:#888">Não operou</span></div>';
+              if(gd.virou) return _gTitle+
+                '<div class="span2"><span class="lbl">🔄 Virou</span><span class="val" style="color:#f59e0b;font-weight:700">'+_fDt(gd.dtLiga)+' → '+_fDt(gd.dtDesliga)+' ('+(gd.totalHoras||0).toFixed(1)+'h)</span></div>'+
+                '<div><span class="lbl">Horímetro</span><span class="val">'+(gd.horIni||'—')+' → '+(gd.horFim||'—')+'</span></div>'+
+                (gd.heM>0?'<div><span class="lbl">HE máquina</span><span class="val" style="color:#856404">+'+gd.heM.toFixed(1)+'h</span></div>':'');
+              return _gTitle+
+                '<div><span class="lbl">Liga</span><span class="val">'+(gd.part||'—')+'</span></div>'+
+                '<div><span class="lbl">Desliga</span><span class="val">'+(gd.par||'—')+'</span></div>'+
+                '<div><span class="lbl">Total</span><span class="val">'+(gd.totalHoras||0).toFixed(1)+'h</span></div>'+
+                '<div><span class="lbl">Horímetro</span><span class="val">'+(gd.horIni||'—')+' → '+(gd.horFim||'—')+'</span></div>'+
+                (gd.heM>0?'<div><span class="lbl">HE máquina</span><span class="val" style="color:#856404">+'+gd.heM.toFixed(1)+'h</span></div>':'');
+            }).join('');
           }
-          return '<div><span class="lbl">Liga</span><span class="val">'+( r.partida||'—')+'</span></div><div><span class="lbl">Desliga</span><span class="val">'+( r.parada||'—')+'</span></div>';
+          // fallback OS antiga sem geradoresReg
+          return '<div><span class="lbl">Liga</span><span class="val">'+(r.partida||'—')+'</span></div><div><span class="lbl">Desliga</span><span class="val">'+(r.parada||'—')+'</span></div>'+
+            '<div><span class="lbl">Total</span><span class="val">'+(r.totalHoras||0).toFixed(1)+'h</span></div>'+
+            '<div><span class="lbl">Horímetro</span><span class="val">'+(r.horIni||'—')+' → '+(r.horFim||'—')+'</span></div>';
         })()}
-        <div><span class="lbl">Total</span><span class="val">${(r.totalHoras||0).toFixed(1)}h</span></div>
-        <div><span class="lbl">Horímetro</span><span class="val">${r.horIni||'—'} → ${r.horFim||'—'}</span></div>
         <div><span class="lbl">Operador</span><span class="val">${r.nomeOperador||r.operadorNome||'—'}</span></div>
         <div><span class="lbl">Motorista</span><span class="val">${r.motorista||'—'}</span></div>
         <div><span class="lbl">Placa</span><span class="val">${r.placa||'—'}</span></div>
@@ -5257,9 +5273,12 @@ ${(()=>{
         const _corValHE=valorHETotal>0?'#CC0000':'#888';
         const _txtHEMaq=heMaqGerador>0?'+'+fmtHE(heMaqGerador)+' extra':'✓ Dentro contrato';
         const _txtValHE=heVal>0?(valorHETotal>0?'R$ '+valorHETotal.toFixed(2)+'<br/><span style="font-size:8px;font-weight:400;color:#888">R$ '+heVal.toFixed(2)+'/hora extra</span>':'R$ 0,00'):'<span style="color:#888">Não informado</span>';
+        // patrimônio: prioriza o preenchido pelo operador nos geradoresReg, fallback para g.patrimonio da OS
+        const _gdPatrimonio=(regsOS.map(r=>(r.geradoresReg||[]).find(x=>x.eqId===g.id)).filter(x=>x&&x.patrimonio).pop()||{}).patrimonio;
+        const _patrimonioPdf=_gdPatrimonio||g.patrimonio||'—';
         return '<tr>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;font-weight:700">⚡ '+(g.potencia||'—')+'</td>'+
-          '<td style="padding:5px 8px;border:1px solid #ddd">'+(g.patrimonio||'—')+'</td>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd">'+_patrimonioPdf+'</td>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right">'+(horasGerador>0?fmtHE(horasGerador):'—')+'</td>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:'+_corHEMaq+'">'+_txtHEMaq+'</td>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:'+_corValHE+'">'+_txtValHE+'</td>'+
