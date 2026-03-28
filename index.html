@@ -5071,12 +5071,17 @@ function _gerarPDF(os, regsOS){
   const heOpH=fmtHE(totHEOp);
   const dataEmissao=new Date().toLocaleString('pt-BR');
 
+  // índice do registro mais recente (por data) — assinatura só aparece nele
+  const _regsOrdenados=regsOS.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+  const _lastRegId=_regsOrdenados.length?_regsOrdenados[_regsOrdenados.length-1].id:null;
+
   const registrosHTML=regsOS.map(r=>{
     const heM=r.heMaquina||0;
     const heO=r.heOperador||0;
     const _opUserPdf=usuarios.find(u=>u.id===r.operadorId);
     const _heValPdf=(_opUserPdf&&_opUserPdf.heValor>0)?_opUserPdf.heValor:config.heValor;
     const valHE=heO*_heValPdf;
+    const _isLastReg=r.id===_lastRegId;
     return `
     <div class="reg-box">
       <div class="reg-header">
@@ -5121,7 +5126,7 @@ function _gerarPDF(os, regsOS){
         ${(r.refeicoes||0)>0?'<div class="span2"><span class="lbl">Refeições (×'+r.refeicoes+')</span><span class="val" style="color:#059669;font-weight:700">R$ '+(r.valorRefeicao||r.refeicoes*25).toFixed(2)+'</span></div>':''}
         ${r.obs?'<div class="span2"><span class="lbl">Observações</span><span class="val">'+r.obs+'</span></div>':''}
       </div>
-      <div class="sig-row">
+      ${_isLastReg?`<div class="sig-row">
         <div class="sig-box">
           <div class="sig-title">ASSINATURA DO CLIENTE</div>
           ${r.assinatura?'<img src="'+r.assinatura+'" class="sig-img"/>'  :'<div class="sig-empty">Não coletada</div>'}
@@ -5132,7 +5137,7 @@ function _gerarPDF(os, regsOS){
           ${r.assinaturaOp?'<img src="'+r.assinaturaOp+'" class="sig-img"/>'  :'<div class="sig-empty">Não coletada</div>'}
           <div class="sig-name">${r.nomeOperador||r.operadorNome||''}</div>
         </div>
-      </div>
+      </div>`:''}
     </div>`;
   }).join('');
 
