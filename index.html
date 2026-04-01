@@ -3636,7 +3636,7 @@ function gerarPDFOperador(){
   const dtMes=new Date(parseInt(ano),parseInt(mesN)-1,1);
   const nomeMes=dtMes.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   const nomeMesCaps=nomeMes.toUpperCase();
-  const regsOp=registros.filter(r=>r.operadorId===opId&&r.data&&r.data.startsWith(mes)&&(r.status==='enviado'||r.heAvulsa)).sort((a,b)=>a.data.localeCompare(b.data));
+  const regsOp=registros.filter(r=>r.operadorId===opId&&r.data&&r.data.startsWith(mes)&&(r.status==='enviado'||r.status==='rascunho'||r.heAvulsa)).sort((a,b)=>a.data.localeCompare(b.data));
   const valorHora=(op.heValor&&op.heValor>0)?op.heValor:config.heValor;
   const chaveDesc=`${opId}_${mes}`;
   const descontosOp=descontosHE[chaveDesc]||[];
