@@ -389,7 +389,7 @@ function doLoginFirebase(userVal, passVal) {
     document.getElementById('nav-user-chip').textContent = found.nome + ' (' + found.perfil + ')';
     buildNav();
     if (found.perfil === 'admin' || found.perfil === 'comercial') loadAdmin();
-    else loadOperador();
+    else { loadOperador(); verificarRegistrosLocaisPendentes(); }
   }).catch(() => {
     // Firebase indisponível — tenta com cache local
     const found = usuarios.find(x => x.user.toLowerCase() === userVal && x.senha === passVal);
@@ -401,8 +401,75 @@ function doLoginFirebase(userVal, passVal) {
     document.getElementById('nav-user-chip').textContent = found.nome + ' (' + found.perfil + ')';
     buildNav();
     if (found.perfil === 'admin' || found.perfil === 'comercial') loadAdmin();
-    else loadOperador();
+    else { loadOperador(); verificarRegistrosLocaisPendentes(); }
   });
+}
+
+// ════════════════════════════════════════
+// RECUPERAÇÃO DE REGISTROS LOCAIS
+// Detecta registros no localStorage que não chegaram ao Firebase e oferece reenvio
+// ════════════════════════════════════════
+function verificarRegistrosLocaisPendentes(){
+  // Só roda para operadores (não admin)
+  if(!sessaoAtual||sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial') return;
+  // Aguarda 4s para Firebase carregar registros remotos
+  setTimeout(()=>{
+    const locais=DB.get('sos_registros',[]);
+    if(!locais.length) return;
+    // Registros do operador atual que estão no localStorage mas não no array global (Firebase)
+    const idsFirebase=new Set(registros.map(r=>r.id));
+    const perdidos=locais.filter(r=>
+      r.operadorId===sessaoAtual.id&&
+      r.osId&&
+      r.data&&
+      !idsFirebase.has(r.id)
+    );
+    if(!perdidos.length) return;
+    // Monta lista de OS afetadas
+    const osAfetadas=[...new Set(perdidos.map(r=>{
+      const os=ordens.find(o=>o.id===r.osId);
+      return os?'OS '+os.num+' ('+r.data+')':r.osId+'('+r.data+')';
+    }))].join(', ');
+    // Banner de alerta no topo da página do operador
+    const container=document.getElementById('page-operador');
+    if(!container) return;
+    const existeBanner=document.getElementById('banner-recuperacao');
+    if(existeBanner) existeBanner.remove();
+    const banner=document.createElement('div');
+    banner.id='banner-recuperacao';
+    banner.style.cssText='background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:14px 16px;margin:0 0 16px;';
+    banner.innerHTML=`
+      <div style="font-weight:700;color:#f59e0b;margin-bottom:6px">⚠️ Registros não sincronizados (${perdidos.length})</div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:10px">Encontramos registros salvos no seu dispositivo que não foram enviados ao servidor: <strong>${osAfetadas}</strong></div>
+      <button onclick="reenviarRegistrosLocais()" style="background:#f59e0b;color:#000;border:none;border-radius:8px;padding:8px 18px;font-weight:700;font-size:13px;cursor:pointer">📤 Reenviar agora</button>
+      <button onclick="document.getElementById('banner-recuperacao').remove()" style="background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;margin-left:8px">Ignorar</button>
+    `;
+    container.insertBefore(banner,container.firstChild);
+  },4000);
+}
+
+async function reenviarRegistrosLocais(){
+  if(!sessaoAtual) return;
+  const locais=DB.get('sos_registros',[]);
+  const idsFirebase=new Set(registros.map(r=>r.id));
+  const perdidos=locais.filter(r=>
+    r.operadorId===sessaoAtual.id&&
+    r.osId&&
+    r.data&&
+    !idsFirebase.has(r.id)
+  );
+  if(!perdidos.length){showToast('Nenhum registro pendente encontrado.','ok');return;}
+  const btn=document.querySelector('#banner-recuperacao button');
+  if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+  let ok=0,err=0;
+  for(const r of perdidos){
+    try{
+      await db.ref('registros/'+r.id).set(r);
+      ok++;
+    }catch(e){err++;}
+  }
+  document.getElementById('banner-recuperacao')?.remove();
+  showToast(`✅ ${ok} registro(s) recuperado(s)${err?' | ⚠️ '+err+' falhou':''}`,ok?'ok':'err');
 }
 
 // Funções de escrita Firebase
