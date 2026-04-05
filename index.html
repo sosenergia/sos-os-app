@@ -660,15 +660,19 @@ function renderOSList(){
   const grpRascunho=listaEvento.filter(os=>{
     return registros.some(r=>r.osId===os.id&&r.status==='rascunho');
   });
-  // Grupo 2 — todos enviados, OS ainda aberta (pendente de fechamento pelo admin)
+  // Grupo 2 — tem pelo menos 1 enviado e sem rascunho pendente
   const grpEnviado=listaEvento.filter(os=>{
     const regs=registros.filter(r=>r.osId===os.id);
-    return regs.length>0 && regs.every(r=>r.status==='enviado');
+    return regs.length>0 && regs.some(r=>r.status==='enviado') && !regs.some(r=>r.status==='rascunho');
   });
   // Grupo 3 — sem nenhum registro ainda
   const grpSemReg=listaEvento.filter(os=>{
     return !registros.some(r=>r.osId===os.id);
   });
+  // Grupo 4 — catch-all: tem registros mas não se encaixa nos grupos acima (dias mistos)
+  const grpMisto=listaEvento.filter(os=>
+    !grpRascunho.includes(os)&&!grpEnviado.includes(os)&&!grpSemReg.includes(os)
+  );
 
   function _section(titulo,cor,bg,icone,items){
     if(!items.length) return '';
@@ -684,6 +688,7 @@ function renderOSList(){
   el.innerHTML=
     _section('Locações Mensais em Andamento','#CC0000','rgba(204,0,0,.07)','📅',grpPeriodica)+
     _section('Aguardando envio do operador','#f59e0b','rgba(234,179,8,.08)','⏳',grpRascunho)+
+    _section('Parcialmente enviado — dias pendentes','#60a5fa','rgba(96,165,250,.07)','📤',grpMisto)+
     _section('Enviado pelo operador — pendente da sua finalização','#34d399','rgba(16,185,129,.07)','✅',grpEnviado)+
     _section('Sem registros ainda','#94a3b8','rgba(100,116,139,.07)','📋',grpSemReg);
 }
