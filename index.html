@@ -1299,7 +1299,18 @@ function loadOperador(){
     if(temEnviado&&!temRascunho) return false;
     return true;
   });
-  if(!lista.length){el.innerHTML='<div class="card"><p style="color:var(--dim);font-size:14px;padding:8px 0">Nenhuma OS pendente. Veja seu <strong>Histórico</strong> para OS já enviadas.</p></div>';return;}
+  if(!lista.length){
+    const _dbg=ordens.filter(o=>o.status!=='fechada').map(o=>({
+      num:o.num,status:o.status,
+      operadorId:o.operadorId,operadorNome:o.operadorNome,
+      operadores:(o.operadores||[]).map(x=>x.userId)
+    }));
+    el.innerHTML='<div class="card"><p style="color:var(--dim);font-size:14px;padding:8px 0">Nenhuma OS pendente. Veja seu <strong>Histórico</strong> para OS já enviadas.</p>'
+      +'<details style="margin-top:12px"><summary style="font-size:11px;color:var(--dim);cursor:pointer">🔍 Debug (ID: '+sessaoAtual.id+' | Nome: '+sessaoAtual.nome+')</summary>'
+      +'<pre style="font-size:10px;color:var(--dim);margin-top:6px;overflow:auto">'+JSON.stringify(_dbg,null,2)+'</pre></details>'
+      +'</div>';
+    return;
+  }
   el.innerHTML='<div class="card"><div class="card-title">Minhas OS</div><div id="op-list"></div></div>';
   document.getElementById('op-list').innerHTML=lista.map(os=>{
     const regsOp=registros.filter(r=>r.osId===os.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
