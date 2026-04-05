@@ -225,26 +225,25 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260405-v4';
+  const APP_VERSION='20260405-v5';
   const stored=localStorage.getItem('sos_app_version');
-  // Recarrega se versão diferente OU se nunca teve versão salva (primeiro load com SW antigo)
-  if(stored!==APP_VERSION){
-    localStorage.setItem('sos_app_version',APP_VERSION);
-    // Limpa o SW cache antes de recarregar
-    if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+  if(stored===APP_VERSION) return; // já está na versão correta, não faz nada
+  // Salva versão ANTES de qualquer operação assíncrona para evitar loop
+  localStorage.setItem('sos_app_version',APP_VERSION);
+  // Desregistra SW e limpa caches em background, depois recarrega uma única vez
+  try{
+    if('serviceWorker' in navigator){
       navigator.serviceWorker.getRegistrations().then(regs=>{
-        Promise.all(regs.map(r=>r.unregister())).then(()=>{
-          // Limpa todos os caches do SW
-          if('caches' in window){
-            caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).then(()=>location.reload(true));
-          } else { location.reload(true); }
-        });
-      });
+        const unregPromises=regs.map(r=>r.unregister().catch(()=>{}));
+        const cachePromise='caches' in window
+          ?caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k).catch(()=>{}))))
+          :Promise.resolve();
+        Promise.all([...unregPromises,cachePromise]).then(()=>location.reload(true)).catch(()=>location.reload(true));
+      }).catch(()=>location.reload(true));
     } else {
       location.reload(true);
     }
-    return;
-  }
+  }catch(e){location.reload(true);}
 })();
 
 // ════════════════════════════════════════
@@ -545,7 +544,7 @@ function saveDescontos(){
 // ════════════════════════════════════════
 function doLogin(){
   const u=document.getElementById('login-user').value.trim().toLowerCase();
-  const p=document.getElementById('login-pass').value;
+  const p=document.getElementById('login-pass').value.trim();
   if(!u||!p){document.getElementById('login-err').style.display='block';return;}
   const lembrar=document.getElementById('login-lembrar')?.checked;
   if(lembrar){localStorage.setItem('sos_saved_user',u);localStorage.setItem('sos_saved_pass',p);}
@@ -2666,7 +2665,9 @@ function enviarWPP(){
 function loadRelatorio(){
   const el=document.getElementById('page-relatorio');
   const hoje=new Date().toISOString().split('T')[0];
+  // Usa mês selecionado pelo usuário (persiste em localStorage) ou mês atual
   const mesAtual=hoje.slice(0,7);
+  const mesSel=localStorage.getItem('sos_status_mes')||mesAtual;
 
   // Classifica cada OS
   const emAndamento=ordens.filter(o=>o.status!=='fechada'&&o.dataSaida<=hoje&&o.dataRetorno>=hoje);
@@ -2674,9 +2675,16 @@ function loadRelatorio(){
   const doMes=ordens.filter(o=>{
     const ini=o.dataSaida||'';
     const fim=o.dataRetorno||o.dataSaida||'';
-    return ini.startsWith(mesAtual)||fim.startsWith(mesAtual)||(ini<=mesAtual+'-31'&&fim>=mesAtual+'-01');
+    return ini.startsWith(mesSel)||fim.startsWith(mesSel)||(ini<=mesSel+'-31'&&fim>=mesSel+'-01');
   });
   const encerradasMes=doMes.filter(o=>o.status==='fechada');
+
+  // Gera opções de mês: todos os meses que têm OS, mais os últimos 6
+  const mesesComOS=[...new Set(ordens.map(o=>(o.dataSaida||'').slice(0,7)).filter(m=>m>='2025-01'&&m<='2099-12'))].sort().reverse();
+  const ultimos6=Array.from({length:6},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);return d.toISOString().slice(0,7);});
+  const mesesOpts=[...new Set([...ultimos6,...mesesComOS])].sort().reverse();
+  const mesesNomes={'01':'Jan','02':'Fev','03':'Mar','04':'Abr','05':'Mai','06':'Jun','07':'Jul','08':'Ago','09':'Set','10':'Out','11':'Nov','12':'Dez'};
+  const fmtMes=m=>{ const[y,mo]=m.split('-'); return (mesesNomes[mo]||mo)+'/'+y; };
 
   function cardOS(os,corBorda){
     // Bolinha verde para qualquer dia preenchido (rascunho ou enviado)
@@ -2762,12 +2770,19 @@ function loadRelatorio(){
   }
 
   el.innerHTML=`
+  <!-- Seletor de mês -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-size:13px;color:var(--dim);font-weight:600">📅 Mês:</span>
+    <select onchange="localStorage.setItem('sos_status_mes',this.value);loadRelatorio()" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-size:13px;cursor:pointer">
+      ${mesesOpts.map(m=>`<option value="${m}" ${m===mesSel?'selected':''}>${fmtMes(m)}${m===mesAtual?' (atual)':''}</option>`).join('')}
+    </select>
+  </div>
   <!-- KPIs do mês -->
   <div class="metric-grid" style="margin-bottom:12px">
     <div class="metric-card">
       <div class="metric-label">Total no mês</div>
       <div class="metric-value">${doMes.length}</div>
-      <div class="metric-sub">OS em ${mesAtual.replace('-','/')}</div>
+      <div class="metric-sub">OS em ${fmtMes(mesSel)}</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">Em andamento</div>
@@ -2805,7 +2820,7 @@ function loadRelatorio(){
   <!-- Encerradas do mês -->
   ${encerradasMes.length?
   '<div class="card" style="border-left:3px solid var(--dim);margin-top:8px">'+
-    '<div class="card-title" style="color:var(--dim)">✅ Encerradas no mês ('+encerradasMes.length+')</div>'+
+    '<div class="card-title" style="color:var(--dim)">✅ Encerradas em '+fmtMes(mesSel)+' ('+encerradasMes.length+')</div>'+
     encerradasMes.sort((a,b)=>(b.dataRetorno||b.dataSaida||'').localeCompare(a.dataRetorno||a.dataSaida||'')).map(os=>cardOS(os,'rgba(136,136,136,.25)')).join('')+
   '</div>':''}`;
 }
