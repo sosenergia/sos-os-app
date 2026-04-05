@@ -1059,10 +1059,16 @@ function criarOS(){
     setFeedback('fb-criar-os','✕ Preencha ao menos o Nº da OS e o Cliente.','err');
     return;
   }
-  const btnCriar=document.getElementById('btn-criar-os');
-  if(btnCriar){btnCriar.disabled=true;btnCriar.textContent='Salvando...';}
   // Resolver operadores — usar lista nova; fallback retrocompat
   const opsValidos=operadoresOS.filter(o=>o.userId);
+  if(!opsValidos.length){
+    setFeedback('fb-criar-os','⚠ Nenhum operador atribuído. A OS não aparecerá para nenhum funcionário. Adicione ao menos um operador antes de salvar.','err');
+    const btnCriarChk=document.getElementById('btn-criar-os');
+    if(btnCriarChk){btnCriarChk.disabled=false;btnCriarChk.textContent=_editandoOSId?'Salvar Alterações':'Criar OS';}
+    return;
+  }
+  const btnCriar=document.getElementById('btn-criar-os');
+  if(btnCriar){btnCriar.disabled=true;btnCriar.textContent='Salvando...';}
   const primeiroOp=opsValidos[0]?usuarios.find(u=>u.id===opsValidos[0].userId):null;
   const dadosComuns={
     num,cliente:cli,
