@@ -651,6 +651,21 @@ function renderOSList(){
   const el=document.getElementById('os-list');
   if(!el) return;
   // OS fechadas não aparecem aqui — ficam na aba Status
+  // Auto-fechar OS cuja dataRetorno já passou E tem pelo menos 1 registro enviado
+  // (evita OS "zumbi" que ficam abertas indefinidamente após o evento)
+  const hoje=new Date().toISOString().split('T')[0];
+  ordens.forEach(o=>{
+    if(o.status==='fechada') return;
+    if(!o.dataRetorno||o.dataRetorno>=hoje) return; // evento ainda não terminou
+    if(o.tipoLocacao&&o.tipoLocacao!=='evento') return; // periódica não auto-fecha
+    const regsEnv=registros.filter(r=>r.osId===o.id&&r.status==='enviado');
+    if(regsEnv.length>0){
+      // Fecha silenciosamente no Firebase
+      o.status='fechada';
+      db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{});
+    }
+  });
+
   const lista=ordens.filter(o=>o.status!=='fechada').slice().reverse();
   if(!lista.length){el.innerHTML='<p style="color:var(--dim);font-size:13px;padding:6px 0">Nenhuma OS ativa. OS encerradas estão na aba <strong style="color:var(--dim)">Status</strong>.</p>';return;}
 
