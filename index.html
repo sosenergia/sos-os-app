@@ -321,6 +321,11 @@ function _reRenderPaginaAtiva(){
 }
 
 function initFirebaseListeners() {
+  // Flags para garantir que renderOSList só é chamado após ambos os listeners terem carregado
+  let _ordensCarregadas=false;
+  let _registrosCarregados=false;
+  function _renderSeCompleto(){ if(_ordensCarregadas&&_registrosCarregados) renderOSList(); }
+
   db.ref('ordens').on('value', snap => {
     ordens = snap.val() ? Object.values(snap.val()).map(o => ({
       ...o,
@@ -332,13 +337,16 @@ function initFirebaseListeners() {
         : []
     })) : [];
     DB.set('sos_ordens', ordens);
-    renderOSList();
+    _ordensCarregadas=true;
+    _renderSeCompleto();
     _reRenderPaginaAtiva();
   });
   db.ref('registros').on('value', snap => {
     registros = snap.val() ? Object.values(snap.val()) : [];
     DB.set('sos_registros', registros);
     atualizarBadgeHEMes();
+    _registrosCarregados=true;
+    _renderSeCompleto();
     _reRenderPaginaAtiva();
   });
   db.ref('usuarios').on('value', snap => {
