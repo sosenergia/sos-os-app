@@ -1413,7 +1413,14 @@ function loadOperador(){
     if(temEnviado&&!temRascunho) return false;
     return true;
   });
-  if(!lista.length){el.innerHTML='<div class="card"><p style="color:var(--dim);font-size:14px;padding:8px 0">Nenhuma OS pendente. Veja seu <strong>Histórico</strong> para OS já enviadas.</p></div>';return;}
+  if(!lista.length){
+    // Debug: mostra ID do usuário e OS abertas com seus operadores para diagnóstico
+    const _debugOS=ordens.filter(o=>o.status!=='fechada').map(o=>'OS '+o.num+': ops=['+(o.operadores||[]).map(op=>op.userId).join(',')+'] opId='+o.operadorId).join('<br>');
+    el.innerHTML='<div class="card"><p style="color:var(--dim);font-size:14px;padding:8px 0">Nenhuma OS pendente. Veja seu <strong>Histórico</strong> para OS já enviadas.</p>'
+      +'<details style="margin-top:8px"><summary style="font-size:11px;color:var(--dim);cursor:pointer">🔍 Debug</summary>'
+      +'<div style="font-size:10px;color:var(--dim);margin-top:6px;line-height:1.6">Meu ID: <strong>'+sessaoAtual.id+'</strong><br>'+_debugOS+'</div></details></div>';
+    return;
+  }
   el.innerHTML='<div class="card"><div class="card-title">Minhas OS</div><div id="op-list"></div></div>';
   document.getElementById('op-list').innerHTML=lista.map(os=>{
     const regsOp=registros.filter(r=>r.osId===os.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
