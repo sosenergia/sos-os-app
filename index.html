@@ -366,7 +366,7 @@ function initFirebaseListeners() {
 function doLoginFirebase(userVal, passVal) {
   db.ref('usuarios').once('value').then(snap => {
     const lista = snap.val() ? Object.values(snap.val()) : usuarios;
-    const found = lista.find(x => x.user.toLowerCase() === userVal && x.senha === passVal);
+    const found = lista.find(x => x.user.toLowerCase().trim() === userVal && (x.senha||'').trim() === passVal);
     if (!found) {
       document.getElementById('login-err').style.display = 'block';
       document.getElementById('login-btn').disabled = false;
@@ -385,7 +385,7 @@ function doLoginFirebase(userVal, passVal) {
     else { loadOperador(); verificarRegistrosLocaisPendentes(); }
   }).catch(() => {
     // Firebase indisponível — tenta com cache local
-    const found = usuarios.find(x => x.user.toLowerCase() === userVal && x.senha === passVal);
+    const found = usuarios.find(x => x.user.toLowerCase().trim() === userVal && (x.senha||'').trim() === passVal);
     if (!found) { document.getElementById('login-err').style.display = 'block'; document.getElementById('login-btn').disabled = false; document.getElementById('login-btn').textContent = 'Entrar'; return; }
     sessaoAtual = found;
     initFirebaseListeners();
