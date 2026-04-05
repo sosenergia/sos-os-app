@@ -222,28 +222,22 @@
 
 <script>
 // ════════════════════════════════════════
+// SW KILL-SWITCH — registra sw.js que se auto-destrói, eliminando SW antigos
+// ════════════════════════════════════════
+if('serviceWorker' in navigator){
+  // Registra o kill-switch SW — ele instala, limpa todos os caches e se desregistra
+  navigator.serviceWorker.register('/sos-os-app/sw.js').catch(()=>{});
+}
+
+// ════════════════════════════════════════
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260405-v5';
+  const APP_VERSION='20260405-v6';
   const stored=localStorage.getItem('sos_app_version');
-  if(stored===APP_VERSION) return; // já está na versão correta, não faz nada
-  // Salva versão ANTES de qualquer operação assíncrona para evitar loop
+  if(stored===APP_VERSION) return;
   localStorage.setItem('sos_app_version',APP_VERSION);
-  // Desregistra SW e limpa caches em background, depois recarrega uma única vez
-  try{
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.getRegistrations().then(regs=>{
-        const unregPromises=regs.map(r=>r.unregister().catch(()=>{}));
-        const cachePromise='caches' in window
-          ?caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k).catch(()=>{}))))
-          :Promise.resolve();
-        Promise.all([...unregPromises,cachePromise]).then(()=>location.reload(true)).catch(()=>location.reload(true));
-      }).catch(()=>location.reload(true));
-    } else {
-      location.reload(true);
-    }
-  }catch(e){location.reload(true);}
+  location.reload(true);
 })();
 
 // ════════════════════════════════════════
