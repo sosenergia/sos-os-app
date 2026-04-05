@@ -225,13 +225,25 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260405-v3';
+  const APP_VERSION='20260405-v4';
   const stored=localStorage.getItem('sos_app_version');
-  if(stored&&stored!==APP_VERSION){
+  // Recarrega se versão diferente OU se nunca teve versão salva (primeiro load com SW antigo)
+  if(stored!==APP_VERSION){
     localStorage.setItem('sos_app_version',APP_VERSION);
-    location.reload(true);
-  } else {
-    localStorage.setItem('sos_app_version',APP_VERSION);
+    // Limpa o SW cache antes de recarregar
+    if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+      navigator.serviceWorker.getRegistrations().then(regs=>{
+        Promise.all(regs.map(r=>r.unregister())).then(()=>{
+          // Limpa todos os caches do SW
+          if('caches' in window){
+            caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).then(()=>location.reload(true));
+          } else { location.reload(true); }
+        });
+      });
+    } else {
+      location.reload(true);
+    }
+    return;
   }
 })();
 
