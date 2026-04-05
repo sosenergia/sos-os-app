@@ -2686,7 +2686,21 @@ function loadRelatorio(){
     const fim=o.dataRetorno||o.dataSaida||'';
     return ini.startsWith(mesSel)||fim.startsWith(mesSel)||(ini<=mesSel+'-31'&&fim>=mesSel+'-01');
   });
-  const encerradasMes=doMes.filter(o=>o.status==='fechada');
+  // Auto-fechar OS de evento com dataRetorno passado + registros enviados (mesmo que status ainda seja 'aberta')
+  doMes.forEach(o=>{
+    if(o.status==='fechada') return;
+    if(!o.dataRetorno||o.dataRetorno>=hoje) return;
+    if(o.tipoLocacao&&o.tipoLocacao!=='evento') return;
+    const regsEnv=registros.filter(r=>r.osId===o.id&&r.status==='enviado');
+    if(regsEnv.length>0){ o.status='fechada'; db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{}); }
+  });
+  // Inclui OS "praticamente encerradas": evento passou + tem registros enviados, mesmo sem status=fechada
+  const encerradasMes=doMes.filter(o=>{
+    if(o.status==='fechada') return true;
+    if(o.tipoLocacao&&o.tipoLocacao!=='evento') return false;
+    if(!o.dataRetorno||o.dataRetorno>=hoje) return false;
+    return registros.some(r=>r.osId===o.id&&r.status==='enviado');
+  });
 
   // Gera opções de mês: todos os meses que têm OS, mais os últimos 6
   const mesesComOS=[...new Set(ordens.map(o=>(o.dataSaida||'').slice(0,7)).filter(m=>m>='2025-01'&&m<='2099-12'))].sort().reverse();
