@@ -284,6 +284,16 @@ connRef.on('value', snap => {
 });
 
 // Listeners em tempo real
+// Re-renderiza a página ativa do operador quando Firebase atualiza dados
+function _reRenderPaginaAtiva(){
+  if(!sessaoAtual) return;
+  const pageAtiva=document.querySelector('.page.active');
+  if(!pageAtiva) return;
+  const id=pageAtiva.id.replace('page-','');
+  if(id==='operador') loadOperador();
+  else if(id==='historico') loadHistorico();
+}
+
 function initFirebaseListeners() {
   db.ref('ordens').on('value', snap => {
     ordens = snap.val() ? Object.values(snap.val()).map(o => ({
@@ -297,11 +307,13 @@ function initFirebaseListeners() {
     })) : [];
     DB.set('sos_ordens', ordens);
     renderOSList();
+    _reRenderPaginaAtiva();
   });
   db.ref('registros').on('value', snap => {
     registros = snap.val() ? Object.values(snap.val()) : [];
     DB.set('sos_registros', registros);
     atualizarBadgeHEMes();
+    _reRenderPaginaAtiva();
   });
   db.ref('usuarios').on('value', snap => {
     if (snap.val()) {
