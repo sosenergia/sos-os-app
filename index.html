@@ -1291,7 +1291,7 @@ function loadOperador(){
   const lista=ordens.filter(o=>{
     if(o.status==='fechada') return false;
     if(isAdmin) return true;
-    const atribuida=(o.operadores&&o.operadores.some(op=>op.userId===sessaoAtual.id))||o.operadorId===sessaoAtual.id;
+    const atribuida=(o.operadores&&o.operadores.some(op=>op.userId===sessaoAtual.id||(op.userId&&usuarios.find(u=>u.id===op.userId)&&usuarios.find(u=>u.id===op.userId).nome===sessaoAtual.nome)))||o.operadorId===sessaoAtual.id||o.operadorNome===sessaoAtual.nome;
     if(!atribuida) return false;
     // Oculta OS totalmente enviadas (sem rascunho pendente) — vão pro Histórico
     const temRascunho=registros.some(r=>r.osId===o.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
@@ -5506,7 +5506,7 @@ function loadHistorico(){
   // Operador vê apenas suas próprias OS
   const minhasOS=ordens.filter(o=>{
     if(sessaoAtual.perfil==='admin'||sessaoAtual.perfil==='comercial') return true;
-    return (o.operadores&&o.operadores.some(op=>op.userId===sessaoAtual.id))||o.operadorId===sessaoAtual.id;
+    return (o.operadores&&o.operadores.some(op=>op.userId===sessaoAtual.id||(op.userId&&usuarios.find(u=>u.id===op.userId)&&usuarios.find(u=>u.id===op.userId).nome===sessaoAtual.nome)))||o.operadorId===sessaoAtual.id||o.operadorNome===sessaoAtual.nome;
   });
   // Histórico mostra enviados + rascunhos (para o próprio operador ver o progresso)
   const meusRegs=registros.filter(r=>r.operadorId===sessaoAtual.id||r.operadorNome===sessaoAtual.nome);
