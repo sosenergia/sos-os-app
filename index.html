@@ -1355,7 +1355,7 @@ function verOS(id){
         '</div>':'')+
       '</div>').join(''):'<p style="color:var(--dim);font-size:13px">Nenhum registro ainda.</p>'}
   </div>
-  ${os.status!=='fechada'?'<button class="btn btn-green" onclick="fecharOSConf(\x27'+os.id+'\x27)">✓ Fechar OS</button>':''}
+  ${os.status!=='fechada'?'<button class="btn btn-green" onclick="fecharOSConf(\x27'+os.id+'\x27)">✓ Fechar OS</button>':'<button class="btn btn-primary" style="background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:var(--blue)" onclick="reabrirOS(\x27'+os.id+'\x27)">🔓 Reabrir OS</button>'}
   ${isAdminView?'<button class="btn btn-primary" style="margin-top:8px;background:#1a1a2e;border:1px solid var(--red)" onclick="gerarPDFOS(\x27'+os.id+'\x27)">📄 Gerar PDF da OS</button>':''}
   <button class="btn btn-ghost" style="margin-top:8px;color:var(--red-light);border-color:rgba(204,0,0,.3)" onclick="excluirOS('${os.id}')">🗑 Excluir OS</button>
   <button class="btn btn-ghost" style="margin-top:8px" onclick="fecharDet()">← Voltar</button>`;
@@ -1376,6 +1376,7 @@ function verOS(id){
 }
 function fecharDet(){document.getElementById('os-detalhe').style.display='none';document.getElementById('os-list').closest('.card').style.display='block';}
 function fecharOSConf(id){if(confirm('Confirmar fechamento desta OS?')){const os=ordens.find(o=>o.id===id);if(os){os.status='fechada';saveAll();verOS(id);}}}
+function reabrirOS(id){if(confirm('Reabrir esta OS? Ela voltará a aparecer para os operadores atribuídos.')){const os=ordens.find(o=>o.id===id);if(os){os.status='aberta';db.ref('ordens/'+id+'/status').set('aberta').then(()=>{showToast('OS reaberta com sucesso','ok');verOS(id);}).catch(()=>showToast('Erro ao reabrir OS','err'));}}}
 function excluirOS(id){
   const os=ordens.find(o=>o.id===id);if(!os) return;
   const regsIds=registros.filter(r=>r.osId===id).map(r=>r.id);
