@@ -233,7 +233,7 @@ if('serviceWorker' in navigator){
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260405-v6';
+  const APP_VERSION='20260406-v7';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   localStorage.setItem('sos_app_version',APP_VERSION);
@@ -645,16 +645,21 @@ function renderOSList(){
   const el=document.getElementById('os-list');
   if(!el) return;
   // OS fechadas não aparecem aqui — ficam na aba Status
-  // Auto-fechar OS cuja dataRetorno já passou E tem pelo menos 1 registro enviado
-  // (evita OS "zumbi" que ficam abertas indefinidamente após o evento)
+  // Auto-fechar OS cuja dataRetorno já passou E TODOS os operadores enviaram
+  // (evita fechar antes do último operador entregar)
   const hoje=new Date().toISOString().split('T')[0];
   ordens.forEach(o=>{
     if(o.status==='fechada') return;
     if(!o.dataRetorno||o.dataRetorno>=hoje) return; // evento ainda não terminou
     if(o.tipoLocacao&&o.tipoLocacao!=='evento') return; // periódica não auto-fecha
-    const regsEnv=registros.filter(r=>r.osId===o.id&&r.status==='enviado');
-    if(regsEnv.length>0){
-      // Fecha silenciosamente no Firebase
+    // Monta lista de operadores atribuídos
+    const opsIds=(o.operadores&&o.operadores.length)
+      ? o.operadores.map(op=>op.userId).filter(Boolean)
+      : (o.operadorId?[o.operadorId]:[]);
+    if(!opsIds.length) return; // sem operador — não auto-fecha
+    // Só fecha se TODOS os operadores têm pelo menos 1 registro enviado
+    const todosEnviaram=opsIds.every(uid=>registros.some(r=>r.osId===o.id&&r.operadorId===uid&&r.status==='enviado'));
+    if(todosEnviaram){
       o.status='fechada';
       db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{});
     }
@@ -2686,20 +2691,28 @@ function loadRelatorio(){
     const fim=o.dataRetorno||o.dataSaida||'';
     return ini.startsWith(mesSel)||fim.startsWith(mesSel)||(ini<=mesSel+'-31'&&fim>=mesSel+'-01');
   });
-  // Auto-fechar OS de evento com dataRetorno passado + registros enviados (mesmo que status ainda seja 'aberta')
+  // Auto-fechar OS de evento com dataRetorno passado + TODOS operadores enviaram
   doMes.forEach(o=>{
     if(o.status==='fechada') return;
     if(!o.dataRetorno||o.dataRetorno>=hoje) return;
     if(o.tipoLocacao&&o.tipoLocacao!=='evento') return;
-    const regsEnv=registros.filter(r=>r.osId===o.id&&r.status==='enviado');
-    if(regsEnv.length>0){ o.status='fechada'; db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{}); }
+    const opsIds2=(o.operadores&&o.operadores.length)
+      ? o.operadores.map(op=>op.userId).filter(Boolean)
+      : (o.operadorId?[o.operadorId]:[]);
+    if(!opsIds2.length) return;
+    const todosEnviaram2=opsIds2.every(uid=>registros.some(r=>r.osId===o.id&&r.operadorId===uid&&r.status==='enviado'));
+    if(todosEnviaram2){ o.status='fechada'; db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{}); }
   });
-  // Inclui OS "praticamente encerradas": evento passou + tem registros enviados, mesmo sem status=fechada
+  // Inclui OS "praticamente encerradas": evento passou + TODOS operadores enviaram, mesmo sem status=fechada
   const encerradasMes=doMes.filter(o=>{
     if(o.status==='fechada') return true;
     if(o.tipoLocacao&&o.tipoLocacao!=='evento') return false;
     if(!o.dataRetorno||o.dataRetorno>=hoje) return false;
-    return registros.some(r=>r.osId===o.id&&r.status==='enviado');
+    const opsIds3=(o.operadores&&o.operadores.length)
+      ? o.operadores.map(op=>op.userId).filter(Boolean)
+      : (o.operadorId?[o.operadorId]:[]);
+    if(!opsIds3.length) return registros.some(r=>r.osId===o.id&&r.status==='enviado');
+    return opsIds3.every(uid=>registros.some(r=>r.osId===o.id&&r.operadorId===uid&&r.status==='enviado'));
   });
 
   // Gera opções de mês: todos os meses que têm OS, mais os últimos 6
