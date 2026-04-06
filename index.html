@@ -224,21 +224,37 @@
 // ════════════════════════════════════════
 // SW KILL-SWITCH — registra sw.js que se auto-destrói, eliminando SW antigos
 // ════════════════════════════════════════
-if('serviceWorker' in navigator){
-  // Registra o kill-switch SW — ele instala, limpa todos os caches e se desregistra
-  navigator.serviceWorker.register('/sos-os-app/sw.js').catch(()=>{});
-}
-
 // ════════════════════════════════════════
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260406-v7';
+  const APP_VERSION='20260406-v8';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
+  // Nova versão detectada — limpa SW e caches antes de recarregar
   localStorage.setItem('sos_app_version',APP_VERSION);
-  location.reload(true);
+  const doReload=()=>location.reload(true);
+  // 1. Desregistra todos os Service Workers
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations()
+      .then(regs=>Promise.all(regs.map(r=>r.unregister())))
+      .catch(()=>{});
+  }
+  // 2. Limpa todos os caches da Cache API
+  if('caches' in window){
+    caches.keys()
+      .then(keys=>Promise.all(keys.map(k=>caches.delete(k))))
+      .then(doReload)
+      .catch(doReload);
+  } else {
+    doReload();
+  }
 })();
+
+if('serviceWorker' in navigator){
+  // Registra o kill-switch SW com updateViaCache:none para bypassar cache HTTP
+  navigator.serviceWorker.register('/sos-os-app/sw.js',{updateViaCache:'none'}).catch(()=>{});
+}
 
 // ════════════════════════════════════════
 // FEEDBACK VISUAL (toast + inline)
