@@ -181,11 +181,11 @@
     <h2>Entrar</h2>
     <div class="field">
       <label>Usuário</label>
-      <input type="text" id="login-user" placeholder="seu.nome" autocomplete="username"/>
+      <input type="text" id="login-user" placeholder="seu.nome" autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false"/>
     </div>
     <div class="field">
       <label>Senha</label>
-      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" autocorrect="off" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <div id="login-err" style="color:var(--red-light);font-size:13px;margin-bottom:12px;display:none">Usuário ou senha incorretos.</div>
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:13px;color:var(--dim)">
@@ -228,7 +228,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260406-v8';
+  const APP_VERSION='20260406-v9';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -384,6 +384,16 @@ function doLoginFirebase(userVal, passVal) {
     const lista = snap.val() ? Object.values(snap.val()) : usuarios;
     const found = lista.find(x => x.user.toLowerCase().trim() === userVal && (x.senha||'').trim() === passVal);
     if (!found) {
+      // Debug: mostrar o que foi digitado vs o que está no Firebase
+      const candidate = lista.find(x => x.user.toLowerCase().trim() === userVal);
+      if(candidate) {
+        const senhaFirebase = (candidate.senha||'').trim();
+        console.warn('[LOGIN DEBUG] Usuário encontrado mas senha não bate.');
+        console.warn('[LOGIN DEBUG] Digitado (chars):', [...passVal].map(c=>c.charCodeAt(0)));
+        console.warn('[LOGIN DEBUG] Firebase  (chars):', [...senhaFirebase].map(c=>c.charCodeAt(0)));
+      } else {
+        console.warn('[LOGIN DEBUG] Usuário não encontrado. Digitado:', userVal);
+      }
       document.getElementById('login-err').style.display = 'block';
       document.getElementById('login-btn').disabled = false;
       document.getElementById('login-btn').textContent = 'Entrar';
