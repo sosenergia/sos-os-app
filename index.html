@@ -185,7 +185,10 @@
     </div>
     <div class="field">
       <label>Senha</label>
-      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" autocorrect="off" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <div style="position:relative">
+        <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" autocorrect="off" autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')doLogin()" style="width:100%;padding-right:44px"/>
+        <button type="button" onclick="const i=document.getElementById('login-pass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:0;line-height:1">👁</button>
+      </div>
     </div>
     <div id="login-err" style="color:var(--red-light);font-size:13px;margin-bottom:12px;display:none">Usuário ou senha incorretos.</div>
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:13px;color:var(--dim)">
@@ -228,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260406-v9';
+  const APP_VERSION='20260406-v10';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
