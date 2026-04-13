@@ -231,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260413-v11';
+  const APP_VERSION='20260413-v12';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -1469,7 +1469,7 @@ function abrirOpOS(id){
   regEnviado=false;
   buildOpForm(opOS);
   _startAutoSave();
-  setTimeout(_restoreOp, 200); // restaura após DOM renderizado
+  setTimeout(()=>{ _restoreOp(); setTimeout(_restoreInicioFirebase, 300); }, 200); // restaura localStorage, depois Firebase (prioridade Firebase)
   const isPeriodica=opOS.tipoLocacao&&opOS.tipoLocacao!=='evento';
   // Para OS periódica: se já tem registros enviados, vai para tela de resumo
   const temEnviado=isPeriodica&&registros.some(r=>r.osId===id&&r.operadorId===sessaoAtual.id&&r.status==='enviado');
@@ -1653,6 +1653,7 @@ function buildOpForm(os){
       }
     })()}
     ${renderAcessoriosOperador(os)}
+    <button class="btn" id="btn-salvar-inicio" onclick="salvarInicioGerador()" style="margin-bottom:8px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:var(--blue);font-weight:700">💾 Salvar dados iniciais</button>
     <button class="btn btn-primary" onclick="opStep(2)">Próximo: Transporte →</button>
     <button class="btn btn-ghost" style="margin-top:8px" onclick="opStep(0)">← Voltar</button>
   </div>
@@ -1930,6 +1931,7 @@ function finalizarLocacaoPeriodica(){
     _lpTipo==='devolucao'?fbUpdate('ordens/'+opOS.id,{status:'fechada'}):Promise.resolve()
   ]).then(()=>{
     _clearOpDraft(); _stopAutoSave();
+    const _fbKey=_fbInicioKey(); if(_fbKey) db.ref('rascunhos_inicio/'+_fbKey).remove().catch(()=>{});
     showToast('Assinatura salva!','ok');
     buildOpForm(opOS);
     for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
@@ -2011,6 +2013,75 @@ function _startAutoSave(){
 function _stopAutoSave(){
   if(_autoSaveTimer){clearInterval(_autoSaveTimer);_autoSaveTimer=null;}
 }
+
+// ─── SALVAR INÍCIO NO FIREBASE ───────────────────────────────────────────────
+// Chave no Firebase: rascunhos_inicio/{osId}_{userId}_{date}
+function _fbInicioKey(){
+  if(!opOS||!sessaoAtual) return null;
+  const hoje=new Date().toISOString().split('T')[0];
+  return opOS.id+'_'+sessaoAtual.id+'_'+hoje;
+}
+
+function salvarInicioGerador(){
+  const key=_fbInicioKey(); if(!key) return;
+  const btn=document.getElementById('btn-salvar-inicio');
+  const dados={osId:opOS.id,operadorId:sessaoAtual.id,salvoPor:sessaoAtual.nome,criadoEm:new Date().toISOString()};
+  const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+  // Coleta hora liga + horímetro inicial de cada gerador
+  let temDados=false;
+  geradores.forEach((_,gi)=>{
+    const liga=document.getElementById('g-part-'+gi)?.value;
+    const hi=document.getElementById('g-hi-'+gi)?.value;
+    const dtLiga=document.getElementById('g-dt-liga-'+gi)?.value;
+    if(liga||hi||dtLiga){temDados=true;}
+    dados['g_part_'+gi]=liga||'';
+    dados['g_hi_'+gi]=hi||'';
+    dados['g_dt_liga_'+gi]=dtLiga||'';
+    // também salva hora desliga e horímetro final se já preenchidos
+    dados['g_par_'+gi]=document.getElementById('g-par-'+gi)?.value||'';
+    dados['g_hf_'+gi]=document.getElementById('g-hf-'+gi)?.value||'';
+    dados['g_dt_desliga_'+gi]=document.getElementById('g-dt-desliga-'+gi)?.value||'';
+  });
+  if(!temDados){showToast('Preencha hora de liga ou horímetro inicial antes de salvar.','err');return;}
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
+  db.ref('rascunhos_inicio/'+key).set(dados)
+    .then(()=>{
+      // também salva no localStorage como fallback
+      _autoSaveOp();
+      if(btn){btn.disabled=false;btn.textContent='✅ Dados iniciais salvos!';}
+      setTimeout(()=>{if(btn) btn.textContent='💾 Salvar dados iniciais';},3000);
+      showToast('✅ Início salvo! Pode fechar e retornar depois.','ok');
+    })
+    .catch(()=>{
+      if(btn){btn.disabled=false;btn.textContent='💾 Salvar dados iniciais';}
+      showToast('Erro ao salvar. Verifique sua conexão.','err');
+    });
+}
+
+function _restoreInicioFirebase(){
+  const key=_fbInicioKey(); if(!key) return;
+  db.ref('rascunhos_inicio/'+key).once('value').then(snap=>{
+    const dados=snap.val();
+    if(!dados) return;
+    const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+    let restaurados=0;
+    geradores.forEach((_,gi)=>{
+      const setVal=(id,val)=>{if(!val) return; const el=document.getElementById(id);if(el&&!el.value){el.value=val;el.dispatchEvent(new Event('input'));restaurados++;}};
+      setVal('g-part-'+gi, dados['g_part_'+gi]);
+      setVal('g-hi-'+gi,   dados['g_hi_'+gi]);
+      setVal('g-par-'+gi,  dados['g_par_'+gi]);
+      setVal('g-hf-'+gi,   dados['g_hf_'+gi]);
+      setVal('g-dt-liga-'+gi,    dados['g_dt_liga_'+gi]);
+      setVal('g-dt-desliga-'+gi, dados['g_dt_desliga_'+gi]);
+    });
+    if(restaurados>0){
+      const btn=document.getElementById('btn-salvar-inicio');
+      if(btn) btn.textContent='✅ Dados iniciais salvos!';
+      showToast('📋 Dados iniciais restaurados do servidor','ok');
+    }
+  }).catch(()=>{}); // silencia erro — localStorage já foi restaurado
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function opStep(n){
   _autoSaveOp(); // salva ao trocar de step
