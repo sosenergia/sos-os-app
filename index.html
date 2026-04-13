@@ -231,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260406-v10';
+  const APP_VERSION='20260413-v11';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -1430,6 +1430,7 @@ let opOS=null;
 let sigCtx=null,sigDraw=false,sigHas=false;
 
 function loadOperador(){
+  _autoSaveOp(); _stopAutoSave(); // salva estado atual e para o timer ao sair
   const el=document.getElementById('page-operador');
   // checar URL param
   const p=new URLSearchParams(window.location.search);
@@ -1467,6 +1468,8 @@ function abrirOpOS(id){
   if(!opOS) return;
   regEnviado=false;
   buildOpForm(opOS);
+  _startAutoSave();
+  setTimeout(_restoreOp, 200); // restaura após DOM renderizado
   const isPeriodica=opOS.tipoLocacao&&opOS.tipoLocacao!=='evento';
   // Para OS periódica: se já tem registros enviados, vai para tela de resumo
   const temEnviado=isPeriodica&&registros.some(r=>r.osId===id&&r.operadorId===sessaoAtual.id&&r.status==='enviado');
@@ -1926,6 +1929,7 @@ function finalizarLocacaoPeriodica(){
     fbUpdate('registros/'+reg.id, reg),
     _lpTipo==='devolucao'?fbUpdate('ordens/'+opOS.id,{status:'fechada'}):Promise.resolve()
   ]).then(()=>{
+    _clearOpDraft(); _stopAutoSave();
     showToast('Assinatura salva!','ok');
     buildOpForm(opOS);
     for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
@@ -1938,7 +1942,78 @@ function finalizarLocacaoPeriodica(){
   });
 }
 
+// ════════════════════════════════════════
+// AUTO-SAVE DO FORMULÁRIO DO OPERADOR
+// ════════════════════════════════════════
+let _autoSaveTimer=null;
+
+function _opDraftKey(){
+  if(!opOS||!sessaoAtual) return null;
+  const hoje=new Date().toISOString().split('T')[0];
+  return 'sos_opdraft_'+opOS.id+'_'+sessaoAtual.id+'_'+hoje;
+}
+
+function _autoSaveOp(){
+  const key=_opDraftKey(); if(!key) return;
+  const draft={};
+  // Campos simples por ID
+  ['op-obs','op-he-ini','op-he-fim','op-data-dia'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) draft[id]=el.value;
+  });
+  // Geradores: liga, desliga, horímetros, checkboxes, datas
+  const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
+  geradores.forEach((_,gi)=>{
+    ['g-part-','g-par-','g-hi-','g-hf-','g-dt-liga-','g-dt-desliga-'].forEach(prefix=>{
+      const el=document.getElementById(prefix+gi);
+      if(el) draft[prefix+gi]=el.value;
+    });
+    ['g-nao-rodou-','g-rodou-','g-virou-'].forEach(prefix=>{
+      const el=document.getElementById(prefix+gi);
+      if(el) draft[prefix+gi+'__checked']=el.checked;
+    });
+  });
+  // Acessórios checados
+  document.querySelectorAll('[id^="ac-check-"]').forEach(el=>{draft[el.id+'__checked']=el.checked;});
+  localStorage.setItem(key, JSON.stringify(draft));
+}
+
+function _restoreOp(){
+  const key=_opDraftKey(); if(!key) return;
+  const raw=localStorage.getItem(key);
+  if(!raw) return;
+  try{
+    const draft=JSON.parse(raw);
+    Object.entries(draft).forEach(([k,v])=>{
+      if(k.endsWith('__checked')){
+        const el=document.getElementById(k.replace('__checked',''));
+        if(el&&el.type==='checkbox'&&!el.checked&&v){el.checked=true;el.dispatchEvent(new Event('change'));}
+      } else {
+        const el=document.getElementById(k);
+        if(el&&!el.value&&v){el.value=v;el.dispatchEvent(new Event('input'));}
+      }
+    });
+    const count=Object.keys(draft).filter(k=>!k.endsWith('__checked')&&draft[k]).length;
+    if(count>0) showToast('📋 Rascunho restaurado automaticamente','ok');
+  }catch(e){}
+}
+
+function _clearOpDraft(){
+  const key=_opDraftKey(); if(!key) return;
+  localStorage.removeItem(key);
+}
+
+function _startAutoSave(){
+  if(_autoSaveTimer) clearInterval(_autoSaveTimer);
+  _autoSaveTimer=setInterval(_autoSaveOp,5000);
+}
+
+function _stopAutoSave(){
+  if(_autoSaveTimer){clearInterval(_autoSaveTimer);_autoSaveTimer=null;}
+}
+
 function opStep(n){
+  _autoSaveOp(); // salva ao trocar de step
   for(let i=0;i<4;i++){
     document.getElementById('op'+i).style.display=i===n?'block':'none';
     const s=document.getElementById('st'+i);
