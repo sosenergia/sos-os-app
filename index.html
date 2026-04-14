@@ -231,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260413-v12';
+  const APP_VERSION='20260414-v13';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -1889,19 +1889,21 @@ function opIniciarLocacaoPeriodica(){
 }
 
 function finalizarLocacaoPeriodica(){
+  // ── validações ANTES de desabilitar botão ──────────────────────────────────
   const data=document.getElementById('lp-data')?.value;
+  if(!data){alert('Preencha a data.');return;}
+  const _lpTipo=document.querySelector('input[name="lp-tipo"]:checked')?.value;
+  if(!_lpTipo){alert('Selecione o tipo de registro: Entrega ou Devolução.');return;}
+  const sigOperador=sigPads['sigCanvasOp']?.hasData?document.getElementById('sigCanvasOp').toDataURL('image/png'):null;
+  if(!sigOperador){alert('A assinatura do operador é obrigatória.');return;}
+  // ──────────────────────────────────────────────────────────────────────────
   const hora=document.getElementById('lp-hora')?.value;
   const resp=document.getElementById('lp-resp')?.value||'';
   const horimetroVal=document.getElementById('lp-horimetro')?.value;
   const horimetro=horimetroVal!==''&&horimetroVal!=null?parseFloat(horimetroVal):null;
-  if(!data){alert('Preencha a data.');return;}
   const sigCliente=sigPads['sigCanvas']?.hasData?document.getElementById('sigCanvas').toDataURL('image/png'):null;
-  const sigOperador=sigPads['sigCanvasOp']?.hasData?document.getElementById('sigCanvasOp').toDataURL('image/png'):null;
-  if(!sigOperador){alert('A assinatura do operador é obrigatória.');return;}
   const btn=document.getElementById('btn-finalizar-lp');
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
-  const _lpTipo=document.querySelector('input[name="lp-tipo"]:checked')?.value;
-  if(!_lpTipo){alert('Selecione o tipo de registro: Entrega ou Devolução.');return;}
   const reg={
     id:'reg_'+Date.now(),
     osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
@@ -1921,27 +1923,33 @@ function finalizarLocacaoPeriodica(){
     const osIdx=ordens.findIndex(o=>o.id===opOS.id);
     if(osIdx>=0) ordens[osIdx].status='fechada';
   }
-  // Evita duplicata: remove versão anterior do mesmo registro se já existir (retentativa)
+  // Salva no localStorage imediatamente (não perde se cair)
   registros=registros.filter(r=>r.id!==reg.id);
   registros.push(reg);
   DB.set('sos_registros',registros);
-  // Salva individualmente no Firebase para evitar enviar todo o array com assinaturas pesadas
-  Promise.all([
-    fbUpdate('registros/'+reg.id, reg),
-    _lpTipo==='devolucao'?fbUpdate('ordens/'+opOS.id,{status:'fechada'}):Promise.resolve()
-  ]).then(()=>{
-    _clearOpDraft(); _stopAutoSave();
-    const _fbKey=_fbInicioKey(); if(_fbKey) db.ref('rascunhos_inicio/'+_fbKey).remove().catch(()=>{});
-    showToast('Assinatura salva!','ok');
-    buildOpForm(opOS);
-    for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
-    _renderResumoOS();
-    document.getElementById('op-ok').style.display='block';
-    window.scrollTo({top:0,behavior:'smooth'});
-  }).catch(()=>{
-    if(btn){btn.disabled=false;btn.textContent='💾 Salvar Assinatura';}
-    showToast('Conexão lenta. Tente novamente.','err');
-  });
+  // Usa set() para registro individual — mais confiável que update() com payload grande
+  const doSave=()=>Promise.all([
+    db.ref('registros/'+reg.id).set(reg),
+    _lpTipo==='devolucao'?db.ref('ordens/'+opOS.id+'/status').set('fechada'):Promise.resolve()
+  ]);
+  // Tenta salvar com timeout de 20s; em caso de falha, tenta mais 1x antes de mostrar erro
+  const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+  withTimeout(doSave(),20000)
+    .catch(()=>withTimeout(doSave(),20000)) // 1 retry automático
+    .then(()=>{
+      _clearOpDraft(); _stopAutoSave();
+      const _fbKey=_fbInicioKey(); if(_fbKey) db.ref('rascunhos_inicio/'+_fbKey).remove().catch(()=>{});
+      showToast('Assinatura salva!','ok');
+      buildOpForm(opOS);
+      for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
+      _renderResumoOS();
+      document.getElementById('op-ok').style.display='block';
+      window.scrollTo({top:0,behavior:'smooth'});
+    })
+    .catch(()=>{
+      if(btn){btn.disabled=false;btn.textContent='💾 Salvar Assinatura';}
+      showToast('Conexão lenta. Tente novamente.','err');
+    });
 }
 
 // ════════════════════════════════════════
@@ -2822,22 +2830,32 @@ function confirmarEnvioAdmin(){
   rascunhos.forEach(r=>{r.status='enviado';});
   const btnEnv=document.getElementById('btn-enviar-admin');
   if(btnEnv){btnEnv.disabled=true;btnEnv.textContent='Enviando...';}
-  saveAll().then(()=>{
-    if(config.webhook){
-      rascunhos.forEach(r=>fetch(config.webhook,{method:'POST',body:JSON.stringify({...r,assinatura:r.assinatura?'(capturada)':'não',assinaturaOp:r.assinaturaOp?'(capturada)':'não'}),headers:{'Content-Type':'application/json'}}).catch(()=>{}));
-    }
-    showToast('Enviado para o administrativo!');
-    _renderResumoOS();
-    // Mostra botão de WPP e oculta botão de envio
-    const btnEnvFinal=document.getElementById('btn-enviar-admin');
-    if(btnEnvFinal) btnEnvFinal.style.display='none';
-    const wppBtn=document.getElementById('btn-wpp-final');
-    if(wppBtn) wppBtn.style.display='block';
-    setTimeout(()=>{
-      const btnHist=Array.from(document.querySelectorAll('.nav-tab')).find(b=>b.textContent.trim()==='Histórico');
-      if(btnHist) switchPage('historico',btnHist);
-    },3000);
-  }).catch(()=>showToast('Erro ao enviar. Tente novamente.','err'));
+  // Persiste no localStorage imediatamente
+  DB.set('sos_ordens',ordens); DB.set('sos_registros',registros);
+  // Salva cada registro individualmente com set() — evita payload gigante com update() de tudo
+  const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+  const saveReg=(r)=>withTimeout(db.ref('registros/'+r.id).set(r),25000)
+    .catch(()=>withTimeout(db.ref('registros/'+r.id).set(r),25000)); // 1 retry
+  Promise.all(rascunhos.map(saveReg))
+    .then(()=>{
+      if(config.webhook){
+        rascunhos.forEach(r=>fetch(config.webhook,{method:'POST',body:JSON.stringify({...r,assinatura:r.assinatura?'(capturada)':'não',assinaturaOp:r.assinaturaOp?'(capturada)':'não'}),headers:{'Content-Type':'application/json'}}).catch(()=>{}));
+      }
+      showToast('Enviado para o administrativo!');
+      _renderResumoOS();
+      const btnEnvFinal=document.getElementById('btn-enviar-admin');
+      if(btnEnvFinal) btnEnvFinal.style.display='none';
+      const wppBtn=document.getElementById('btn-wpp-final');
+      if(wppBtn) wppBtn.style.display='block';
+      setTimeout(()=>{
+        const btnHist=Array.from(document.querySelectorAll('.nav-tab')).find(b=>b.textContent.trim()==='Histórico');
+        if(btnHist) switchPage('historico',btnHist);
+      },3000);
+    })
+    .catch(()=>{
+      if(btnEnv){btnEnv.disabled=false;btnEnv.textContent='✅ Enviar para o administrativo';}
+      showToast('Conexão lenta. Tente novamente.','err');
+    });
 }
 
 function enviarWPP(){
