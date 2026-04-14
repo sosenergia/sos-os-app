@@ -231,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260414-v13';
+  const APP_VERSION='20260414-v14';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -1851,7 +1851,10 @@ function opIniciarLocacaoPeriodica(){
       <div class="field"><label>Hora</label><input type="time" id="lp-hora" value="${agora}"/></div>
     </div>
     <div class="field"><label>Horímetro (h)</label><input type="number" id="lp-horimetro" min="0" step="0.1" placeholder="Ex: 1250.5" style="width:100%"/></div>
-    <div class="field"><label>Nome do responsável (cliente)</label><input id="lp-resp" placeholder="Quem está assinando"/></div>
+    <div class="grid2" style="margin-bottom:0">
+      <div class="field"><label>Nome do responsável (cliente)</label><input id="lp-resp" placeholder="Quem está assinando"/></div>
+      <div class="field"><label>CPF do responsável</label><input id="lp-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4').substring(0,14)"/></div>
+    </div>
   </div>`;
   // Atualiza texto ao mudar tipo
   document.querySelectorAll('input[name="lp-tipo"]').forEach(r=>{
@@ -1899,6 +1902,7 @@ function finalizarLocacaoPeriodica(){
   // ──────────────────────────────────────────────────────────────────────────
   const hora=document.getElementById('lp-hora')?.value;
   const resp=document.getElementById('lp-resp')?.value||'';
+  const cpfResp=document.getElementById('lp-cpf')?.value||'';
   const horimetroVal=document.getElementById('lp-horimetro')?.value;
   const horimetro=horimetroVal!==''&&horimetroVal!=null?parseFloat(horimetroVal):null;
   const sigCliente=sigPads['sigCanvas']?.hasData?document.getElementById('sigCanvas').toDataURL('image/png'):null;
@@ -1910,6 +1914,7 @@ function finalizarLocacaoPeriodica(){
     operadorId:sessaoAtual.id,operadorNome:sessaoAtual.nome,
     data,horaAssinatura:hora,
     respCliente:resp,
+    cpfCliente:cpfResp,
     horimetro:horimetro,
     assinatura:sigCliente,assinaturaOp:sigOperador,
     tipoLocacao:opOS.tipoLocacao||'',
