@@ -231,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260416-v15';
+  const APP_VERSION='20260416-v16';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -2466,8 +2466,18 @@ function finalizarReg(){
       return !g.part||!g.par;
     });
     if(semHorario){
-      if(semHorario.virou) alert('Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).');
-      else alert('Preencha os horários de Liga/Desliga do gerador '+(semHorario.potencia||'')+'.');
+      const _msg=semHorario.virou
+        ? '⚡ Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
+        : '⚡ Preencha Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
+      showToast(_msg,'err');
+      // Scroll até o campo do gerador problemático
+      const gi=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador').findIndex(g=>g.potencia===semHorario.potencia||(g.id&&g.id===semHorario.eqId));
+      if(gi>=0){
+        const el=document.getElementById('g-part-'+gi)||document.getElementById('g-dt-liga-'+gi);
+        if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='3px solid var(--red)';setTimeout(()=>el.style.outline='',3000);}
+      }
+      // Voltar para step 1
+      opStep(1);
       return;
     }
   }
@@ -2513,7 +2523,16 @@ function finalizarReg(){
   const _dataFinalReg=document.getElementById('op-data')?.value||'';
   const _stepMostrouAssinatura=document.getElementById('sigCanvasOp')?.style.display!=='none';
   const _ultimoDiaReg=opOS?.dataRetorno ? (_dataFinalReg>=opOS.dataRetorno && _stepMostrouAssinatura) : _stepMostrouAssinatura;
-  if(_ultimoDiaReg && !sigOperador){alert('A assinatura do operador é obrigatória.');return;}
+  if(_ultimoDiaReg && !sigOperador){
+    showToast('✍️ Assine no campo "Assinatura do Operador" antes de salvar.','err');
+    const canvasOp=document.getElementById('sigCanvasOp');
+    if(canvasOp){
+      canvasOp.scrollIntoView({behavior:'smooth',block:'center'});
+      canvasOp.style.outline='3px solid var(--red)';
+      setTimeout(()=>canvasOp.style.outline='',3000);
+    }
+    return;
+  }
   lastReg={
     id:'reg_'+Date.now(),osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
     operadorId:sessaoAtual.id,operadorNome:sessaoAtual.nome,
