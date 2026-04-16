@@ -232,7 +232,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260416-v21';
+  const APP_VERSION='20260416-v22';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -2562,15 +2562,10 @@ function finalizarReg(){
   registros=registros.filter(r=>r.id!==lastReg.id);
   registros.push(lastReg);
   DB.set('sos_registros',registros);
-  const btnFin=document.getElementById('btn-finalizar');
-  if(btnFin){btnFin.disabled=true;btnFin.textContent='Salvando...';}
-  // Salva no Firebase — independente do resultado, avança sempre
-  db.ref('registros/'+lastReg.id).set(lastReg)
-    .then(()=>{ showToast('Firebase ok, finalizando...','ok'); _finalizarRegUI(); })
-    .catch((e)=>{
-      showToast('Firebase falhou ('+((e&&e.message)||'err')+'), salvando local...','err');
-      setTimeout(()=>_finalizarRegUI(), 1500);
-    });
+  // Avança imediatamente — não espera Firebase
+  _finalizarRegUI();
+  // Firebase em background (sync automático cobre se falhar)
+  db.ref('registros/'+lastReg.id).set(lastReg).catch(()=>{});
   return;
 }
 function _finalizarRegUI(){
