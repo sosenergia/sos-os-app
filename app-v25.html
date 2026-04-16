@@ -313,7 +313,8 @@ function _reRenderPaginaAtiva(){
   const pageAtiva=document.querySelector('.page.active');
   if(!pageAtiva) return;
   const id=pageAtiva.id.replace('page-','');
-  if(id==='operador') loadOperador();
+  if(id==='os') renderOSList();
+  else if(id==='operador') loadOperador();
   else if(id==='historico') loadHistorico();
 }
 
@@ -790,9 +791,11 @@ function renderOSList(){
     const regs=registros.filter(r=>r.osId===os.id);
     return regs.length>0 && regs.some(r=>r.status==='enviado') && !regs.some(r=>r.status==='rascunho');
   });
-  // Grupo 3 — sem nenhum registro ainda
+  // Grupo 3 — sem nenhum registro ainda (ou só registros com status inválido)
   const grpSemReg=listaEvento.filter(os=>{
-    return !registros.some(r=>r.osId===os.id);
+    const regs=registros.filter(r=>r.osId===os.id);
+    // Considera "sem registro" apenas se não tem nenhum ou todos têm status undefined/null/''
+    return regs.length===0 || regs.every(r=>!r.status);
   });
   // Grupo 4 — catch-all: tem registros mas não se encaixa nos grupos acima (dias mistos)
   const grpMisto=listaEvento.filter(os=>
@@ -813,7 +816,7 @@ function renderOSList(){
   el.innerHTML=
     _section('Locações Mensais em Andamento','#CC0000','rgba(204,0,0,.07)','📅',grpPeriodica)+
     _section('Aguardando envio do operador','#f59e0b','rgba(234,179,8,.08)','⏳',grpRascunho)+
-    _section('Parcialmente enviado — dias pendentes','#60a5fa','rgba(96,165,250,.07)','📤',grpMisto)+
+    _section('Com registros — verificar','#a855f7','rgba(168,85,247,.07)','📋',grpMisto)+
     _section('Enviado pelo operador — pendente da sua finalização','#34d399','rgba(16,185,129,.07)','✅',grpEnviado)+
     _section('Sem registros ainda','#94a3b8','rgba(100,116,139,.07)','📋',grpSemReg);
 }
