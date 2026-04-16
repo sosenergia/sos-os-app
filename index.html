@@ -230,7 +230,7 @@
 // SW KILL-SWITCH + CACHE BUSTER
 // Mata todos os Service Workers e limpa caches em toda carga
 // ════════════════════════════════════════
-const APP_VERSION='20260416-v23';
+const APP_VERSION='20260416-v24';
 (function(){
   // Sempre desregistra todos os SWs (não depende de versão)
   if('serviceWorker' in navigator){
@@ -238,16 +238,21 @@ const APP_VERSION='20260416-v23';
       .then(regs=>regs.forEach(r=>r.unregister()))
       .catch(()=>{});
   }
-  // Se versão mudou, limpa caches e recarrega
+  // Se versão mudou, força reload via URL com query param (bypassa cache HTTP do iOS)
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
+  // Verifica se já tem o param ?v= correto na URL (evita loop)
+  const urlParams=new URLSearchParams(window.location.search);
+  if(urlParams.get('v')===APP_VERSION){
+    // Já recarregou com a URL nova — salva versão e continua
+    localStorage.setItem('sos_app_version',APP_VERSION);
+    if('caches' in window) caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});
+    return;
+  }
+  // Redireciona para URL com ?v=versão — isso força o browser a baixar novo HTML
   localStorage.setItem('sos_app_version',APP_VERSION);
-  const doReload=()=>location.reload(true);
-  if('caches' in window){
-    caches.keys()
-      .then(keys=>Promise.all(keys.map(k=>caches.delete(k))))
-      .then(doReload).catch(doReload);
-  } else { doReload(); }
+  const newUrl=window.location.pathname+'?v='+APP_VERSION;
+  window.location.replace(newUrl);
 })();
 // NÃO registra mais nenhum SW — elimina a causa raiz do problema de cache
 
