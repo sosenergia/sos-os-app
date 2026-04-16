@@ -4933,144 +4933,176 @@ function _rhe_comparativo(){
 }
 
 // ════════════════════════════════════════
-// ════════════════════════════════════════
-// INSIGHTS
+// INSIGHTS — DASHBOARD
 // ════════════════════════════════════════
 function loadInsights(){
   const el=document.getElementById('page-insights');
   if(!el) return;
 
-  // ── Coleta de dados ──────────────────────────────────────────
-  // Conta OSs (não fechadas e fechadas) — usa ordens como base
-  const todasOrdens=ordens; // inclui fechadas
+  const todasOrdens=ordens;
 
-  // Ranking de potências — baseado nas ordens (cada OS tem a potência contratada)
+  // ── Potências ────────────────────────────────────────────────
   const porPotencia={};
   todasOrdens.forEach(os=>{
-    // Pega potência de cada gerador nos equipamentos, ou campo legado potencia
     const gens=(os.equipamentos||[]).filter(e=>e.tipo==='gerador');
     if(gens.length){
       gens.forEach(g=>{
-        const pot=(g.potencia||'').trim();
-        if(!pot) return;
+        const pot=(g.potencia||'').trim(); if(!pot) return;
         if(!porPotencia[pot]) porPotencia[pot]={total:0,abertas:0,fechadas:0};
         porPotencia[pot].total++;
-        if(os.status==='fechada') porPotencia[pot].fechadas++;
-        else porPotencia[pot].abertas++;
+        if(os.status==='fechada') porPotencia[pot].fechadas++; else porPotencia[pot].abertas++;
       });
     } else if(os.potencia){
       const pot=(os.potencia||'').trim();
       if(!porPotencia[pot]) porPotencia[pot]={total:0,abertas:0,fechadas:0};
       porPotencia[pot].total++;
-      if(os.status==='fechada') porPotencia[pot].fechadas++;
-      else porPotencia[pot].abertas++;
+      if(os.status==='fechada') porPotencia[pot].fechadas++; else porPotencia[pot].abertas++;
     }
   });
-  const rankPotencia=Object.entries(porPotencia)
-    .sort((a,b)=>b[1].total-a[1].total);
+  const rankPotencia=Object.entries(porPotencia).sort((a,b)=>b[1].total-a[1].total);
   const maxPot=rankPotencia[0]?rankPotencia[0][1].total:1;
 
-  // Ranking de patrimônios (GG) — baseado em registros reais preenchidos pelos operadores
+  // ── Patrimônios (GG) ─────────────────────────────────────────
   const porPatrimonio={};
-  // Também varre ordens para capturar patrimônios mesmo sem registro
   todasOrdens.forEach(os=>{
-    const gens=(os.equipamentos||[]).filter(e=>e.tipo==='gerador');
-    gens.forEach(g=>{
-      const gg=(g.patrimonio||'').trim().toUpperCase();
-      if(!gg) return;
+    (os.equipamentos||[]).filter(e=>e.tipo==='gerador').forEach(g=>{
+      const gg=(g.patrimonio||'').trim().toUpperCase(); if(!gg) return;
       if(!porPatrimonio[gg]) porPatrimonio[gg]={osCount:0,diasTrabalhados:0,potencia:g.potencia||''};
       porPatrimonio[gg].osCount++;
     });
   });
-  // Soma dias trabalhados a partir dos registros
   registros.forEach(r=>{
     if(!r.geradoresReg) return;
     r.geradoresReg.forEach(g=>{
       if(!g.rodou) return;
-      const gg=(g.patrimonio||'').trim().toUpperCase();
-      if(!gg) return;
+      const gg=(g.patrimonio||'').trim().toUpperCase(); if(!gg) return;
       if(!porPatrimonio[gg]) porPatrimonio[gg]={osCount:0,diasTrabalhados:0,potencia:g.potencia||''};
       porPatrimonio[gg].diasTrabalhados++;
     });
   });
-  const rankGG=Object.entries(porPatrimonio)
-    .sort((a,b)=>b[1].diasTrabalhados-a[1].diasTrabalhados || b[1].osCount-a[1].osCount);
+  const rankGG=Object.entries(porPatrimonio).sort((a,b)=>b[1].diasTrabalhados-a[1].diasTrabalhados||b[1].osCount-a[1].osCount);
   const maxGG=rankGG[0]?(rankGG[0][1].diasTrabalhados||rankGG[0][1].osCount):1;
 
-  // ── Métricas rápidas ──────────────────────────────────────────
+  // ── Métricas ─────────────────────────────────────────────────
   const totalOSs=todasOrdens.length;
   const totalAbertas=todasOrdens.filter(o=>o.status!=='fechada').length;
   const totalFechadas=totalOSs-totalAbertas;
   const totalDiasReg=registros.filter(r=>r.geradoresReg&&r.geradoresReg.some(g=>g.rodou)).length;
+  const pctOcup=totalOSs?Math.round((totalAbertas/totalOSs)*100):0;
 
-  // ── HTML ──────────────────────────────────────────────────────
-  const _bar=(val,max,cor)=>{
-    const pct=Math.round((val/max)*100);
-    return `<div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
-      <div style="width:${pct}%;height:100%;background:${cor};border-radius:4px;transition:width .4s"></div>
+  // ── Helpers ───────────────────────────────────────────────────
+  const _medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+  const _cor=i=>i===0?'#f59e0b':i===1?'#94a3b8':i===2?'#cd7c30':'var(--dim)';
+  const _barH=(val,max,cor,h=10)=>{
+    const pct=Math.max(2,Math.round((val/max)*100));
+    return `<div style="width:100%;height:${h}px;background:rgba(255,255,255,.06);border-radius:${h}px;overflow:hidden;margin-top:6px">
+      <div style="width:${pct}%;height:100%;background:${cor};border-radius:${h}px;transition:width .5s ease"></div>
     </div>`;
   };
 
-  const potenciaRows=rankPotencia.length
-    ? rankPotencia.map(([pot,d],i)=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="width:20px;font-size:12px;font-weight:700;color:${i===0?'var(--yellow)':i===1?'#94a3b8':i===2?'#b45309':'var(--dim)'};text-align:center">${i+1}</div>
-        <div style="min-width:90px;font-size:13px;font-weight:700;color:var(--text)">${pot}</div>
-        <div style="flex:1;display:flex;align-items:center;gap:8px">
-          ${_bar(d.total,maxPot,'var(--red)')}
-          <span style="font-size:12px;font-weight:700;color:var(--text);min-width:20px">${d.total}</span>
-        </div>
-        <div style="font-size:11px;color:var(--dim);text-align:right;min-width:80px">${d.abertas?'<span style="color:var(--green)">'+d.abertas+' ativa'+( d.abertas!==1?'s':'')+'</span>':''} ${d.fechadas?'<span style="color:var(--dim)">'+d.fechadas+' enc.</span>':''}</div>
-      </div>`).join('')
-    : '<p style="color:var(--dim);font-size:13px;padding:12px 0">Nenhuma OS cadastrada ainda.</p>';
+  // ── Cards pódio (top 3) ───────────────────────────────────────
+  const _podioCard=(label,val,sub,cor,medal,isFirst)=>`
+    <div style="flex:1;min-width:80px;background:${isFirst?'rgba(245,158,11,.08)':'var(--card2)'};border:1px solid ${isFirst?'rgba(245,158,11,.25)':'var(--border)'};border-radius:14px;padding:14px 10px;text-align:center;position:relative">
+      <div style="font-size:20px;margin-bottom:4px">${medal}</div>
+      <div style="font-size:18px;font-weight:800;color:${cor};line-height:1">${val}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-top:4px">${label}</div>
+      ${sub?`<div style="font-size:10px;color:var(--dim);margin-top:2px">${sub}</div>`:''}
+    </div>`;
 
-  const ggRows=rankGG.length
-    ? rankGG.map(([gg,d],i)=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="width:20px;font-size:12px;font-weight:700;color:${i===0?'var(--yellow)':i===1?'#94a3b8':i===2?'#b45309':'var(--dim)'};text-align:center">${i+1}</div>
-        <div style="min-width:60px;font-size:13px;font-weight:700;color:var(--text)">${gg}</div>
-        ${d.potencia?`<div style="font-size:11px;color:var(--dim);min-width:60px">${d.potencia}</div>`:'<div style="min-width:60px"></div>'}
-        <div style="flex:1;display:flex;align-items:center;gap:8px">
-          ${_bar(d.diasTrabalhados||d.osCount, maxGG, 'var(--blue)')}
-          <span style="font-size:12px;font-weight:700;color:var(--text);min-width:20px">${d.diasTrabalhados}</span>
+  // Pódio potências
+  const podioPot=rankPotencia.slice(0,3).map(([pot,d],i)=>
+    _podioCard(pot,d.total,'locação'+(d.total!==1?'s':''),_cor(i),_medal(i),i===0)
+  ).join('');
+
+  // Pódio GG
+  const podioGG=rankGG.slice(0,3).map(([gg,d],i)=>
+    _podioCard(gg,d.diasTrabalhados,'dia'+(d.diasTrabalhados!==1?'s':''),_cor(i),_medal(i),i===0)
+  ).join('');
+
+  // ── Barras completas ──────────────────────────────────────────
+  const potRows=rankPotencia.map(([pot,d],i)=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;min-width:16px">${_medal(i)||'<span style="font-size:11px;color:var(--dim)">'+(i+1)+'</span>'}</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">${pot}</span>
         </div>
-        <div style="font-size:11px;color:var(--dim);text-align:right;min-width:70px">${d.osCount} OS</div>
-      </div>`).join('')
-    : '<p style="color:var(--dim);font-size:13px;padding:12px 0">Nenhum patrimônio registrado ainda.</p>';
+        <div style="display:flex;align-items:center;gap:10px">
+          ${d.abertas?`<span style="font-size:11px;background:rgba(34,197,94,.12);color:var(--green);border-radius:20px;padding:2px 8px;font-weight:600">${d.abertas} ativa${d.abertas!==1?'s':''}</span>`:''}
+          ${d.fechadas?`<span style="font-size:11px;background:rgba(148,163,184,.08);color:var(--dim);border-radius:20px;padding:2px 8px">${d.fechadas} enc.</span>`:''}
+          <span style="font-size:16px;font-weight:800;color:${_cor(i)};min-width:24px;text-align:right">${d.total}</span>
+        </div>
+      </div>
+      ${_barH(d.total,maxPot,'var(--red)')}
+    </div>`).join('');
+
+  const ggRows=rankGG.map(([gg,d],i)=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;min-width:16px">${_medal(i)||'<span style="font-size:11px;color:var(--dim)">'+(i+1)+'</span>'}</span>
+          <div>
+            <span style="font-size:14px;font-weight:700;color:var(--text)">${gg}</span>
+            ${d.potencia?`<span style="font-size:11px;color:var(--dim);margin-left:6px">${d.potencia}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;background:rgba(59,130,246,.1);color:var(--blue);border-radius:20px;padding:2px 8px">${d.osCount} OS</span>
+          <span style="font-size:16px;font-weight:800;color:${_cor(i)};min-width:30px;text-align:right">${d.diasTrabalhados}d</span>
+        </div>
+      </div>
+      ${_barH(d.diasTrabalhados||d.osCount,maxGG,'var(--blue)')}
+    </div>`).join('');
 
   el.innerHTML=`
-  <div class="card">
-    <div class="card-title">📈 Insights</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:4px">
-      <div style="background:var(--card2);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--text)">${totalOSs}</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">Total de OSs</div>
+  <!-- KPIs principais -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div style="background:linear-gradient(135deg,rgba(204,0,0,.18),rgba(204,0,0,.06));border:1px solid rgba(204,0,0,.25);border-radius:16px;padding:16px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.5);margin-bottom:6px">Total de OSs</div>
+      <div style="font-size:36px;font-weight:800;color:var(--text);line-height:1">${totalOSs}</div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <span style="font-size:11px;color:var(--green);font-weight:600">● ${totalAbertas} ativas</span>
+        <span style="font-size:11px;color:var(--dim)">● ${totalFechadas} enc.</span>
       </div>
-      <div style="background:var(--card2);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--green)">${totalAbertas}</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">Em andamento</div>
-      </div>
-      <div style="background:var(--card2);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--dim)">${totalFechadas}</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">Encerradas</div>
-      </div>
-      <div style="background:var(--card2);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:22px;font-weight:800;color:var(--blue)">${totalDiasReg}</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:2px">Dias rodados</div>
-      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(59,130,246,.06));border:1px solid rgba(59,130,246,.25);border-radius:16px;padding:16px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.5);margin-bottom:6px">Dias rodados</div>
+      <div style="font-size:36px;font-weight:800;color:var(--text);line-height:1">${totalDiasReg}</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--dim)">registros com gerador ativo</div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">⚡ Potências mais locadas</div>
-    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">Quantas OSs foram abertas para cada potência de gerador.</p>
-    ${potenciaRows}
+  <!-- Taxa de ocupação -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Taxa de OSs ativas</span>
+      <span style="font-size:20px;font-weight:800;color:${pctOcup>=70?'var(--green)':pctOcup>=40?'var(--yellow)':'var(--dim)'}">${pctOcup}%</span>
+    </div>
+    <div style="width:100%;height:12px;background:rgba(255,255,255,.06);border-radius:12px;overflow:hidden">
+      <div style="width:${pctOcup}%;height:100%;background:${pctOcup>=70?'var(--green)':pctOcup>=40?'var(--yellow)':'var(--red)'};border-radius:12px;transition:width .6s ease"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px">
+      <span style="font-size:10px;color:var(--dim)">0%</span>
+      <span style="font-size:10px;color:var(--dim)">100%</span>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">🏆 Máquinas que mais trabalharam</div>
-    <p style="font-size:12px;color:var(--dim);margin-bottom:12px">Dias efetivamente rodados por patrimônio (GG). Operadores devem preencher o GG no formulário.</p>
-    ${ggRows}
+  <!-- Pódio potências -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:10px">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">⚡ Potências mais locadas</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">Número de OSs por potência contratada</div>
+    ${rankPotencia.length?`
+    <div style="display:flex;gap:8px;margin-bottom:16px">${podioPot}</div>
+    ${potRows}`:'<p style="color:var(--dim);font-size:13px">Nenhuma OS cadastrada ainda.</p>'}
+  </div>
+
+  <!-- Pódio máquinas -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:10px">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">🏆 Máquinas que mais trabalharam</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px">Dias rodados por patrimônio (GG)</div>
+    ${rankGG.length?`
+    <div style="display:flex;gap:8px;margin-bottom:16px">${podioGG}</div>
+    ${ggRows}`:'<p style="color:var(--dim);font-size:13px">Nenhum GG registrado ainda. Operadores devem preencher o campo patrimônio.</p>'}
   </div>`;
 }
 
