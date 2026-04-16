@@ -230,31 +230,19 @@
 // SW KILL-SWITCH + CACHE BUSTER
 // Mata todos os Service Workers e limpa caches em toda carga
 // ════════════════════════════════════════
-const APP_VERSION='20260416-v24';
+const APP_VERSION='20260416-v25';
 (function(){
-  // Sempre desregistra todos os SWs (não depende de versão)
+  // Registra SW network-first (sempre busca da rede, nunca serve cache antigo)
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.getRegistrations()
-      .then(regs=>regs.forEach(r=>r.unregister()))
+    navigator.serviceWorker.register('/sos-os-app/sw.js',{updateViaCache:'none'})
+      .then(reg=>{
+        // Força update imediato se houver novo SW disponível
+        reg.update();
+        if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
+      })
       .catch(()=>{});
   }
-  // Se versão mudou, força reload via URL com query param (bypassa cache HTTP do iOS)
-  const stored=localStorage.getItem('sos_app_version');
-  if(stored===APP_VERSION) return;
-  // Verifica se já tem o param ?v= correto na URL (evita loop)
-  const urlParams=new URLSearchParams(window.location.search);
-  if(urlParams.get('v')===APP_VERSION){
-    // Já recarregou com a URL nova — salva versão e continua
-    localStorage.setItem('sos_app_version',APP_VERSION);
-    if('caches' in window) caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});
-    return;
-  }
-  // Redireciona para URL com ?v=versão — isso força o browser a baixar novo HTML
-  localStorage.setItem('sos_app_version',APP_VERSION);
-  const newUrl=window.location.pathname+'?v='+APP_VERSION;
-  window.location.replace(newUrl);
 })();
-// NÃO registra mais nenhum SW — elimina a causa raiz do problema de cache
 
 // ════════════════════════════════════════
 // FEEDBACK VISUAL (toast + inline)
