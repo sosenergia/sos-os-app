@@ -1539,8 +1539,8 @@ function buildOpForm(os){
           '</div>'+
           '<div style="font-size:11px;color:var(--dim);margin-bottom:6px;margin-top:2px">Horímetro:</div>'+
           '<div class="grid2">'+
-          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-'+gi+'" step="0.1" placeholder="0.0" oninput="calcHEGerador('+gi+')"/></div>'+
-          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-'+gi+'" step="0.1" placeholder="Auto"/></div>'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Inicial</label><input type="number" id="g-hi-virou-'+gi+'" step="0.1" placeholder="0.0" oninput="calcHEGerador('+gi+')"/></div>'+
+          '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">Horímetro Final</label><input type="number" id="g-hf-virou-'+gi+'" step="0.1" placeholder="Auto"/></div>'+
           '</div>'+
           '</div>';
         const _camposStandby=g.standby?(
@@ -1985,7 +1985,7 @@ function _autoSaveOp(){
   // Geradores: liga, desliga, horímetros, checkboxes, datas
   const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
   geradores.forEach((_,gi)=>{
-    ['g-part-','g-par-','g-hi-','g-hf-','g-dt-liga-','g-dt-desliga-'].forEach(prefix=>{
+    ['g-part-','g-par-','g-hi-','g-hf-','g-hi-virou-','g-hf-virou-','g-dt-liga-','g-dt-desliga-'].forEach(prefix=>{
       const el=document.getElementById(prefix+gi);
       if(el) draft[prefix+gi]=el.value;
     });
@@ -2091,10 +2091,12 @@ function _restoreInicioFirebase(){
     let restaurados=0;
     geradores.forEach((_,gi)=>{
       const setVal=(id,val)=>{if(!val) return; const el=document.getElementById(id);if(el&&!el.value){el.value=val;el.dispatchEvent(new Event('input'));restaurados++;}};
-      setVal('g-part-'+gi, dados['g_part_'+gi]);
-      setVal('g-hi-'+gi,   dados['g_hi_'+gi]);
-      setVal('g-par-'+gi,  dados['g_par_'+gi]);
-      setVal('g-hf-'+gi,   dados['g_hf_'+gi]);
+      setVal('g-part-'+gi,      dados['g_part_'+gi]);
+      setVal('g-hi-'+gi,        dados['g_hi_'+gi]);
+      setVal('g-hf-'+gi,        dados['g_hf_'+gi]);
+      setVal('g-hi-virou-'+gi,  dados['g_hi_virou_'+gi]);
+      setVal('g-hf-virou-'+gi,  dados['g_hf_virou_'+gi]);
+      setVal('g-par-'+gi,       dados['g_par_'+gi]);
       setVal('g-dt-liga-'+gi,    dados['g_dt_liga_'+gi]);
       setVal('g-dt-desliga-'+gi, dados['g_dt_desliga_'+gi]);
     });
@@ -2183,8 +2185,11 @@ function calcHEGerador(gi){
   const virou=document.getElementById(`g-virou-${gi}`)?.checked||false;
   const wEl=document.getElementById(`g-he-warn-${gi}`);
   const txt=document.getElementById(`g-he-txt-${gi}`);
-  const hi=parseFloat(document.getElementById(`g-hi-${gi}`)?.value)||0;
-  const hfEl=document.getElementById(`g-hf-${gi}`);
+  // usa IDs separados para o bloco "virou" vs bloco normal (evita duplicidade de ID no DOM)
+  const hiId=virou?`g-hi-virou-${gi}`:`g-hi-${gi}`;
+  const hfId=virou?`g-hf-virou-${gi}`:`g-hf-${gi}`;
+  const hi=parseFloat(document.getElementById(hiId)?.value)||0;
+  const hfEl=document.getElementById(hfId);
   let totH=0;
   if(virou){
     // Cálculo com datetime: diferença entre dt-liga e dt-desliga
@@ -2281,8 +2286,8 @@ function coletarGeradoresReg(){
     const dtDesliga=document.getElementById(`g-dt-desliga-${gi}`)?.value||'';
     const part=virou?(dtLiga?dtLiga.split('T')[1]?.slice(0,5)||'':''):document.getElementById(`g-part-${gi}`)?.value||'';
     const par=virou?(dtDesliga?dtDesliga.split('T')[1]?.slice(0,5)||'':''):document.getElementById(`g-par-${gi}`)?.value||'';
-    const hi=document.getElementById(`g-hi-${gi}`)?.value||'';
-    const hf=document.getElementById(`g-hf-${gi}`)?.value||'';
+    const hi=document.getElementById(virou?`g-hi-virou-${gi}`:`g-hi-${gi}`)?.value||'';
+    const hf=document.getElementById(virou?`g-hf-virou-${gi}`:`g-hf-${gi}`)?.value||'';
     const meiadiaria=document.getElementById(`g-meia-${gi}`)?.checked||false;
     const data=document.getElementById('op-data')?.value;
     const prevDia=(g.previsaoDias||[]).find(p=>p.data===data);
