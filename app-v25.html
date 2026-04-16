@@ -5002,11 +5002,13 @@ function renderInsights(){
 
   // ── GG ────────────────────────────────────────────────────────
   const porGG={};
-  // osCount: varre ordens filtradas
-  ordFilt.forEach(os=>{
+  // osCount: varre ordens filtradas — mais recente primeiro para pot refletir OS mais nova
+  const ordFiltDesc=[...ordFilt].sort((a,b)=>(b.dataSaida||'').localeCompare(a.dataSaida||''));
+  ordFiltDesc.forEach(os=>{
     (os.equipamentos||[]).filter(e=>e.tipo==='gerador').forEach(g=>{
       const gg=(g.patrimonio||'').trim().toUpperCase(); if(!gg) return;
       if(!porGG[gg]) porGG[gg]={osCount:0,dias:0,pot:g.potencia||''};
+      else if(g.potencia) porGG[gg].pot=g.potencia; // atualiza sempre com o mais recente
       porGG[gg].osCount++;
     });
   });
@@ -5017,6 +5019,7 @@ function renderInsights(){
       if(!g.rodou) return;
       const gg=(g.patrimonio||'').trim().toUpperCase(); if(!gg) return;
       if(!porGG[gg]) porGG[gg]={osCount:0,dias:0,pot:g.potencia||''};
+      else if(g.potencia) porGG[gg].pot=g.potencia; // atualiza sempre com o mais recente
       porGG[gg].dias++;
     });
   });
