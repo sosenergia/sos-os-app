@@ -232,7 +232,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260416-v19';
+  const APP_VERSION='20260416-v20';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -2455,6 +2455,7 @@ function novoRegistroDia(){
 }
 
 function finalizarReg(){
+  showToast('Processando...','ok');
   const data=document.getElementById('op-data')?.value;
   if(!data){showToast('Volte ao Step 1 e preencha a data.','err');opStep(1);return;}
   const temGerador=opOS&&((opOS.equipamentos&&opOS.equipamentos.some(e=>e.tipo==='gerador'))||(opOS.potencia&&!opOS.equipamentos?.length));
@@ -2526,6 +2527,7 @@ function finalizarReg(){
     }
     return;
   }
+  showToast('Salvando no banco...','ok');
   lastReg={
     id:'reg_'+Date.now(),osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
     operadorId:sessaoAtual.id,operadorNome:sessaoAtual.nome,
@@ -2564,22 +2566,26 @@ function finalizarReg(){
   if(btnFin){btnFin.disabled=true;btnFin.textContent='Salvando...';}
   // Salva no Firebase — independente do resultado, avança sempre
   db.ref('registros/'+lastReg.id).set(lastReg)
-    .then(()=>{ _finalizarRegUI(); })
-    .catch(()=>{
-      // Firebase falhou: já está no localStorage, avança mesmo assim
-      _finalizarRegUI();
+    .then(()=>{ showToast('Firebase ok, finalizando...','ok'); _finalizarRegUI(); })
+    .catch((e)=>{
+      showToast('Firebase falhou ('+((e&&e.message)||'err')+'), salvando local...','err');
+      setTimeout(()=>_finalizarRegUI(), 1500);
     });
   return;
 }
 function _finalizarRegUI(){
-  // Limpa backups de assinatura após salvar com sucesso
   _sigClienteTemp=null;
   _sigOperadorTemp=null;
-  for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
-  _renderResumoOS();
-  showToast('Dia salvo!');
-  document.getElementById('op-ok').style.display='block';
-  window.scrollTo({top:0,behavior:'smooth'});
+  // Reconstrói o form para garantir que op-ok existe no DOM
+  buildOpForm(opOS);
+  setTimeout(()=>{
+    for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
+    _renderResumoOS();
+    showToast('Dia salvo!');
+    const opOk=document.getElementById('op-ok');
+    if(opOk) opOk.style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  },50);
 }
 
 function _renderResumoOS(){
