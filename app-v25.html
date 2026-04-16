@@ -338,6 +338,8 @@ function initFirebaseListeners() {
     _ordensCarregadas=true;
     _renderSeCompleto();
     _reRenderPaginaAtiva();
+    // Garante re-render da lista independente de qual página está visível
+    if(sessaoAtual) renderOSList();
   });
   db.ref('registros').on('value', snap => {
     const fbRegs = snap.val() ? Object.values(snap.val()) : [];
@@ -357,6 +359,8 @@ function initFirebaseListeners() {
     _registrosCarregados=true;
     _renderSeCompleto();
     _reRenderPaginaAtiva();
+    // Garante re-render da lista independente de qual página está visível
+    if(sessaoAtual) renderOSList();
   });
   db.ref('usuarios').on('value', snap => {
     if (snap.val()) {
