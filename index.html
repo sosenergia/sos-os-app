@@ -232,7 +232,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260416-v20';
+  const APP_VERSION='20260416-v21';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -2576,16 +2576,26 @@ function finalizarReg(){
 function _finalizarRegUI(){
   _sigClienteTemp=null;
   _sigOperadorTemp=null;
-  // Reconstrói o form para garantir que op-ok existe no DOM
-  buildOpForm(opOS);
-  setTimeout(()=>{
-    for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
-    _renderResumoOS();
-    showToast('Dia salvo!');
-    const opOk=document.getElementById('op-ok');
-    if(opOk) opOk.style.display='block';
-    window.scrollTo({top:0,behavior:'smooth'});
-  },50);
+  // Oculta todos os steps
+  for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
+  // Se op-ok não existe no DOM (form foi reconstruído), rebuild primeiro
+  if(!document.getElementById('op-ok')){
+    buildOpForm(opOS);
+    setTimeout(()=>{
+      for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
+      _renderResumoOS();
+      showToast('Dia salvo! ✓');
+      const opOk=document.getElementById('op-ok');
+      if(opOk) opOk.style.display='block';
+      window.scrollTo({top:0,behavior:'smooth'});
+    },100);
+    return;
+  }
+  _renderResumoOS();
+  showToast('Dia salvo! ✓');
+  const opOk=document.getElementById('op-ok');
+  if(opOk) opOk.style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function _renderResumoOS(){
