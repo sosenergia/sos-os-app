@@ -232,7 +232,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260416-v17';
+  const APP_VERSION='20260416-v18';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -2462,10 +2462,6 @@ function finalizarReg(){
   // Validação: apenas geradores que rodaram precisam de horários
   if(temGerador){
     const ativos=geradoresReg.filter(g=>g.rodou);
-    if(!ativos.length){
-      // Nenhum gerador marcado como ativo — avisa e deixa salvar
-      showToast('⚠️ Nenhum gerador marcado como rodou. Salvando assim mesmo...','err');
-    }
     const semHorario=ativos.find(g=>{
       if(g.virou) return !g.dtLiga||!g.dtDesliga;
       return !g.part||!g.par;
