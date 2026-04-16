@@ -2043,22 +2043,27 @@ function salvarInicioGerador(){
   const btn=document.getElementById('btn-salvar-inicio');
   const dados={osId:opOS.id,operadorId:sessaoAtual.id,salvoPor:sessaoAtual.nome,criadoEm:new Date().toISOString()};
   const geradores=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador');
-  // Coleta hora liga + horímetro inicial de cada gerador
+  // Coleta hora liga + horímetro inicial de cada gerador (mesmo que campos estejam ocultos)
   let temDados=false;
   geradores.forEach((_,gi)=>{
-    const liga=document.getElementById('g-part-'+gi)?.value;
-    const hi=document.getElementById('g-hi-'+gi)?.value;
-    const dtLiga=document.getElementById('g-dt-liga-'+gi)?.value;
-    if(liga||hi||dtLiga){temDados=true;}
-    dados['g_part_'+gi]=liga||'';
-    dados['g_hi_'+gi]=hi||'';
-    dados['g_dt_liga_'+gi]=dtLiga||'';
-    // também salva hora desliga e horímetro final se já preenchidos
-    dados['g_par_'+gi]=document.getElementById('g-par-'+gi)?.value||'';
-    dados['g_hf_'+gi]=document.getElementById('g-hf-'+gi)?.value||'';
-    dados['g_dt_desliga_'+gi]=document.getElementById('g-dt-desliga-'+gi)?.value||'';
+    // Busca campos independente de display (standby pode estar oculto mas ter valor)
+    const _getVal=id=>{const el=document.getElementById(id);return el?el.value:''};
+    const liga=_getVal('g-part-'+gi);
+    const hi=_getVal('g-hi-'+gi);
+    const dtLiga=_getVal('g-dt-liga-'+gi);
+    const par=_getVal('g-par-'+gi);
+    const hf=_getVal('g-hf-'+gi);
+    const dtDesliga=_getVal('g-dt-desliga-'+gi);
+    if(liga||hi||dtLiga||par||hf||dtDesliga){temDados=true;}
+    dados['g_part_'+gi]=liga;
+    dados['g_hi_'+gi]=hi;
+    dados['g_dt_liga_'+gi]=dtLiga;
+    dados['g_par_'+gi]=par;
+    dados['g_hf_'+gi]=hf;
+    dados['g_dt_desliga_'+gi]=dtDesliga;
   });
-  if(!temDados){showToast('Preencha hora de liga ou horímetro inicial antes de salvar.','err');return;}
+  // Se não encontrou campos de gerador, salva mesmo assim (pode ser OS só com acessórios)
+  if(!temDados && geradores.length>0){showToast('Preencha pelo menos um campo antes de salvar.','err');return;}
   if(btn){btn.disabled=true;btn.textContent='Salvando...';}
   db.ref('rascunhos_inicio/'+key).set(dados)
     .then(()=>{
@@ -2518,7 +2523,6 @@ function finalizarReg(){
     }
     return;
   }
-  showToast('Salvando no banco...','ok');
   lastReg={
     id:'reg_'+Date.now(),osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
     operadorId:sessaoAtual.id,operadorNome:sessaoAtual.nome,
@@ -2555,8 +2559,10 @@ function finalizarReg(){
   DB.set('sos_registros',registros);
   // Avança imediatamente — não espera Firebase
   _finalizarRegUI();
-  // Firebase em background (sync automático cobre se falhar)
-  db.ref('registros/'+lastReg.id).set(lastReg).catch(()=>{});
+  // Firebase em background — mostra confirmação quando salvar
+  db.ref('registros/'+lastReg.id).set(lastReg)
+    .then(()=>{ showToast('Dia salvo e enviado! ✓','ok'); })
+    .catch(()=>{ showToast('Salvo localmente. Será sincronizado quando houver conexão.','ok'); });
   return;
 }
 function _finalizarRegUI(){
@@ -2663,6 +2669,7 @@ function _renderResumoOS(){
     '<div style="padding:8px 0;border-bottom:1px solid var(--border)">'+
       '<div style="display:flex;justify-content:space-between;align-items:center">'+
         '<div>'+
+          '<span style="font-size:10px;background:rgba(59,130,246,.15);color:var(--blue);border-radius:4px;padding:1px 6px;margin-right:6px;font-weight:600">✓ Salvo</span>'+
           '<strong>'+fmtData(r.data)+'</strong>'+
           (r.geradoresReg&&r.geradoresReg.length?
             r.geradoresReg.filter(g=>!g.standby||g.rodou).map(g=>g.virou?'<span style="font-size:11px;color:var(--yellow);margin-left:6px">🔄 '+(g.potencia||'G')+'</span>':'<span style="font-size:11px;color:var(--dim);margin-left:6px">'+(g.potencia||'G')+' '+g.part+'→'+g.par+'</span>').join('')
@@ -2690,7 +2697,7 @@ function _renderResumoOS(){
   const totalRegs=rascunhos.length+enviados.length;
   resumoEl.innerHTML=`
     <div style="font-weight:700;font-size:13px;margin-bottom:8px">OS ${opOS.num} — ${opOS.cliente}${opOS.evento?' · '+opOS.evento:''}</div>
-    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">${totalRegs} dia${totalRegs!==1?'s':''} registrado${totalRegs!==1?'s':''}${rascunhos.length>0?' · '+rascunhos.length+' aguardando envio':' · ✓ Tudo enviado'}</div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">${totalRegs} dia${totalRegs!==1?'s':''} registrado${totalRegs!==1?'s':''}${rascunhos.length>0?' · '+rascunhos.length+' salvo'+( rascunhos.length!==1?'s':''):' · ✓ Tudo confirmado'}</div>
     ${diasEnviadosHTML}
     ${diasRascunhoHTML}
     ${!totalRegs?'<div style="color:var(--dim);font-size:12px">Nenhum dia salvo ainda.</div>':''}
