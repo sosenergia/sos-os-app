@@ -231,7 +231,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260414-v14';
+  const APP_VERSION='20260416-v15';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -354,8 +354,19 @@ function initFirebaseListeners() {
     _reRenderPaginaAtiva();
   });
   db.ref('registros').on('value', snap => {
-    registros = snap.val() ? Object.values(snap.val()) : [];
+    const fbRegs = snap.val() ? Object.values(snap.val()) : [];
+    // Merge: adiciona registros do localStorage que não chegaram ao Firebase (rascunhos perdidos)
+    const localRegs = DB.get('sos_registros') || [];
+    const fbIds = new Set(fbRegs.map(r=>r.id));
+    const perdidos = localRegs.filter(r=>!fbIds.has(r.id));
+    registros = [...fbRegs, ...perdidos];
     DB.set('sos_registros', registros);
+    // Reenvia rascunhos perdidos ao Firebase em background
+    if(perdidos.length){
+      perdidos.forEach(r=>{
+        db.ref('registros/'+r.id).set(r).catch(()=>{});
+      });
+    }
     atualizarBadgeHEMes();
     _registrosCarregados=true;
     _renderSeCompleto();
@@ -2497,8 +2508,11 @@ function finalizarReg(){
     ? document.getElementById('sigCanvasOp').toDataURL('image/png')
     : (_sigOperadorTemp||null);
   // Assinatura só é obrigatória no último dia
+  // Usa a mesma lógica do _renderStep3: ultimoDia = data escolhida >= dataRetorno
+  // E só considera último dia se o Step 3 mostrou os campos de assinatura (sigCanvasOp visível)
   const _dataFinalReg=document.getElementById('op-data')?.value||'';
-  const _ultimoDiaReg=opOS?.dataRetorno ? _dataFinalReg>=opOS.dataRetorno : true;
+  const _stepMostrouAssinatura=document.getElementById('sigCanvasOp')?.style.display!=='none';
+  const _ultimoDiaReg=opOS?.dataRetorno ? (_dataFinalReg>=opOS.dataRetorno && _stepMostrouAssinatura) : _stepMostrouAssinatura;
   if(_ultimoDiaReg && !sigOperador){alert('A assinatura do operador é obrigatória.');return;}
   lastReg={
     id:'reg_'+Date.now(),osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
@@ -2536,12 +2550,18 @@ function finalizarReg(){
   DB.set('sos_registros',registros);
   const btnFin=document.getElementById('btn-finalizar');
   if(btnFin){btnFin.disabled=true;btnFin.textContent='Salvando...';}
-  fbUpdate('registros/'+lastReg.id, lastReg).then(()=>{
-    _finalizarRegUI();
-  }).catch(()=>{
-    _finalizarRegUI();
-    showToast('Salvo localmente (Firebase indisponível)','err');
-  });
+  const _withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+  const _doSaveReg=()=>_withTimeout(db.ref('registros/'+lastReg.id).set(lastReg),20000);
+  _doSaveReg()
+    .catch(()=>_doSaveReg()) // 1 retry automático
+    .then(()=>{
+      _finalizarRegUI();
+    })
+    .catch(()=>{
+      // Salvo no localStorage — Firebase falhou, mas não trava o operador
+      _finalizarRegUI();
+      showToast('Salvo localmente (Firebase indisponível)','err');
+    });
   return;
 }
 function _finalizarRegUI(){
