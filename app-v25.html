@@ -5041,15 +5041,14 @@ function renderInsights(){
     const cols=items.slice(0,8).map(([k,d],i)=>{
       const h=Math.max(4,Math.round((valFn(d)/maxVal)*H));
       const isTop=i<3;
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0">
-        <div style="font-size:11px;font-weight:700;color:${_cor(i)}">${valFn(d)}</div>
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:${_cor(i)};white-space:nowrap">${valFn(d)}</div>
         <div style="width:100%;max-width:36px;height:${H}px;display:flex;align-items:flex-end">
           <div style="width:100%;height:${h}px;background:${isTop?cor:'rgba(255,255,255,.12)'};border-radius:5px 5px 0 0;transition:height .5s ease;position:relative">
-            ${i===0?'<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px">🥇</div>':i===1?'<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px">🥈</div>':i===2?'<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:14px">🥉</div>':''}
+            ${i<3?'<div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:13px">'+(i===0?'🥇':i===1?'🥈':'🥉')+'</div>':''}
           </div>
         </div>
-        <div style="font-size:10px;font-weight:700;color:var(--text);text-align:center;word-break:break-all;max-width:40px;line-height:1.2">${labelFn(k)}</div>
-        ${subFn?`<div style="font-size:9px;color:var(--dim);text-align:center">${subFn(d)}</div>`:''}
+        <div style="font-size:10px;font-weight:700;color:var(--text);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56px">${labelFn(k)}</div>
       </div>`;
     }).join('');
     return `<div style="display:flex;gap:6px;align-items:flex-end;padding:24px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px">${cols}</div>`;
@@ -5105,7 +5104,7 @@ function renderInsights(){
     <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">⚡ Potências mais locadas</div>
     <div style="font-size:11px;color:var(--dim);margin-bottom:4px">OSs por kVA ${isTodos?'(todo o histórico)':'em '+_fmtMes(filtro)}</div>
     ${rankPot.length
-      ? _chartV(rankPot,maxPot,'var(--red)',k=>k,d=>d.total,d=>`${d.abertas?d.abertas+'✓ ':''}`)+
+      ? _chartV(rankPot,maxPot,'var(--red)',k=>k,d=>d.total,null)+
         _listH(rankPot,maxPot,'var(--red)',d=>d.total+' OS',d=>`${d.abertas?d.abertas+' ativa'+(d.abertas!==1?'s':''):''} ${d.fechadas?'· '+d.fechadas+' enc.':''}`)
       :'<p style="color:var(--dim);font-size:13px;padding:8px 0">Sem OSs neste período.</p>'}
   </div>
@@ -5115,7 +5114,7 @@ function renderInsights(){
     <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">🏆 Máquinas que mais trabalharam</div>
     <div style="font-size:11px;color:var(--dim);margin-bottom:4px">Dias rodados por GG ${isTodos?'(todo o histórico)':'em '+_fmtMes(filtro)}</div>
     ${rankGG.length
-      ? _chartV(rankGG,maxGG,'var(--blue)',k=>k,d=>d.dias,d=>d.pot||'')+
+      ? _chartV(rankGG,maxGG,'var(--blue)',k=>k,d=>d.dias,null)+
         _listH(rankGG,maxGG,'var(--blue)',d=>d.dias+'d',d=>`${d.pot?d.pot+' · ':''}${d.osCount} OS`)
       :'<p style="color:var(--dim);font-size:13px;padding:8px 0">Nenhum GG registrado neste período.</p>'}
   </div>`;
