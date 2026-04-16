@@ -154,10 +154,11 @@
     .user-chip{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--card2);border:1px solid var(--border);border-radius:9px;margin-bottom:8px}
     @media(max-width:480px){.grid3{grid-template-columns:1fr 1fr}.metric-grid{grid-template-columns:1fr 1fr}}
     /* ── TOAST ── */
-    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);z-index:99999;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:600;white-space:nowrap;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);z-index:99999;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:600;white-space:nowrap;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:90vw;white-space:normal;text-align:center}
     #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-    #toast.ok{background:var(--green);color:#fff}
-    #toast.err{background:#cc0000;color:#fff}
+    #toast.ok{background:var(--green);color:#fff;bottom:24px;top:auto}
+    #toast.err{background:#cc0000;color:#fff;bottom:auto;top:80px;transform:translateX(-50%) translateY(-80px)}
+    #toast.err.show{transform:translateX(-50%) translateY(0)}
     /* ── SAVE FEEDBACK ── */
     .save-feedback{font-size:12px;margin-top:6px;min-height:18px;display:block}
     .save-feedback.ok{color:var(--green)}
@@ -231,7 +232,7 @@
 // CACHE BUSTER — força reload se versão desatualizada
 // ════════════════════════════════════════
 (function(){
-  const APP_VERSION='20260416-v16';
+  const APP_VERSION='20260416-v17';
   const stored=localStorage.getItem('sos_app_version');
   if(stored===APP_VERSION) return;
   // Nova versão detectada — limpa SW e caches antes de recarregar
@@ -269,7 +270,7 @@ function showToast(msg,type='ok'){
   clearTimeout(_toastTimer);
   t.textContent=(type==='ok'?'✓ ':' ✕ ')+msg;
   t.className='show '+type;
-  _toastTimer=setTimeout(()=>{t.className='';},3000);
+  _toastTimer=setTimeout(()=>{t.className='';},type==='err'?6000:3000);
 }
 // Seta feedback inline em um elemento (por id)
 function setFeedback(elId,msg,type){
@@ -2455,29 +2456,25 @@ function novoRegistroDia(){
 
 function finalizarReg(){
   const data=document.getElementById('op-data')?.value;
-  if(!data){alert('Preencha a data.');return;}
+  if(!data){showToast('Volte ao Step 1 e preencha a data.','err');opStep(1);return;}
   const temGerador=opOS&&((opOS.equipamentos&&opOS.equipamentos.some(e=>e.tipo==='gerador'))||(opOS.potencia&&!opOS.equipamentos?.length));
   const geradoresReg=temGerador?coletarGeradoresReg():[];
   // Validação: apenas geradores que rodaram precisam de horários
   if(temGerador){
     const ativos=geradoresReg.filter(g=>g.rodou);
+    if(!ativos.length){
+      // Nenhum gerador marcado como ativo — avisa e deixa salvar
+      showToast('⚠️ Nenhum gerador marcado como rodou. Salvando assim mesmo...','err');
+    }
     const semHorario=ativos.find(g=>{
       if(g.virou) return !g.dtLiga||!g.dtDesliga;
       return !g.part||!g.par;
     });
     if(semHorario){
       const _msg=semHorario.virou
-        ? '⚡ Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
-        : '⚡ Preencha Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
+        ? '⚡ Volte ao Step 1 e preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
+        : '⚡ Volte ao Step 1 e preencha Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
       showToast(_msg,'err');
-      // Scroll até o campo do gerador problemático
-      const gi=(opOS.equipamentos||[]).filter(e=>e.tipo==='gerador').findIndex(g=>g.potencia===semHorario.potencia||(g.id&&g.id===semHorario.eqId));
-      if(gi>=0){
-        const el=document.getElementById('g-part-'+gi)||document.getElementById('g-dt-liga-'+gi);
-        if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.style.outline='3px solid var(--red)';setTimeout(()=>el.style.outline='',3000);}
-      }
-      // Voltar para step 1
-      opStep(1);
       return;
     }
   }
