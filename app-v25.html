@@ -2516,11 +2516,10 @@ function finalizarReg(){
     ? document.getElementById('sigCanvasOp').toDataURL('image/png')
     : (_sigOperadorTemp||null);
   // Assinatura só é obrigatória no último dia
-  // Usa a mesma lógica do _renderStep3: ultimoDia = data escolhida >= dataRetorno
-  // E só considera último dia se o Step 3 mostrou os campos de assinatura (sigCanvasOp visível)
+  // Usa a mesma lógica de _renderStep3: data escolhida >= dataRetorno
   const _dataFinalReg=document.getElementById('op-data')?.value||'';
-  const _stepMostrouAssinatura=document.getElementById('sigCanvasOp')?.style.display!=='none';
-  const _ultimoDiaReg=opOS?.dataRetorno ? (_dataFinalReg>=opOS.dataRetorno && _stepMostrouAssinatura) : _stepMostrouAssinatura;
+  const _rascunhosParaUltimo=registros.filter(r=>r.osId===opOS?.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
+  const _ultimoDiaReg=opOS?.dataRetorno ? _dataFinalReg>=opOS.dataRetorno : _rascunhosParaUltimo.length>0;
   if(_ultimoDiaReg && !sigOperador){
     showToast('✍️ Assine no campo "Assinatura do Operador" antes de salvar.','err');
     const canvasOp=document.getElementById('sigCanvasOp');
