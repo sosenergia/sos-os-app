@@ -343,9 +343,11 @@ function initFirebaseListeners() {
     if(sessaoAtual) renderOSList();
   });
   db.ref('registros').on('value', snap => {
-    const fbRegs = snap.val() ? Object.values(snap.val()) : [];
+    const fbRegsRaw = snap.val() ? Object.values(snap.val()) : [];
+    // Filtra IDs que foram explicitamente deletados nesta sessão
+    const fbRegs = fbRegsRaw.filter(r=>!_deletedRegIds.has(r.id));
     // Merge: adiciona registros do localStorage que não chegaram ao Firebase (rascunhos perdidos)
-    const localRegs = DB.get('sos_registros') || [];
+    const localRegs = (DB.get('sos_registros') || []).filter(r=>!_deletedRegIds.has(r.id));
     const fbIds = new Set(fbRegs.map(r=>r.id));
     const perdidos = localRegs.filter(r=>!fbIds.has(r.id));
     registros = [...fbRegs, ...perdidos];
@@ -544,6 +546,10 @@ const DB={
 };
 let ordens     = DB.get('sos_ordens',[]);
 let registros  = DB.get('sos_registros',[]);
+// IDs de registros explicitamente deletados — impede que o listener Firebase os restaure como "perdidos"
+const _deletedRegIds = new Set(JSON.parse(sessionStorage.getItem('sos_deleted_regs')||'[]'));
+function _markDeleted(id){ _deletedRegIds.add(id); sessionStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
+function _unmarkDeleted(id){ _deletedRegIds.delete(id); sessionStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
 let usuarios   = DB.get('sos_usuarios',[
   {id:'adm_0',nome:'Admin',user:'admin',senha:'sos2024',perfil:'admin'},
 ]);
@@ -1434,6 +1440,7 @@ function excluirOS(id){
   const regsIds=registros.filter(r=>r.osId===id).map(r=>r.id);
   const aviso=regsIds.length>0?`\n⚠️ Esta OS tem ${regsIds.length} registro(s) que também serão excluídos.`:'';
   _confirmar(`Excluir OS ${os.num} — ${os.cliente}?${aviso}`,()=>{
+    regsIds.forEach(rid=>_markDeleted(rid));
     ordens=ordens.filter(o=>o.id!==id);
     registros=registros.filter(r=>r.osId!==id);
     DB.set('sos_ordens',ordens);
@@ -2846,11 +2853,13 @@ function excluirRascunho(regId){
     const idx=registros.findIndex(x=>x.id===regId);
     if(idx===-1) return;
     const backup=registros[idx];
+    _markDeleted(regId);
     registros.splice(idx,1);
     DB.set('sos_registros',registros);
     fbRemove('registros/'+regId)
       .then(()=>{_renderResumoOS();showToast('Dia removido.');})
       .catch(e=>{
+        _unmarkDeleted(regId);
         registros.splice(idx,0,backup);
         DB.set('sos_registros',registros);
         showToast('Erro ao remover: '+(e?.message||'falha'),'err');
@@ -3698,12 +3707,14 @@ function excluirHETimeReg(regId){
   _confirmar(`Excluir ${label}?`,()=>{
     const idx=registros.findIndex(x=>x.id===regId);
     if(idx===-1) return;
+    _markDeleted(regId); // bloqueia listener de restaurar
     registros.splice(idx,1);
-    DB.set('sos_registros',registros); // atualiza localStorage ANTES do fbRemove para evitar que o listener de 'value' restaure o registro como "perdido"
+    DB.set('sos_registros',registros);
     fbRemove('registros/'+regId).then(()=>{
       showToast('Registro excluído.');
       gerarHE();
     }).catch(()=>{
+      _unmarkDeleted(regId);
       registros.splice(idx,0,r);
       DB.set('sos_registros',registros);
       showToast('Erro ao excluir. Tente novamente.','err');
@@ -5666,12 +5677,14 @@ function excluirRegistroAdmin(regId){
     const osId=r.osId;
     const idx=registros.findIndex(x=>x.id===regId);
     if(idx===-1) return;
+    _markDeleted(regId);
     registros.splice(idx,1);
     DB.set('sos_registros',registros);
     fbRemove('registros/'+regId).then(()=>{
       showToast('Registro do dia '+fmtData(r.data)+' excluído.');
       verOS(osId);
     }).catch(()=>{
+      _unmarkDeleted(regId);
       registros.splice(idx,0,r);
       DB.set('sos_registros',registros);
       showToast('Erro ao excluir. Tente novamente.','err');
@@ -6129,12 +6142,14 @@ function excluirHEAvulsa(id){
     const idx=registros.findIndex(r=>r.id===id);
     if(idx===-1) return;
     const r=registros[idx];
+    _markDeleted(id);
     registros.splice(idx,1);
     DB.set('sos_registros',registros);
     fbRemove('registros/'+id).then(()=>{
       showToast('HE removida.');
       loadHEAvulsa();
     }).catch(()=>{
+      _unmarkDeleted(id);
       registros.splice(idx,0,r);
       DB.set('sos_registros',registros);
       showToast('Erro ao excluir. Tente novamente.','err');
