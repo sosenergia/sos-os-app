@@ -2843,11 +2843,18 @@ function excluirRascunho(regId){
   overlay.querySelector('#_rr_cancel').onclick=()=>overlay.remove();
   overlay.querySelector('#_rr_ok').onclick=()=>{
     overlay.remove();
-    registros=registros.filter(r=>r.id!==regId);
+    const idx=registros.findIndex(x=>x.id===regId);
+    if(idx===-1) return;
+    const backup=registros[idx];
+    registros.splice(idx,1);
     DB.set('sos_registros',registros);
     fbRemove('registros/'+regId)
       .then(()=>{_renderResumoOS();showToast('Dia removido.');})
-      .catch(e=>showToast('Erro ao remover: '+(e?.message||'falha'),'err'));
+      .catch(e=>{
+        registros.splice(idx,0,backup);
+        DB.set('sos_registros',registros);
+        showToast('Erro ao remover: '+(e?.message||'falha'),'err');
+      });
   };
 }
 
@@ -3689,11 +3696,18 @@ function excluirHETimeReg(regId){
   if(!r) return;
   const label=r.heAvulsa?`HE Avulsa de ${r.operadorNome} em ${fmtData(r.data)}`:`registro OS ${r.osNum} de ${r.operadorNome} em ${fmtData(r.data)}`;
   _confirmar(`Excluir ${label}?`,()=>{
-    registros=registros.filter(x=>x.id!==regId);
-    DB.set('sos_registros',registros);
-    fbRemove('registros/'+regId).catch(()=>{});
-    showToast('Registro excluído.');
-    gerarHE();
+    const idx=registros.findIndex(x=>x.id===regId);
+    if(idx===-1) return;
+    registros.splice(idx,1);
+    DB.set('sos_registros',registros); // atualiza localStorage ANTES do fbRemove para evitar que o listener de 'value' restaure o registro como "perdido"
+    fbRemove('registros/'+regId).then(()=>{
+      showToast('Registro excluído.');
+      gerarHE();
+    }).catch(()=>{
+      registros.splice(idx,0,r);
+      DB.set('sos_registros',registros);
+      showToast('Erro ao excluir. Tente novamente.','err');
+    });
   },'Excluir');
 }
 
@@ -6112,11 +6126,19 @@ function salvarHEAvulsa(){
 
 function excluirHEAvulsa(id){
   _confirmar('Excluir este registro de HE avulsa?',()=>{
-    registros=registros.filter(r=>r.id!==id);
+    const idx=registros.findIndex(r=>r.id===id);
+    if(idx===-1) return;
+    const r=registros[idx];
+    registros.splice(idx,1);
     DB.set('sos_registros',registros);
-    fbRemove('registros/'+id).catch(()=>{});
-    showToast('HE removida.');
-    loadHEAvulsa();
+    fbRemove('registros/'+id).then(()=>{
+      showToast('HE removida.');
+      loadHEAvulsa();
+    }).catch(()=>{
+      registros.splice(idx,0,r);
+      DB.set('sos_registros',registros);
+      showToast('Erro ao excluir. Tente novamente.','err');
+    });
   },'Excluir');
 }
 
