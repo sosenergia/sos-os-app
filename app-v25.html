@@ -580,8 +580,24 @@ function doLogin(){
   doLoginFirebase(u, p);
 }
 
+// Helper: substitui confirm() (bloqueado em iOS PWA) por modal customizado
+function _confirmar(msg, onOk, btnLabel){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center">
+    <div style="font-size:14px;color:var(--text);margin-bottom:20px;white-space:pre-wrap">${msg}</div>
+    <div style="display:flex;gap:10px">
+      <button id="_cfm_cancel" class="btn btn-ghost" style="flex:1">Cancelar</button>
+      <button id="_cfm_ok" class="btn" style="flex:1;background:rgba(204,0,0,.2);border-color:rgba(204,0,0,.4);color:var(--red-light)">${btnLabel||'Confirmar'}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_cfm_cancel').onclick=()=>overlay.remove();
+  overlay.querySelector('#_cfm_ok').onclick=()=>{overlay.remove();onOk();};
+}
+
 function doLogout(){
-  if(!confirm('Sair da conta?')) return;
+  _confirmar('Sair da conta?',()=>{
   // desliga listeners Firebase
   db.ref('ordens').off();
   db.ref('registros').off();
@@ -601,6 +617,7 @@ function doLogout(){
   const btn=document.getElementById('login-btn');
   if(btn){btn.disabled=false;btn.textContent='Entrar';}
   document.getElementById('login-screen').style.display='flex';
+  },'Sair');
 }
 
 function buildNav(){atualizarBadgeHEMes();
@@ -1415,18 +1432,17 @@ function reabrirOS(id){if(confirm('Reabrir esta OS? Ela voltará a aparecer para
 function excluirOS(id){
   const os=ordens.find(o=>o.id===id);if(!os) return;
   const regsIds=registros.filter(r=>r.osId===id).map(r=>r.id);
-  const aviso=regsIds.length>0?`\n\n⚠️ Esta OS tem ${regsIds.length} registro(s) de operador. Eles também serão excluídos.`:'';
-  if(!confirm(`Excluir permanentemente a OS ${os.num} — ${os.cliente}?${aviso}\n\nEsta ação não pode ser desfeita.`)) return;
-  // 1. Remove do estado local e localStorage
-  ordens=ordens.filter(o=>o.id!==id);
-  registros=registros.filter(r=>r.osId!==id);
-  DB.set('sos_ordens',ordens);
-  DB.set('sos_registros',registros);
-  // 2. Remove os nós diretamente no Firebase (fbUpdate/merge NÃO apaga nós — precisa de remove())
-  const removes=[fbRemove('ordens/'+id), ...regsIds.map(rid=>fbRemove('registros/'+rid))];
-  Promise.all(removes)
-    .then(()=>{showToast(`OS ${os.num} excluída`);fecharDet();renderOSList();})
-    .catch(e=>showToast('Erro ao excluir: '+(e&&e.message?e.message:'falha'),'err'));
+  const aviso=regsIds.length>0?`\n⚠️ Esta OS tem ${regsIds.length} registro(s) que também serão excluídos.`:'';
+  _confirmar(`Excluir OS ${os.num} — ${os.cliente}?${aviso}`,()=>{
+    ordens=ordens.filter(o=>o.id!==id);
+    registros=registros.filter(r=>r.osId!==id);
+    DB.set('sos_ordens',ordens);
+    DB.set('sos_registros',registros);
+    const removes=[fbRemove('ordens/'+id), ...regsIds.map(rid=>fbRemove('registros/'+rid))];
+    Promise.all(removes)
+      .then(()=>{showToast(`OS ${os.num} excluída`);fecharDet();renderOSList();})
+      .catch(e=>showToast('Erro ao excluir: '+(e&&e.message?e.message:'falha'),'err'));
+  },'Excluir');
 }
 
 // ════════════════════════════════════════
@@ -2825,12 +2841,27 @@ function salvarHERascunho(regId){
 }
 
 function excluirRascunho(regId){
-  if(!confirm('Remover este dia do registro?')) return;
-  registros=registros.filter(r=>r.id!==regId);
-  DB.set('sos_registros',registros);
-  fbRemove('registros/'+regId)
-    .then(()=>{_renderResumoOS();showToast('Dia removido.');})
-    .catch(e=>showToast('Erro ao remover: '+(e?.message||'falha'),'err'));
+  const r=registros.find(x=>x.id===regId);
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:300px;width:100%;text-align:center">
+    <div style="font-size:15px;font-weight:700;margin-bottom:8px">Remover dia?</div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:20px">${r?fmtData(r.data):''} será removido.</div>
+    <div style="display:flex;gap:10px">
+      <button id="_rr_cancel" class="btn btn-ghost" style="flex:1">Cancelar</button>
+      <button id="_rr_ok" class="btn" style="flex:1;background:rgba(204,0,0,.2);border-color:rgba(204,0,0,.4);color:var(--red-light)">Remover</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_rr_cancel').onclick=()=>overlay.remove();
+  overlay.querySelector('#_rr_ok').onclick=()=>{
+    overlay.remove();
+    registros=registros.filter(r=>r.id!==regId);
+    DB.set('sos_registros',registros);
+    fbRemove('registros/'+regId)
+      .then(()=>{_renderResumoOS();showToast('Dia removido.');})
+      .catch(e=>showToast('Erro ao remover: '+(e?.message||'falha'),'err'));
+  };
 }
 
 function enviarParaAdmin(){
@@ -3670,12 +3701,13 @@ function excluirHETimeReg(regId){
   const r=registros.find(x=>x.id===regId);
   if(!r) return;
   const label=r.heAvulsa?`HE Avulsa de ${r.operadorNome} em ${fmtData(r.data)}`:`registro OS ${r.osNum} de ${r.operadorNome} em ${fmtData(r.data)}`;
-  if(!confirm(`Excluir ${label}?\n\nEsta ação não pode ser desfeita.`)) return;
-  registros=registros.filter(x=>x.id!==regId);
-  DB.set('sos_registros',registros);
-  fbRemove('registros/'+regId).catch(()=>{});
-  showToast('Registro excluído.');
-  gerarHE();
+  _confirmar(`Excluir ${label}?`,()=>{
+    registros=registros.filter(x=>x.id!==regId);
+    DB.set('sos_registros',registros);
+    fbRemove('registros/'+regId).catch(()=>{});
+    showToast('Registro excluído.');
+    gerarHE();
+  },'Excluir');
 }
 
 function aplicarDescontoHE(opId, mes){
@@ -6092,12 +6124,13 @@ function salvarHEAvulsa(){
 }
 
 function excluirHEAvulsa(id){
-  if(!confirm('Excluir este registro de HE avulsa?')) return;
-  registros=registros.filter(r=>r.id!==id);
-  DB.set('sos_registros',registros);
-  fbRemove('registros/'+id).catch(()=>{});
-  showToast('HE removida.');
-  loadHEAvulsa();
+  _confirmar('Excluir este registro de HE avulsa?',()=>{
+    registros=registros.filter(r=>r.id!==id);
+    DB.set('sos_registros',registros);
+    fbRemove('registros/'+id).catch(()=>{});
+    showToast('HE removida.');
+    loadHEAvulsa();
+  },'Excluir');
 }
 
 // ════════════════════════════════════════
