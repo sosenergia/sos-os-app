@@ -2531,21 +2531,8 @@ function finalizarReg(){
   const sigOperador=sigPads['sigCanvasOp']?.hasData
     ? document.getElementById('sigCanvasOp').toDataURL('image/png')
     : (_sigOperadorTemp||null);
-  // Assinatura só é obrigatória no último dia
-  // Usa a mesma lógica de _renderStep3: data escolhida >= dataRetorno
-  const _dataFinalReg=document.getElementById('op-data')?.value||'';
-  const _rascunhosParaUltimo=registros.filter(r=>r.osId===opOS?.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
-  const _ultimoDiaReg=opOS?.dataRetorno ? _dataFinalReg>=opOS.dataRetorno : _rascunhosParaUltimo.length>0;
-  if(_ultimoDiaReg && !sigOperador){
-    showToast('✍️ Assine no campo "Assinatura do Operador" antes de salvar.','err');
-    const canvasOp=document.getElementById('sigCanvasOp');
-    if(canvasOp){
-      canvasOp.scrollIntoView({behavior:'smooth',block:'center'});
-      canvasOp.style.outline='3px solid var(--red)';
-      setTimeout(()=>canvasOp.style.outline='',3000);
-    }
-    return;
-  }
+  // Assinatura do operador: recomendada no último dia, mas NÃO bloqueia o envio
+  // (bloqueios de assinatura causavam travamento silencioso em iOS PWA)
   lastReg={
     id:'reg_'+Date.now(),osId:opOS.id,osNum:opOS.num,cliente:opOS.cliente,evento:opOS.evento||'',
     operadorId:sessaoAtual.id,operadorNome:sessaoAtual.nome,
