@@ -5615,21 +5615,35 @@ function salvarRegistroAdmin(regId){
 function excluirRegistroAdmin(regId){
   const r=registros.find(x=>x.id===regId);
   if(!r) return;
-  const confirmMsg='Excluir o registro do dia '+fmtData(r.data)+' (OS '+r.osNum+')?\n\nEsta ação não pode ser desfeita.';
-  if(!confirm(confirmMsg)) return;
-  const osId=r.osId;
-  const idx=registros.findIndex(x=>x.id===regId);
-  if(idx===-1) return;
-  registros.splice(idx,1);
-  DB.set('sos_registros',registros);
-  fbRemove('registros/'+regId).then(()=>{
-    showToast('Registro do dia '+fmtData(r.data)+' excluído.');
-    verOS(osId);
-  }).catch(()=>{
-    registros.splice(idx,0,r); // reverte se falhou
+  // Modal customizado — confirm() é bloqueado silenciosamente em iOS PWA
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center">
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">Excluir dia?</div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:20px">Registro de <strong>${fmtData(r.data)}</strong> (OS ${r.osNum||'?'}) será removido permanentemente.</div>
+    <div style="display:flex;gap:10px">
+      <button id="_excl_cancel" class="btn btn-ghost" style="flex:1">Cancelar</button>
+      <button id="_excl_ok" class="btn" style="flex:1;background:rgba(204,0,0,.2);border-color:rgba(204,0,0,.4);color:var(--red-light)">Excluir</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_excl_cancel').onclick=()=>overlay.remove();
+  overlay.querySelector('#_excl_ok').onclick=()=>{
+    overlay.remove();
+    const osId=r.osId;
+    const idx=registros.findIndex(x=>x.id===regId);
+    if(idx===-1) return;
+    registros.splice(idx,1);
     DB.set('sos_registros',registros);
-    showToast('Erro ao excluir. Tente novamente.','err');
-  });
+    fbRemove('registros/'+regId).then(()=>{
+      showToast('Registro do dia '+fmtData(r.data)+' excluído.');
+      verOS(osId);
+    }).catch(()=>{
+      registros.splice(idx,0,r);
+      DB.set('sos_registros',registros);
+      showToast('Erro ao excluir. Tente novamente.','err');
+    });
+  };
 }
 
 // ════════════════════════════════════════
