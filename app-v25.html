@@ -2310,10 +2310,10 @@ function coletarGeradoresReg(){
     const rodouStandby=isStandby?(document.getElementById(`g-rodou-${gi}`)?.checked||false):true;
     const cbNaoRodou=document.getElementById(`g-nao-rodou-${gi}`);
     const naoRodouNormal=!isStandby&&(cbNaoRodou?.checked||false);
-    // Se o campo nem existe no DOM (form reconstruído), verificar naoRoda do planejamento
-    const data2=document.getElementById('op-data')?.value;
-    const prevDia2=(g.previsaoDias||[]).find(p=>p.data===data2);
-    const naoRodaPlanejado=!cbNaoRodou&&prevDia2?.naoRoda===true;
+    // naoRoda do planejamento SEMPRE tem prioridade — independente do estado do checkbox
+    const _dataAtual=document.getElementById('op-data')?.value;
+    const _prevDiaAtual=(g.previsaoDias||[]).find(p=>p.data===_dataAtual);
+    const naoRodaPlanejado=!isStandby&&_prevDiaAtual?.naoRoda===true;
     const rodou=isStandby?rodouStandby:!(naoRodouNormal||naoRodaPlanejado);
     if(isStandby&&!rodouStandby) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:true,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
     if(naoRodouNormal||naoRodaPlanejado) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:false,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
