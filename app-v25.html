@@ -2281,12 +2281,20 @@ function atualizarPrevisaoHint(){
     const naoRoda=prev?.naoRoda||false;
     if(naoRoda){
       el.innerHTML=`<div style="font-size:11px;background:rgba(204,0,0,.08);border:1px solid rgba(204,0,0,.25);border-radius:6px;padding:5px 10px;display:inline-block;color:var(--red-light)">🚫 Gerador não opera neste dia (conforme planejamento)</div>`;
-    } else if(hIni||hFim){
-      const hContr=prev?.hContratadas||12;
-      const badgeContr=hContr>12?`<span style="margin-left:6px;background:rgba(234,179,8,.15);color:var(--yellow);font-size:10px;border-radius:4px;padding:1px 6px;font-weight:700">${hContr}h contratadas</span>`:'';
-      el.innerHTML=`<div style="font-size:11px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;padding:5px 10px;display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">⏰ Previsão: <strong style="color:var(--fg)">${hIni||'--:--'} → ${hFim||'--:--'}</strong>${badgeContr}<span style="font-size:10px;color:var(--dim)">(o horário real prevalece)</span></div>`;
+      // Marca automaticamente o checkbox "não rodou" para evitar bloqueio na validação
+      const cbNaoRodou=document.getElementById(`g-nao-rodou-${gi}`);
+      if(cbNaoRodou&&!cbNaoRodou.checked){cbNaoRodou.checked=true;cbNaoRodou.dispatchEvent(new Event('change'));}
     } else {
-      el.innerHTML='';
+      // Data onde o gerador opera — desmarca checkbox caso tenha sido marcado por dia anterior
+      const cbNaoRodou=document.getElementById(`g-nao-rodou-${gi}`);
+      if(cbNaoRodou&&cbNaoRodou.checked){cbNaoRodou.checked=false;cbNaoRodou.dispatchEvent(new Event('change'));}
+      if(hIni||hFim){
+        const hContr=prev?.hContratadas||12;
+        const badgeContr=hContr>12?`<span style="margin-left:6px;background:rgba(234,179,8,.15);color:var(--yellow);font-size:10px;border-radius:4px;padding:1px 6px;font-weight:700">${hContr}h contratadas</span>`:'';
+        el.innerHTML=`<div style="font-size:11px;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;padding:5px 10px;display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">⏰ Previsão: <strong style="color:var(--fg)">${hIni||'--:--'} → ${hFim||'--:--'}</strong>${badgeContr}<span style="font-size:10px;color:var(--dim)">(o horário real prevalece)</span></div>`;
+      } else {
+        el.innerHTML='';
+      }
     }
   });
 }
