@@ -369,6 +369,7 @@ function initFirebaseListeners() {
     if (snap.val()) {
       usuarios = Object.values(snap.val());
       DB.set('sos_usuarios', usuarios);
+      atualizarBadgeHEMes();
     }
   });
   db.ref('config').on('value', snap => {
@@ -2601,10 +2602,30 @@ function finalizarReg(){
   DB.set('sos_registros',registros);
   // Avança imediatamente — não espera Firebase
   _finalizarRegUI();
-  // Firebase em background — mostra confirmação quando salvar
-  db.ref('registros/'+lastReg.id).set(lastReg)
-    .then(()=>{ showToast('Dia salvo e enviado! ✓','ok'); })
-    .catch(()=>{ showToast('Salvo localmente. Será sincronizado quando houver conexão.','ok'); });
+  // Firebase: tenta salvar com retry automático (3 tentativas, 5s cada)
+  function _tentarSalvarReg(tentativa){
+    if(tentativa>3){
+      showToast('Salvo localmente. Será enviado quando houver conexão.','ok');
+      return;
+    }
+    var _timeout=new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},8000);});
+    Promise.race([db.ref('registros/'+lastReg.id).set(lastReg),_timeout])
+      .then(function(){
+        lastReg.status='enviado';
+        var idx=registros.findIndex(function(r){return r.id===lastReg.id;});
+        if(idx>=0) registros[idx].status='enviado';
+        DB.set('sos_registros',registros);
+        showToast('Dia salvo e enviado! ✓','ok');
+      })
+      .catch(function(){
+        if(tentativa<3){
+          setTimeout(function(){_tentarSalvarReg(tentativa+1);},3000);
+        } else {
+          showToast('Salvo localmente. Será enviado quando houver conexão.','ok');
+        }
+      });
+  }
+  _tentarSalvarReg(1);
   return;
 }
 function _finalizarRegUI(){
