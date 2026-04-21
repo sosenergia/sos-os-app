@@ -2308,10 +2308,15 @@ function coletarGeradoresReg(){
     const _patrimonio=_patrimonioInput?('GG'+_patrimonioInput.replace(/^GG/i,'').trim()):(g.patrimonio||'');
     const isStandby=!!g.standby;
     const rodouStandby=isStandby?(document.getElementById(`g-rodou-${gi}`)?.checked||false):true;
-    const naoRodouNormal=!isStandby&&(document.getElementById(`g-nao-rodou-${gi}`)?.checked||false);
-    const rodou=isStandby?rodouStandby:!naoRodouNormal;
+    const cbNaoRodou=document.getElementById(`g-nao-rodou-${gi}`);
+    const naoRodouNormal=!isStandby&&(cbNaoRodou?.checked||false);
+    // Se o campo nem existe no DOM (form reconstruído), verificar naoRoda do planejamento
+    const data2=document.getElementById('op-data')?.value;
+    const prevDia2=(g.previsaoDias||[]).find(p=>p.data===data2);
+    const naoRodaPlanejado=!cbNaoRodou&&prevDia2?.naoRoda===true;
+    const rodou=isStandby?rodouStandby:!(naoRodouNormal||naoRodaPlanejado);
     if(isStandby&&!rodouStandby) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:true,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
-    if(naoRodouNormal) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:false,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
+    if(naoRodouNormal||naoRodaPlanejado) return {eqId:g.id,potencia:g.potencia||'',patrimonio:_patrimonio,standby:false,rodou:false,part:'',par:'',horIni:'',horFim:'',totalHoras:0,heM:0};
     const virou=document.getElementById(`g-virou-${gi}`)?.checked||false;
     const dtLiga=document.getElementById(`g-dt-liga-${gi}`)?.value||'';
     const dtDesliga=document.getElementById(`g-dt-desliga-${gi}`)?.value||'';
@@ -2489,10 +2494,22 @@ function novoRegistroDia(){
   },100);
 }
 
+function _erroFinalizarReg(msg){
+  // Modal de erro visível em iOS PWA (toast pode não aparecer)
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  ov.innerHTML=`<div style="background:var(--card);border:1px solid rgba(204,0,0,.4);border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center">
+    <div style="font-size:28px;margin-bottom:8px">⚠️</div>
+    <div style="font-size:14px;font-weight:700;color:var(--red-light);margin-bottom:8px">Dados incompletos</div>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:20px;line-height:1.5">${msg}</div>
+    <button style="width:100%;padding:12px;background:var(--red);border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer" onclick="this.closest('[style*=fixed]').remove();opStep(1)">← Voltar ao Step 1</button>
+  </div>`;
+  document.body.appendChild(ov);
+}
 function finalizarReg(){
   showToast('Processando...','ok');
   const data=document.getElementById('op-data')?.value;
-  if(!data){showToast('Volte ao Step 1 e preencha a data.','err');opStep(1);return;}
+  if(!data){_erroFinalizarReg('Volte ao Step 1 e preencha a data.');return;}
   const temGerador=opOS&&((opOS.equipamentos&&opOS.equipamentos.some(e=>e.tipo==='gerador'))||(opOS.potencia&&!opOS.equipamentos?.length));
   const geradoresReg=temGerador?coletarGeradoresReg():[];
   // Validação: apenas geradores que rodaram precisam de horários
@@ -2504,9 +2521,9 @@ function finalizarReg(){
     });
     if(semHorario){
       const _msg=semHorario.virou
-        ? '⚡ Volte ao Step 1 e preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
-        : '⚡ Volte ao Step 1 e preencha Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
-      showToast(_msg,'err');
+        ? 'Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
+        : 'Preencha os horários de Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
+      _erroFinalizarReg(_msg);
       return;
     }
   }
