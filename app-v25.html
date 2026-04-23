@@ -346,13 +346,17 @@ function initFirebaseListeners() {
     const fbRegsRaw = snap.val() ? Object.values(snap.val()) : [];
     // Filtra IDs que foram explicitamente deletados nesta sessão
     const fbRegs = fbRegsRaw.filter(r=>!_deletedRegIds.has(r.id));
-    // Merge: adiciona registros do localStorage que não chegaram ao Firebase (rascunhos perdidos)
+    // Merge: recupera apenas rascunhos do próprio operador logado que não chegaram ao Firebase
+    // NUNCA recoloca registros de outros usuários — evita restaurar HE deletadas pelo admin
     const localRegs = (DB.get('sos_registros') || []).filter(r=>!_deletedRegIds.has(r.id));
     const fbIds = new Set(fbRegs.map(r=>r.id));
-    const perdidos = localRegs.filter(r=>!fbIds.has(r.id));
+    const isOperador = sessaoAtual && sessaoAtual.perfil === 'operador';
+    const perdidos = isOperador
+      ? localRegs.filter(r=>!fbIds.has(r.id) && r.operadorId === sessaoAtual.id)
+      : [];
     registros = [...fbRegs, ...perdidos];
     DB.set('sos_registros', registros);
-    // Reenvia rascunhos perdidos ao Firebase em background
+    // Reenvia rascunhos perdidos ao Firebase em background (só operador logado)
     if(perdidos.length){
       perdidos.forEach(r=>{
         db.ref('registros/'+r.id).set(r).catch(()=>{});
