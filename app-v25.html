@@ -548,9 +548,9 @@ const DB={
 let ordens     = DB.get('sos_ordens',[]);
 let registros  = DB.get('sos_registros',[]);
 // IDs de registros explicitamente deletados — impede que o listener Firebase os restaure como "perdidos"
-const _deletedRegIds = new Set(JSON.parse(sessionStorage.getItem('sos_deleted_regs')||'[]'));
-function _markDeleted(id){ _deletedRegIds.add(id); sessionStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
-function _unmarkDeleted(id){ _deletedRegIds.delete(id); sessionStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
+const _deletedRegIds = new Set(JSON.parse(localStorage.getItem('sos_deleted_regs')||'[]'));
+function _markDeleted(id){ _deletedRegIds.add(id); localStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
+function _unmarkDeleted(id){ _deletedRegIds.delete(id); localStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
 let usuarios   = DB.get('sos_usuarios',[
   {id:'adm_0',nome:'Admin',user:'admin',senha:'sos2024',perfil:'admin'},
 ]);
