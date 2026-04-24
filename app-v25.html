@@ -414,6 +414,7 @@ function doLoginFirebase(userVal, passVal) {
     usuarios = lista;
     DB.set('sos_usuarios', usuarios);
     sessaoAtual = found;
+    _limparDraftsAntigos(found);
     initFirebaseListeners();
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-nav').style.display = 'flex';
@@ -426,6 +427,7 @@ function doLoginFirebase(userVal, passVal) {
     const found = usuarios.find(x => x.user.toLowerCase().trim() === userVal && (x.senha||'').trim() === passVal);
     if (!found) { document.getElementById('login-err').style.display = 'block'; document.getElementById('login-btn').disabled = false; document.getElementById('login-btn').textContent = 'Entrar'; return; }
     sessaoAtual = found;
+    _limparDraftsAntigos(found);
     initFirebaseListeners();
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-nav').style.display = 'flex';
@@ -526,13 +528,14 @@ function fbSaveOrdens() {
 }
 function fbSaveRegistros() {
   const obj = {};
-  registros.forEach(r => { obj[r.id] = r; });
-  return fbUpdate('registros', obj); // merge: não apaga registros de outros operadores
+  // Nunca recoloca registros explicitamente deletados
+  registros.filter(r=>!_deletedRegIds.has(r.id)).forEach(r => { obj[r.id] = r; });
+  return fbUpdate('registros', obj);
 }
 function fbSaveUsuarios() {
   const obj = {};
   usuarios.forEach(u => { obj[u.id] = u; });
-  return fbUpdate('usuarios', obj); // merge: não apaga usuários criados em outros dispositivos
+  return fbUpdate('usuarios', obj);
 }
 function fbSaveConfig() {
   return fbSet('config', config); // config é global, set() está correto aqui
@@ -555,6 +558,26 @@ let registros  = DB.get('sos_registros',[]);
 const _deletedRegIds = new Set(JSON.parse(localStorage.getItem('sos_deleted_regs')||'[]'));
 function _markDeleted(id){ _deletedRegIds.add(id); localStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
 function _unmarkDeleted(id){ _deletedRegIds.delete(id); localStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
+// Limpa rascunhos de auto-save que pertencem a outros IDs do mesmo nome (ex: usuário migrado)
+function _limparDraftsAntigos(user){
+  if(!user) return;
+  var prefix='sos_opdraft_';
+  var keysParaRemover=[];
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(!k||k.indexOf(prefix)!==0) continue;
+    // chave formato: sos_opdraft_{osId}_{userId}_{date}
+    // se userId não é o atual, remove
+    var partes=k.split('_');
+    // partes: ['sos','opdraft', osId (pode ter _), userId, date]
+    // userId está na penúltima posição antes da data
+    if(partes.length>=5){
+      var userId=partes[partes.length-2];
+      if(userId!==user.id) keysParaRemover.push(k);
+    }
+  }
+  keysParaRemover.forEach(function(k){localStorage.removeItem(k);});
+}
 let usuarios   = DB.get('sos_usuarios',[
   {id:'adm_0',nome:'Admin',user:'admin',senha:'sos2024',perfil:'admin'},
 ]);
@@ -1426,9 +1449,12 @@ function verOS(id){
   if(db){
     db.ref('registros').once('value').then(snap=>{
       if(snap.val()){
-        const fbRegs=Object.values(snap.val());
+        // Filtra IDs explicitamente deletados antes de qualquer merge
+        const fbRegs=Object.values(snap.val()).filter(r=>!_deletedRegIds.has(r.id));
         fbRegs.forEach(r=>{if(!registros.find(x=>x.id===r.id))registros.push(r);});
         registros=registros.map(r=>{const fb=fbRegs.find(x=>x.id===r.id);return fb||r;});
+        // Remove do array local qualquer reg que foi deletado mas ainda estava no cache
+        registros=registros.filter(r=>!_deletedRegIds.has(r.id));
         DB.set('sos_registros',registros);
       }
       _renderVerOS_inner();
@@ -5394,7 +5420,15 @@ function addUser(){
     document.getElementById('nu-he').value='';
   });
 }
-function delUser(id){if(confirm('Remover usuário?')){usuarios=usuarios.filter(u=>u.id!==id);saveAll();renderUsers();}}
+function delUser(id){
+  if(!confirm('Remover usuário?')) return;
+  usuarios=usuarios.filter(u=>u.id!==id);
+  DB.set('sos_usuarios',usuarios);
+  // fbRemove deleta o nó permanentemente — fbUpdate(merge) nunca deleta
+  fbRemove('usuarios/'+id)
+    .then(()=>{ showToast('Usuário removido.','ok'); renderUsers(); })
+    .catch(()=>{ showToast('Erro ao remover usuário.','err'); });
+}
 function expBackup(){const d=JSON.stringify({ordens,registros,usuarios,config},null,2);const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(d);a.download='sos-backup-'+new Date().toISOString().split('T')[0]+'.json';a.click();}
 function impBackup(e){const f=e.target.files[0];if(!f) return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(confirm(`Importar ${d.ordens?.length||0} OS, ${d.registros?.length||0} registros, ${d.usuarios?.length||0} usuários?`)){ordens=d.ordens||[];registros=d.registros||[];usuarios=d.usuarios||usuarios;config={...config,...(d.config||{})};saveAll();renderUsers();alert('Importado!')}}catch{alert('Arquivo inválido.')}};r.readAsText(f);}
 function limparTudo(){if(confirm('Apagar TODOS os dados?')){ordens=[];registros=[];saveAll();renderOSList();alert('Dados apagados.');}}
