@@ -371,7 +371,8 @@ function initFirebaseListeners() {
   });
   db.ref('usuarios').on('value', snap => {
     if (snap.val()) {
-      usuarios = Object.values(snap.val());
+      // Filtra usuários explicitamente deletados — impede que voltem via listener
+      usuarios = Object.values(snap.val()).filter(u=>!_deletedUserIds.has(u.id));
       DB.set('sos_usuarios', usuarios);
       atualizarBadgeHEMes();
     }
@@ -534,7 +535,8 @@ function fbSaveRegistros() {
 }
 function fbSaveUsuarios() {
   const obj = {};
-  usuarios.forEach(u => { obj[u.id] = u; });
+  // Nunca recoloca usuários explicitamente deletados
+  usuarios.filter(u=>!_deletedUserIds.has(u.id)).forEach(u => { obj[u.id] = u; });
   return fbUpdate('usuarios', obj);
 }
 function fbSaveConfig() {
@@ -558,6 +560,9 @@ let registros  = DB.get('sos_registros',[]);
 const _deletedRegIds = new Set(JSON.parse(localStorage.getItem('sos_deleted_regs')||'[]'));
 function _markDeleted(id){ _deletedRegIds.add(id); localStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
 function _unmarkDeleted(id){ _deletedRegIds.delete(id); localStorage.setItem('sos_deleted_regs',JSON.stringify([..._deletedRegIds])); }
+// IDs de usuários explicitamente deletados — impede que o listener Firebase os restaure
+const _deletedUserIds = new Set(JSON.parse(localStorage.getItem('sos_deleted_users')||'[]'));
+function _markUserDeleted(id){ _deletedUserIds.add(id); localStorage.setItem('sos_deleted_users',JSON.stringify([..._deletedUserIds])); }
 // Limpa rascunhos de auto-save que pertencem a outros IDs do mesmo nome (ex: usuário migrado)
 function _limparDraftsAntigos(user){
   if(!user) return;
@@ -5422,6 +5427,7 @@ function addUser(){
 }
 function delUser(id){
   if(!confirm('Remover usuário?')) return;
+  _markUserDeleted(id); // blacklist permanente — impede listener de restaurar
   usuarios=usuarios.filter(u=>u.id!==id);
   DB.set('sos_usuarios',usuarios);
   // fbRemove deleta o nó permanentemente — fbUpdate(merge) nunca deleta
