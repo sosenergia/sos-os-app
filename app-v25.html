@@ -389,6 +389,12 @@ function initFirebaseListeners() {
       DB.set('sos_descontos_he', descontosHE);
     }
   });
+  db.ref('folgas_op').on('value', snap => {
+    if (snap.val()) {
+      folgasOp = snap.val();
+      DB.set('sos_folgas_op', folgasOp);
+    }
+  });
 }
 
 // Login via Firebase — busca usuários diretamente do DB (fix: novos usuários não ficam presos no cache local)
@@ -591,6 +597,7 @@ let config     = DB.get('sos_config',{
   heValor:18,webhook:'',openaiKey:'',wppNumero:'5561999852409'
 });
 let descontosHE = DB.get('sos_descontos_he',{}); // {opId_mes: [{id,valor,motivo,criadoEm}]}
+let folgasOp = DB.get('sos_folgas_op',{}); // {opId_mes: [{id,data,obs,criadoEm,criadoPor}]}
 let sessaoAtual = null; // usuário logado
 
 function saveAll(){
@@ -601,6 +608,10 @@ function saveAll(){
 function saveDescontos(){
   DB.set('sos_descontos_he',descontosHE);
   fbSaveDescontos().catch(()=>{});
+}
+function saveFolgas(){
+  DB.set('sos_folgas_op',folgasOp);
+  db.ref('folgas_op').set(folgasOp).catch(()=>{});
 }
 
 // ════════════════════════════════════════
@@ -3830,6 +3841,35 @@ function removerDescontoHE(opId, mes, descId){
   gerarHE();
 }
 
+function registrarFolga(opId, mes){
+  const dataEl=document.getElementById('folga-data-'+opId);
+  const obsEl=document.getElementById('folga-obs-'+opId);
+  const data=(dataEl?.value||'').trim();
+  const obs=(obsEl?.value||'').trim();
+  if(!data){showToast('Informe a data da folga.','err');return;}
+  const chave=opId+'_'+mes;
+  if(!folgasOp[chave]) folgasOp[chave]=[];
+  // Impede duplicata na mesma data
+  if(folgasOp[chave].some(f=>f.data===data)){showToast('Folga já registrada nesta data.','err');return;}
+  folgasOp[chave].push({id:'folga_'+Date.now(),data,obs,criadoEm:new Date().toISOString(),criadoPor:sessaoAtual?.nome||''});
+  folgasOp[chave].sort((a,b)=>a.data.localeCompare(b.data));
+  saveFolgas();
+  if(dataEl) dataEl.value='';
+  if(obsEl) obsEl.value='';
+  showToast('Folga registrada.');
+  gerarHE();
+}
+
+function removerFolga(opId, mes, folgaId){
+  const chave=opId+'_'+mes;
+  if(!folgasOp[chave]) return;
+  folgasOp[chave]=folgasOp[chave].filter(f=>f.id!==folgaId);
+  if(!folgasOp[chave].length) delete folgasOp[chave];
+  saveFolgas();
+  showToast('Folga removida.');
+  gerarHE();
+}
+
 function gerarHE(){
   const mes=document.getElementById('he-mes')?.value;
   if(!mes) return;
@@ -3915,6 +3955,22 @@ function gerarHE(){
             <button onclick="aplicarDescontoHE('${u.id}','${mes}')" style="padding:8px 12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#f87171;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Aplicar</button>
           </div>
         </div>
+        ${(()=>{
+          const _chaveFolga=u.id+'_'+mes;
+          const _folgasOp=folgasOp[_chaveFolga]||[];
+          const _nFolgas=_folgasOp.length;
+          return '<div style="border-top:1px solid rgba(99,102,241,.2);margin-top:10px;padding-top:10px">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+            +'<div style="font-size:11px;color:#818cf8;font-weight:600">🏖️ Folgas no mês'+(_nFolgas>0?' <span style="background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;padding:1px 7px;font-size:11px">'+_nFolgas+' dia'+(_nFolgas!==1?'s':'')+'</span>':'')+'</div>'
+            +'</div>'
+            +(_nFolgas>0?'<div style="margin-bottom:8px">'+_folgasOp.map(f=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)"><div style="font-size:12px"><span style="color:#818cf8;font-weight:600">'+fmtData(f.data)+'</span>'+(f.obs?'<span style="color:var(--dim);margin-left:8px">'+f.obs+'</span>':'')+'<span style="color:var(--dim);font-size:10px;margin-left:6px">por '+(f.criadoPor||'—')+'</span></div><button onclick="removerFolga(\''+u.id+'\',\''+mes+'\',\''+f.id+'\')" style="background:none;border:none;color:var(--dim);font-size:15px;cursor:pointer;padding:0 4px" title="Remover">×</button></div>').join('')+'</div>':'')
+            +'<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center">'
+            +'<input type="date" id="folga-data-'+u.id+'" style="padding:8px 10px;background:var(--dark);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--fg);font-size:13px"/>'
+            +'<input type="text" id="folga-obs-'+u.id+'" placeholder="Obs. (opcional)" maxlength="60" style="padding:8px 10px;background:var(--dark);border:1px solid rgba(99,102,241,.3);border-radius:8px;color:var(--fg);font-size:13px"/>'
+            +'<button onclick="registrarFolga(\''+u.id+'\',\''+mes+'\')" style="padding:8px 12px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.35);color:#818cf8;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">+ Folga</button>'
+            +'</div>'
+            +'</div>';
+        })()}
       </div>
     </div>`;
   }).join('');
@@ -4899,8 +4955,17 @@ function gerarPDFRelatorioHE(){
     ];
     const maxV=dadosOp[0]?.liquido||1;
     const maxH=[...dadosOp].sort((a,b)=>b.totalHE-a.totalHE)[0]?.totalHE||1;
-    const scoreBase=[...dadosOp].sort((a,b)=>b.totalHE-a.totalHE);
-    ranking=scoreBase.slice(0,8).map((f,i)=>{const pts=Math.round(100*(1-i/scoreBase.length));return{nome:f.nome.split(' ')[0],pts,pct:pts};});
+    // Ranking com folgas: cada folga vale 85% da média diária de HE do operador
+    // Deságio leve — quem trabalha mais tira mais folga, mas ainda é reconhecido
+    const scoreBase=[...dadosOp].map(f=>{
+      const diasComHE=(f.regs||f.regsComHE||[]).length||1;
+      const mediaDiaria=f.totalHE/diasComHE;
+      const chaveFolgaRk=f.id+'_'+mes;
+      const nFolgas=(folgasOp[chaveFolgaRk]||[]).length;
+      const bonusFolga=nFolgas*mediaDiaria*0.85;
+      return {...f,_scoreHE:f.totalHE+bonusFolga,_nFolgas:nFolgas};
+    }).sort((a,b)=>b._scoreHE-a._scoreHE);
+    ranking=scoreBase.slice(0,8).map((f,i)=>{const pts=Math.round(100*(1-i/scoreBase.length));return{nome:f.nome.split(' ')[0],pts,pct:pts,folgas:f._nFolgas};});
     const cores=['#e74c3c','#e74c3c','#e67e22','#2ecc71','#9b59b6','#3498db','#1abc9c','#f39c12'];
     ganhos=dadosOp.slice(0,8).map((f,i)=>({nome:f.nome.split(' ')[0],valor:'R$ '+f.liquido.toFixed(2),pct:Math.round((f.liquido/maxV)*100),cor:cores[i]||'#95a5a6'}));
     resumoExec=`Em <strong>${nomeMes}</strong>, ${dadosOp.length} operador${dadosOp.length!==1?'es':''} registraram horas extras no sistema. Total de <strong style="color:#e67e22">${fmtHE(totalH)}</strong> em HE com custo líquido de <strong style="color:#e74c3c">R$ ${totalV.toFixed(2)}</strong>${totalDesc>0?' (após R$ '+totalDesc.toFixed(2)+' em descontos)':''}.  Maior ganhador: <strong style="color:#e74c3c">${topGanho.nome}</strong> (R$ ${topGanho.liquido.toFixed(2)}). Maior carga: <strong style="color:#e67e22">${topHoras.nome}</strong> (${fmtHE(topHoras.totalHE)}).`;
@@ -4909,8 +4974,9 @@ function gerarPDFRelatorioHE(){
   // ── monta HTML do PDF ─────────────────────────────────────────
   const rankHTML=ranking.map((f,i)=>{
     const corBarra=f.pct>=75?'#e74c3c':f.pct>=50?'#e67e22':f.pct>=30?'#f1c40f':'#95a5a6';
+    const folgaBadge=f.folgas>0?` <span style="font-size:10px;color:#818cf8;background:rgba(99,102,241,.2);border-radius:6px;padding:1px 5px">🏖️ ${f.folgas}d</span>`:'';
     return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <div style="width:90px;font-size:13px;font-weight:600;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome}</div>
+      <div style="width:110px;font-size:13px;font-weight:600;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome}${folgaBadge}</div>
       <div style="flex:1;background:#2a2a2a;border-radius:4px;height:22px;overflow:hidden">
         <div style="height:100%;background:${corBarra};border-radius:4px;width:${f.pct}%;transition:width .3s"></div>
       </div>
