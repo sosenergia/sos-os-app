@@ -1442,9 +1442,10 @@ function verOS(id){
           return '<div style="font-size:12px;color:var(--dim);margin-bottom:2px"><span>⚡ '+(g.potencia||'Gerador')+(g.patrimonio?' ('+g.patrimonio+')':'')+' — '+_horInfo+(g.heM>0?' · <span style="color:var(--yellow)">+'+g.heM.toFixed(1)+'h HE máq.</span>':'')+' </span></div>';
         }).join(''):'<div style="font-size:12px;color:var(--dim)">Liga: '+r.partida+' · Desliga: '+r.parada+' · Hor: '+r.horIni+'→'+r.horFim+'</div>')+
         (r.obs?'<div style="font-size:12px;color:var(--dim);margin-top:3px">'+r.obs+'</div>':'')+
-        ((r.heOperador>0||r.refeicoes>0)?'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+        ((r.heOperador>0||r.refeicoes>0||(r.valorDireto||0)>0)?'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
           (r.heOperador>0?'<span style="font-size:12px;background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.25);border-radius:6px;padding:3px 8px;font-weight:600">⏱ HE: '+fmtHE(r.heOperador)+' → R$ '+(()=>{const _u=usuarios.find(u=>u.id===r.operadorId);const _v=(_u&&_u.heValor>0)?_u.heValor:config.heValor;return(r.heOperador*_v).toFixed(2);})()+'</span>':'')+
           (r.refeicoes>0?'<span style="font-size:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.25);border-radius:6px;padding:3px 8px;font-weight:600">🍽 Refeição'+(r.refeicoes>1?'(×'+r.refeicoes+')':'')+': R$ '+(r.valorRefeicao||r.refeicoes*25).toFixed(2)+'</span>':'')+
+          ((r.valorDireto||0)>0?'<span style="font-size:12px;background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.25);border-radius:6px;padding:3px 8px;font-weight:600">'+(r.foiDireto==='carro'?'🚗':'🏍')+' Direto: R$ '+(r.valorDireto||0).toFixed(2)+'</span>':'')+
         '</div>':'')+
         '<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">'+
           (r.assinatura?'<div><div style="font-size:10px;color:var(--dim);margin-bottom:3px">Assinatura cliente</div><img src="'+r.assinatura+'" style="max-height:54px;max-width:160px;border-radius:6px;background:#fff"/></div>':'')+
@@ -1693,7 +1694,20 @@ function buildOpForm(os){
         '<span style="font-size:12px;color:var(--dim)">refeição(ões) · R$ 25,00 cada</span>'+
         '</div>'+
         '<p style="font-size:11px;color:var(--dim);margin:8px 0 0">Use + e − para indicar quantas refeições foram feitas durante a HE.</p>'+
-        '</div></div>';
+        '</div>'+
+        '<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:10px 12px;margin-top:8px">'+
+        '<div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🚗 Foi Direto para o Evento?</div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px">'+
+        '<input type="radio" name="op-foi-direto" value="nao" checked style="accent-color:var(--blue);width:14px;height:14px" onchange="toggleFoiDireto()"/> Não foi direto</label>'+
+        '<label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px">'+
+        '<input type="radio" name="op-foi-direto" value="carro" style="accent-color:#fbbf24;width:14px;height:14px" onchange="toggleFoiDireto()"/> 🚗 Carro (R$ 30,00)</label>'+
+        '<label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px">'+
+        '<input type="radio" name="op-foi-direto" value="moto" style="accent-color:#fbbf24;width:14px;height:14px" onchange="toggleFoiDireto()"/> 🏍 Moto (R$ 25,00)</label>'+
+        '</div>'+
+        '<div id="op-direto-preview" style="font-size:12px;color:#fbbf24;margin-top:6px;display:none"></div>'+
+        '</div>'+
+        '</div>';
       if(temGerador){
         return '<div class="card">'+
         '<div class="card-title">Registro do Dia</div>'+
@@ -2447,6 +2461,25 @@ function toggleCedoCampos(){
   c.style.display=cb.checked?'block':'none';
 }
 
+function toggleFoiDireto(){
+  const val=document.querySelector('input[name="op-foi-direto"]:checked')?.value||'nao';
+  const prev=document.getElementById('op-direto-preview');
+  if(!prev) return;
+  if(val==='carro'){prev.textContent='✓ R$ 30,00 de combustível será adicionado.';prev.style.display='block';}
+  else if(val==='moto'){prev.textContent='✓ R$ 25,00 de combustível será adicionado.';prev.style.display='block';}
+  else{prev.style.display='none';}
+}
+
+function _foiDiretoVal(){
+  return document.querySelector('input[name="op-foi-direto"]:checked')?.value||'nao';
+}
+
+function _foiDiretoCusto(tipo){
+  if(tipo==='carro') return 30;
+  if(tipo==='moto') return 25;
+  return 0;
+}
+
 const sigPads={};
 // Variáveis temporárias para preservar assinaturas ao navegar entre steps
 let _sigClienteTemp=null;
@@ -2640,6 +2673,8 @@ function finalizarReg(){
     heOperador:heO,valorHEOperador:valHEop,heMaquina:heM,totalHoras:totH,
     refeicoes:refStepperVal('op-ref'),
     valorRefeicao:refStepperVal('op-ref')*25,
+    foiDireto:_foiDiretoVal(),
+    valorDireto:_foiDiretoCusto(_foiDiretoVal()),
     status:'rascunho',
     criadoEm:new Date().toISOString()
   };
@@ -2865,6 +2900,17 @@ function editarHERascunho(regId){
           <span style="font-size:12px;color:var(--dim)">refeição(ões) · R$ 25,00 cada</span>
         </div>
       </div>
+      <div style="border-top:1px solid rgba(251,191,36,.2);padding-top:12px;margin-bottom:14px">
+        <div style="font-size:12px;color:#fbbf24;font-weight:600;margin-bottom:8px">🚗 Foi Direto para o Evento?</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid var(--border);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px">
+            <input type="radio" name="ehr-foi-direto" value="nao" ${(!r.foiDireto||r.foiDireto==='nao')?'checked':''} style="accent-color:var(--blue)"/> Não</label>
+          <label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px">
+            <input type="radio" name="ehr-foi-direto" value="carro" ${r.foiDireto==='carro'?'checked':''} style="accent-color:#fbbf24"/> 🚗 Carro (R$ 30)</label>
+          <label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px">
+            <input type="radio" name="ehr-foi-direto" value="moto" ${r.foiDireto==='moto'?'checked':''} style="accent-color:#fbbf24"/> 🏍 Moto (R$ 25)</label>
+        </div>
+      </div>
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('modal-he-rasc').remove()" style="flex:1;padding:11px;background:var(--dark);border:1px solid var(--border);color:var(--dim);border-radius:10px;font-size:13px;cursor:pointer">Cancelar</button>
         <button onclick="salvarHERascunho('${r.id}')" style="flex:1;padding:11px;background:rgba(204,0,0,.18);border:1px solid rgba(204,0,0,.3);color:#CC0000;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">💾 Salvar HE</button>
@@ -2919,6 +2965,8 @@ function salvarHERascunho(regId){
   r.valorHEOperador=heO*_heValor;
   r.refeicoes=refStepperVal('ehr-ref');
   r.valorRefeicao=r.refeicoes*25;
+  r.foiDireto=document.querySelector('input[name="ehr-foi-direto"]:checked')?.value||'nao';
+  r.valorDireto=_foiDiretoCusto(r.foiDireto);
   document.getElementById('modal-he-rasc')?.remove();
   DB.set('sos_registros',registros);
   fbUpdate('registros/'+r.id,r).catch(()=>{});
@@ -3540,6 +3588,16 @@ function abrirModalAdicionarHE(){
         <span style="font-size:12px;color:var(--dim)">refeição(ões) · R$ 25,00 cada</span>
       </div>
 
+      <div style="font-weight:700;font-size:13px;margin:12px 0 8px;color:#fbbf24">🚗 Foi Direto para o Evento?</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ahe-foi-direto" value="nao" checked style="accent-color:var(--blue);width:14px;height:14px"/> Não foi direto</label>
+        <label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ahe-foi-direto" value="carro" style="accent-color:#fbbf24;width:14px;height:14px"/> 🚗 Carro (R$ 30,00)</label>
+        <label style="display:flex;align-items:center;gap:6px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px">
+          <input type="radio" name="ahe-foi-direto" value="moto" style="accent-color:#fbbf24;width:14px;height:14px"/> 🏍 Moto (R$ 25,00)</label>
+      </div>
+
       <div class="field"><label>Observações</label><textarea id="ahe-obs" rows="2" placeholder="Anotações..."></textarea></div>
 
       <div style="display:flex;gap:10px;margin-top:4px">
@@ -3584,6 +3642,7 @@ function salvarNovaHEAdmin(){
   const heBase=(fM>iM?fM-iM:fM+1440-iM)/60;
   const heOperador=heBase+heCedo;
   const refeicoes=refStepperVal('ahe-ref');
+  const foiDireto=document.querySelector('input[name="ahe-foi-direto"]:checked')?.value||'nao';
   const op=usuarios.find(u=>u.id===opId);
   const valorHora=(op&&op.heValor>0)?op.heValor:config.heValor;
   const reg={
@@ -3599,6 +3658,7 @@ function salvarNovaHEAdmin(){
     chegouCedo:cedoAtivo,cedoIni,cedoFim,heCedo,
     heOperador,valorHEOperador:heOperador*valorHora,
     refeicoes,valorRefeicao:refeicoes*25,
+    foiDireto,valorDireto:_foiDiretoCusto(foiDireto),
     obs:document.getElementById('ahe-obs')?.value||'',
     heMaquina:0,totalHoras:0,geradoresReg:[],
     status:'enviado',
@@ -3677,6 +3737,16 @@ function editarHETimeReg(regId){
         <span style="font-size:12px;color:var(--dim)">refeição(ões) · R$ 25,00 cada</span>
       </div>
 
+      <div style="font-weight:700;font-size:13px;color:#fbbf24;margin:14px 0 8px;border-top:1px solid rgba(251,191,36,.2);padding-top:12px">🚗 Foi Direto?</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+        <label style="display:flex;align-items:center;gap:5px;background:var(--dark);border:1px solid var(--border);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px">
+          <input type="radio" name="het-foi-direto" value="nao" ${(!r.foiDireto||r.foiDireto==='nao')?'checked':''} style="accent-color:var(--blue)"/> Não</label>
+        <label style="display:flex;align-items:center;gap:5px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px">
+          <input type="radio" name="het-foi-direto" value="carro" ${r.foiDireto==='carro'?'checked':''} style="accent-color:#fbbf24"/> 🚗 Carro (R$ 30)</label>
+        <label style="display:flex;align-items:center;gap:5px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px">
+          <input type="radio" name="het-foi-direto" value="moto" ${r.foiDireto==='moto'?'checked':''} style="accent-color:#fbbf24"/> 🏍 Moto (R$ 25)</label>
+      </div>
+
       <div style="font-weight:700;font-size:13px;color:var(--text);margin:14px 0 8px;border-top:1px solid var(--border);padding-top:12px">📍 Identificação</div>
       <div class="field" style="margin:0 0 8px"><label style="font-size:11px">Local</label><input type="text" id="het-local" value="${r.local||''}" placeholder="Local de trabalho"/></div>
       <div class="field" style="margin:0 0 8px"><label style="font-size:11px">Evento / Obra</label><input type="text" id="het-evento" value="${r.evento||''}" placeholder="Nome do evento"/></div>
@@ -3746,6 +3816,10 @@ function salvarHETimeReg(regId){
   // Refeições
   r.refeicoes=refStepperVal('het-ref');
   r.valorRefeicao=r.refeicoes*25;
+
+  // Foi direto
+  r.foiDireto=document.querySelector('input[name="het-foi-direto"]:checked')?.value||'nao';
+  r.valorDireto=_foiDiretoCusto(r.foiDireto);
 
   // Identificação
   r.local=document.getElementById('het-local')?.value??r.local;
@@ -3879,12 +3953,13 @@ function gerarHE(){
 
   const regsDoMes=registros.filter(r=>r.data&&r.data.startsWith(mes));
 
-  let totalHEGeral=0,totalValorHEGeral=0,totalRefGeral=0,totalValorRefGeral=0,totalDescontoGeral=0,opComHE=0;
+  let totalHEGeral=0,totalValorHEGeral=0,totalRefGeral=0,totalValorRefGeral=0,totalDescontoGeral=0,totalDiretoGeral=0,opComHE=0;
   const cards=operadores.map(u=>{
     const regsOp=regsDoMes.filter(r=>r.operadorId===u.id);
     const totalHE=regsOp.reduce((a,r)=>a+(r.heOperador||0),0);
     const totalRef=regsOp.reduce((a,r)=>a+(r.refeicoes||0),0);
-    if(!totalHE&&!totalRef) return ''; // oculta operadores sem HE nem refeições
+    const totalDireto=regsOp.reduce((a,r)=>a+(r.valorDireto||0),0);
+    if(!totalHE&&!totalRef&&!totalDireto) return ''; // oculta operadores sem HE, refeições ou direto
     opComHE++;
     const valorHora=(u.heValor&&u.heValor>0)?u.heValor:config.heValor;
     const totalValorHE=totalHE*valorHora;
@@ -3893,17 +3968,20 @@ function gerarHE(){
     totalValorHEGeral+=totalValorHE;
     totalRefGeral+=totalRef;
     totalValorRefGeral+=totalValorRef;
+    totalDiretoGeral+=totalDireto;
     const chaveDesc=`${u.id}_${mes}`;
     totalDescontoGeral+=(descontosHE[chaveDesc]||[]).reduce((a,d)=>a+(d.valor||0),0);
     const descontosOp=descontosHE[chaveDesc]||[];
     const totalDesconto=descontosOp.reduce((a,d)=>a+(d.valor||0),0);
-    const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0||(r.refeicoes||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
+    const regsComHE=regsOp.filter(r=>(r.heOperador||0)>0||(r.refeicoes||0)>0||(r.valorDireto||0)>0).sort((a,b)=>a.data.localeCompare(b.data));
     const linhasHE=regsComHE.map(r=>{
       const valHE=(r.heOperador||0)*valorHora;
       const valRef=(r.valorRefeicao||((r.refeicoes||0)*25));
+      const valDireto=(r.valorDireto||0);
       const heBase=r.heOperador-(r.heCedo||0);
       const heHorario=(r.heIni&&r.heFim)?r.heIni+' → '+r.heFim:'';
       const cedoBadge=(r.chegouCedo&&(r.heCedo||0)>0)?'<span style="font-size:11px;background:rgba(204,0,0,.15);color:#CC0000;border-radius:5px;padding:2px 7px;font-weight:600;display:inline-flex;align-items:center;gap:4px">🏢 Cedo '+(r.cedoIni&&r.cedoFim?r.cedoIni+'→'+r.cedoFim:'')+' <span style="opacity:.8">'+fmtHE(r.heCedo)+'</span></span>':'';
+      const diretoBadge=valDireto>0?'<span style="font-size:12px;background:rgba(251,191,36,.1);color:#fbbf24;border-radius:5px;padding:2px 7px;font-weight:600">'+(r.foiDireto==='carro'?'🚗':'🏍')+' Direto → R$ '+valDireto.toFixed(2)+'</span>':'';
       return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="min-width:0;font-size:12px;flex:1">
@@ -3916,6 +3994,7 @@ function gerarHE(){
               ${(r.heOperador||0)>0?'<span style="font-size:12px;background:rgba(234,179,8,.1);color:var(--yellow);border-radius:5px;padding:2px 7px;font-weight:600">⏱ '+fmtHE(r.heOperador)+(heHorario?' ('+heHorario+')':'')+' → R$ '+valHE.toFixed(2)+'</span>':''}
               ${cedoBadge}
               ${(r.refeicoes||0)>0?'<span style="font-size:12px;background:rgba(16,185,129,.1);color:#10b981;border-radius:5px;padding:2px 7px;font-weight:600">🍽 ×'+r.refeicoes+' → R$ '+valRef.toFixed(2)+'</span>':''}
+              ${diretoBadge}
             </div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
@@ -3935,6 +4014,7 @@ function gerarHE(){
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           ${totalHE>0?'<div style="text-align:right"><div style="font-size:11px;color:var(--dim)">HE</div><div style="font-size:18px;font-weight:700;color:var(--yellow)">'+fmtHE(totalHE)+'</div><div style="font-size:12px;color:var(--yellow);font-weight:600">R$ '+totalValorHE.toFixed(2)+'</div></div>':''}
           ${totalRef>0?'<div style="text-align:right"><div style="font-size:11px;color:var(--dim)">Refeições</div><div style="font-size:18px;font-weight:700;color:#10b981">×'+totalRef+'</div><div style="font-size:12px;color:#10b981;font-weight:600">R$ '+totalValorRef.toFixed(2)+'</div></div>':''}
+          ${totalDireto>0?'<div style="text-align:right"><div style="font-size:11px;color:var(--dim)">Combustível</div><div style="font-size:18px;font-weight:700;color:#fbbf24">🚗</div><div style="font-size:12px;color:#fbbf24;font-weight:600">R$ '+totalDireto.toFixed(2)+'</div></div>':''}
         </div>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:6px">${linhasHE}</div>
@@ -3942,10 +4022,10 @@ function gerarHE(){
       ${descontosOp.length?'<div style="border-top:1px solid rgba(239,68,68,.2);margin-top:8px;padding-top:8px">'+'<div style="font-size:11px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">🔻 Descontos aplicados</div>'+descontosOp.map(d=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">'+'<div style="font-size:12px">'+'<span style="color:#f87171;font-weight:600">− R$ '+d.valor.toFixed(2)+'</span>'+'<span style="color:var(--dim);margin-left:8px">'+d.motivo+'</span>'+(d.criadoPor?'<span style="color:var(--dim);font-size:10px;margin-left:6px">por '+d.criadoPor+'</span>':'')+'</div>'+'<button onclick="removerDescontoHE(\''+u.id+'\',\''+mes+'\',\''+d.id+'\')" style="background:none;border:none;color:var(--red-light);font-size:15px;cursor:pointer;padding:0 4px" title="Remover desconto">×</button>'+'</div>').join('')+'<div style="text-align:right;margin-top:6px;font-size:12px;color:#f87171;font-weight:700">Total descontado: R$ '+totalDesconto.toFixed(2)+'</div>'+'</div>':''}
 
       <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
-        ${totalDesconto>0?'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px"><span style="color:var(--dim)">Subtotal bruto</span><span style="color:var(--dim)">R$ '+(totalValorHE+totalValorRef).toFixed(2)+'</span></div>'+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px"><span style="color:#f87171">Descontos</span><span style="color:#f87171">− R$ '+totalDesconto.toFixed(2)+'</span></div>':''}
+        ${totalDesconto>0?'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px"><span style="color:var(--dim)">Subtotal bruto</span><span style="color:var(--dim)">R$ '+(totalValorHE+totalValorRef+totalDireto).toFixed(2)+'</span></div>'+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px"><span style="color:#f87171">Descontos</span><span style="color:#f87171">− R$ '+totalDesconto.toFixed(2)+'</span></div>':''}
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px;font-weight:700;color:var(--fg)">Total a pagar</span>
-          <span style="font-size:17px;font-weight:700;color:var(--green)">R$ ${Math.max(0,totalValorHE+totalValorRef-totalDesconto).toFixed(2)}</span>
+          <span style="font-size:17px;font-weight:700;color:var(--green)">R$ ${Math.max(0,totalValorHE+totalValorRef+totalDireto-totalDesconto).toFixed(2)}</span>
         </div>
         <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
           <div style="font-size:11px;color:var(--dim);margin-bottom:6px;font-weight:600">🔻 Aplicar desconto</div>
@@ -3971,6 +4051,15 @@ function gerarHE(){
             +'</div>'
             +'</div>';
         })()}
+        ${(()=>{
+          const regsDireto=regsComHE.filter(r=>(r.valorDireto||0)>0);
+          const totalD=regsDireto.reduce((a,r)=>a+(r.valorDireto||0),0);
+          const lista=regsDireto.map(r=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+'<div style="font-size:12px"><span style="color:#fbbf24;font-weight:600">'+(r.foiDireto==='carro'?'🚗':'🏍')+' '+fmtData(r.data)+'</span>'+(r.osNum||r.evento?'<span style="color:var(--dim);margin-left:6px">'+(r.heAvulsa?(r.evento||'Avulsa'):'OS '+r.osNum)+'</span>':'')+'<span style="color:var(--dim);margin-left:8px;font-size:11px">R$ '+(r.valorDireto||0).toFixed(2)+'</span></div>'+'<button onclick="editarHETimeReg(\''+r.id+'\')" style="background:none;border:1px solid rgba(251,191,36,.3);color:#fbbf24;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer">✏️ Editar</button>'+'</div>').join('');
+          return '<div style="border-top:1px solid rgba(251,191,36,.2);margin-top:10px;padding-top:10px">'
+            +'<div style="font-size:11px;color:#fbbf24;font-weight:600;margin-bottom:6px">🚗 Foi Direto no mês'+(regsDireto.length>0?' <span style="background:rgba(251,191,36,.15);color:#fbbf24;border-radius:10px;padding:1px 7px;font-size:11px">R$ '+totalD.toFixed(2)+'</span>':'')+'</div>'
+            +(regsDireto.length>0?'<div style="margin-bottom:4px">'+lista+'</div>':'<div style="font-size:12px;color:var(--dim)">Nenhum registro com combustível neste mês.</div>')
+            +'</div>';
+        })()}
       </div>
     </div>`;
   }).join('');
@@ -3986,8 +4075,9 @@ function gerarHE(){
     <div class="metric-card"><div class="metric-label">Total HE R$</div><div class="metric-value" style="color:var(--green)">${totalValorHEGeral>0?'R$ '+totalValorHEGeral.toFixed(2):'—'}</div></div>
     <div class="metric-card"><div class="metric-label">Refeições</div><div class="metric-value" style="color:#10b981">${totalRefGeral>0?'×'+totalRefGeral:'—'}</div></div>
     <div class="metric-card"><div class="metric-label">Total Refeições R$</div><div class="metric-value" style="color:#10b981">${totalValorRefGeral>0?'R$ '+totalValorRefGeral.toFixed(2):'—'}</div></div>
+    ${totalDiretoGeral>0?'<div class="metric-card"><div class="metric-label">Combustível (Direto)</div><div class="metric-value" style="color:#fbbf24">R$ '+totalDiretoGeral.toFixed(2)+'</div></div>':''}
     ${totalDescontoGeral>0?'<div class="metric-card"><div class="metric-label">Descontos</div><div class="metric-value" style="color:#f87171">− R$ '+totalDescontoGeral.toFixed(2)+'</div></div>':''}
-    <div class="metric-card" style="${totalDescontoGeral>0?'border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)':''}"><div class="metric-label">Total a Pagar</div><div class="metric-value" style="color:var(--green);font-size:18px">${(totalValorHEGeral+totalValorRefGeral)>0?'R$ '+Math.max(0,totalValorHEGeral+totalValorRefGeral-totalDescontoGeral).toFixed(2):'—'}</div></div>
+    <div class="metric-card" style="${totalDescontoGeral>0?'border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06)':''}"><div class="metric-label">Total a Pagar</div><div class="metric-value" style="color:var(--green);font-size:18px">${(totalValorHEGeral+totalValorRefGeral+totalDiretoGeral)>0?'R$ '+Math.max(0,totalValorHEGeral+totalValorRefGeral+totalDiretoGeral-totalDescontoGeral).toFixed(2):'—'}</div></div>
   </div>
   <div class="card">
     <div class="card-title">Detalhamento — ${nomeMes}</div>
