@@ -4023,7 +4023,11 @@ function gerarHE(){
     const totalHE=regsOp.reduce((a,r)=>a+(r.heOperador||0),0);
     const totalRef=regsOp.reduce((a,r)=>a+(r.refeicoes||0),0);
     const totalDireto=regsOp.reduce((a,r)=>a+(r.valorDireto||0),0);
-    if(!totalHE&&!totalRef&&!totalDireto) return ''; // oculta operadores sem HE, refeições ou direto
+    const chaveDescCheck=`${u.id}_${mes}`;
+    const temDesconto=(descontosHE[chaveDescCheck]||[]).length>0;
+    const temFolga=(folgasOp[u.id+'_'+mes]||[]).length>0;
+    // Oculta só se não há nenhuma atividade nem gestão administrativa
+    if(!totalHE&&!totalRef&&!totalDireto&&!temDesconto&&!temFolga) return '';
     opComHE++;
     const valorHora=(u.heValor&&u.heValor>0)?u.heValor:config.heValor;
     const totalValorHE=totalHE*valorHora;
@@ -4119,9 +4123,13 @@ function gerarHE(){
           const regsDireto=regsComHE.filter(r=>(r.valorDireto||0)>0);
           const totalD=regsDireto.reduce((a,r)=>a+(r.valorDireto||0),0);
           const lista=regsDireto.map(r=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">'+'<div style="font-size:12px;flex:1;min-width:0"><span style="color:#fbbf24;font-weight:600">'+(r.foiDireto==='carro'?'🚗':'🏍')+' '+fmtData(r.data)+'</span>'+(r.osNum?'<span style="color:var(--dim);margin-left:6px">OS '+r.osNum+(r.cliente?' · '+r.cliente.split(' ')[0]:'')+'</span>':r.heAvulsa&&r.evento?'<span style="color:var(--dim);margin-left:6px">'+r.evento+'</span>':'')+'<span style="color:var(--dim);margin-left:8px;font-size:11px">R$ '+(r.valorDireto||0).toFixed(2)+'</span></div>'+'<button onclick="removerDiretoReg(\''+r.id+'\')" title="Remover" style="background:none;border:none;color:var(--dim);font-size:15px;cursor:pointer;padding:0 4px;flex-shrink:0">×</button>'+'</div>').join('');
-          // select de OS do mês para vincular
-          const osDoMes=[...new Set(regsOp.filter(r=>r.osId).map(r=>r.osId))].map(id=>ordens.find(o=>o.id===id)).filter(Boolean);
-          const optsOS='<option value="">— Sem OS (avulso) —</option>'+osDoMes.map(o=>'<option value="'+o.id+'">OS '+o.num+(o.cliente?' · '+o.cliente.split(' ')[0]:'')+'</option>').join('');
+          // select de OS: primeiro as que o operador tem registro no mês, depois as demais abertas
+          const osIdsOp=[...new Set(regsOp.filter(r=>r.osId).map(r=>r.osId))];
+          const osComReg=osIdsOp.map(id=>ordens.find(o=>o.id===id)).filter(Boolean);
+          const osAbertas=ordens.filter(o=>o.status!=='fechada'&&!osIdsOp.includes(o.id));
+          const optsOS='<option value="">— Sem OS (avulso) —</option>'
+            +(osComReg.length?'<optgroup label="OS com registro no mês">'+osComReg.map(o=>'<option value="'+o.id+'">OS '+o.num+(o.cliente?' · '+o.cliente.split(' ')[0]:'')+'</option>').join('')+'</optgroup>':'')
+            +(osAbertas.length?'<optgroup label="Demais OS abertas">'+osAbertas.map(o=>'<option value="'+o.id+'">OS '+o.num+(o.cliente?' · '+o.cliente.split(' ')[0]:'')+'</option>').join('')+'</optgroup>':'');
           return '<div style="border-top:1px solid rgba(251,191,36,.2);margin-top:10px;padding-top:10px">'
             +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
             +'<div style="font-size:11px;color:#fbbf24;font-weight:600">🚗 Foi Direto no mês'+(totalD>0?' <span style="background:rgba(251,191,36,.15);color:#fbbf24;border-radius:10px;padding:1px 7px;font-size:11px">R$ '+totalD.toFixed(2)+'</span>':'')+'</div>'
