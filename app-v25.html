@@ -3944,6 +3944,70 @@ function removerFolga(opId, mes, folgaId){
   gerarHE();
 }
 
+function registrarDiretoHE(opId, mes){
+  const dataEl=document.getElementById('direto-data-'+opId);
+  const tipoEl=document.getElementById('direto-tipo-'+opId);
+  const osEl=document.getElementById('direto-os-'+opId);
+  const data=(dataEl?.value||'').trim();
+  const tipo=tipoEl?.value||'carro';
+  const osVinc=osEl?.value||'';
+  if(!data){showToast('Informe a data.','err');return;}
+  const custo=_foiDiretoCusto(tipo);
+
+  // Tenta achar um registro do operador nessa data (prioriza o da OS vinculada)
+  let reg=osVinc
+    ? registros.find(r=>r.operadorId===opId&&r.data===data&&r.osId===osVinc)
+    : registros.find(r=>r.operadorId===opId&&r.data===data);
+
+  if(reg){
+    // Já existe registro: só atualiza o direto
+    reg.foiDireto=tipo;
+    reg.valorDireto=custo;
+    fbUpdate('registros/'+reg.id,{foiDireto:tipo,valorDireto:custo}).catch(()=>{});
+    DB.set('sos_registros',registros);
+    showToast('Foi Direto registrado!');
+  } else {
+    // Não existe registro: cria um registro leve só para direto
+    const os=osVinc?ordens.find(o=>o.id===osVinc):null;
+    const op=usuarios.find(u=>u.id===opId);
+    reg={
+      id:'direto_'+Date.now(),
+      foiDireto:tipo,valorDireto:custo,
+      data,operadorId:opId,operadorNome:op?.nome||'',
+      osId:os?.id||null,osNum:os?.num||'',cliente:os?.cliente||'',
+      heAvulsa:!os,evento:os?'':(tipoEl?.options[tipoEl.selectedIndex]?.text||''),
+      heOperador:0,valorHEOperador:0,refeicoes:0,valorRefeicao:0,heMaquina:0,totalHoras:0,geradoresReg:[],
+      lancadoPorAdmin:true,lancadoPor:sessaoAtual?.nome||'',
+      status:'enviado',criadoEm:new Date().toISOString()
+    };
+    registros.push(reg);
+    fbUpdate('registros/'+reg.id,reg).catch(()=>{});
+    DB.set('sos_registros',registros);
+    showToast('Foi Direto registrado!');
+  }
+  if(dataEl) dataEl.value='';
+  gerarHE();
+}
+
+function removerDiretoReg(regId){
+  const r=registros.find(x=>x.id===regId);
+  if(!r) return;
+  // Se o registro tem só o "direto" (sem HE, refeição), remove o registro inteiro
+  if(!(r.heOperador||0) && !(r.refeicoes||0) && r.id.startsWith('direto_')){
+    _markDeleted(regId);
+    registros=registros.filter(x=>x.id!==regId);
+    fbRemove('registros/'+regId).catch(()=>{});
+  } else {
+    // Tem outros dados: só zera os campos de direto
+    r.foiDireto='nao';
+    r.valorDireto=0;
+    fbUpdate('registros/'+regId,{foiDireto:'nao',valorDireto:0}).catch(()=>{});
+  }
+  DB.set('sos_registros',registros);
+  showToast('Registro de combustível removido.');
+  gerarHE();
+}
+
 function gerarHE(){
   const mes=document.getElementById('he-mes')?.value;
   if(!mes) return;
@@ -4054,10 +4118,27 @@ function gerarHE(){
         ${(()=>{
           const regsDireto=regsComHE.filter(r=>(r.valorDireto||0)>0);
           const totalD=regsDireto.reduce((a,r)=>a+(r.valorDireto||0),0);
-          const lista=regsDireto.map(r=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border)">'+'<div style="font-size:12px"><span style="color:#fbbf24;font-weight:600">'+(r.foiDireto==='carro'?'🚗':'🏍')+' '+fmtData(r.data)+'</span>'+(r.osNum||r.evento?'<span style="color:var(--dim);margin-left:6px">'+(r.heAvulsa?(r.evento||'Avulsa'):'OS '+r.osNum)+'</span>':'')+'<span style="color:var(--dim);margin-left:8px;font-size:11px">R$ '+(r.valorDireto||0).toFixed(2)+'</span></div>'+'<button onclick="editarHETimeReg(\''+r.id+'\')" style="background:none;border:1px solid rgba(251,191,36,.3);color:#fbbf24;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer">✏️ Editar</button>'+'</div>').join('');
+          const lista=regsDireto.map(r=>'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">'+'<div style="font-size:12px;flex:1;min-width:0"><span style="color:#fbbf24;font-weight:600">'+(r.foiDireto==='carro'?'🚗':'🏍')+' '+fmtData(r.data)+'</span>'+(r.osNum?'<span style="color:var(--dim);margin-left:6px">OS '+r.osNum+(r.cliente?' · '+r.cliente.split(' ')[0]:'')+'</span>':r.heAvulsa&&r.evento?'<span style="color:var(--dim);margin-left:6px">'+r.evento+'</span>':'')+'<span style="color:var(--dim);margin-left:8px;font-size:11px">R$ '+(r.valorDireto||0).toFixed(2)+'</span></div>'+'<button onclick="removerDiretoReg(\''+r.id+'\')" title="Remover" style="background:none;border:none;color:var(--dim);font-size:15px;cursor:pointer;padding:0 4px;flex-shrink:0">×</button>'+'</div>').join('');
+          // select de OS do mês para vincular
+          const osDoMes=[...new Set(regsOp.filter(r=>r.osId).map(r=>r.osId))].map(id=>ordens.find(o=>o.id===id)).filter(Boolean);
+          const optsOS='<option value="">— Sem OS (avulso) —</option>'+osDoMes.map(o=>'<option value="'+o.id+'">OS '+o.num+(o.cliente?' · '+o.cliente.split(' ')[0]:'')+'</option>').join('');
           return '<div style="border-top:1px solid rgba(251,191,36,.2);margin-top:10px;padding-top:10px">'
-            +'<div style="font-size:11px;color:#fbbf24;font-weight:600;margin-bottom:6px">🚗 Foi Direto no mês'+(regsDireto.length>0?' <span style="background:rgba(251,191,36,.15);color:#fbbf24;border-radius:10px;padding:1px 7px;font-size:11px">R$ '+totalD.toFixed(2)+'</span>':'')+'</div>'
-            +(regsDireto.length>0?'<div style="margin-bottom:4px">'+lista+'</div>':'<div style="font-size:12px;color:var(--dim)">Nenhum registro com combustível neste mês.</div>')
+            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+            +'<div style="font-size:11px;color:#fbbf24;font-weight:600">🚗 Foi Direto no mês'+(totalD>0?' <span style="background:rgba(251,191,36,.15);color:#fbbf24;border-radius:10px;padding:1px 7px;font-size:11px">R$ '+totalD.toFixed(2)+'</span>':'')+'</div>'
+            +'</div>'
+            +(regsDireto.length>0?'<div style="margin-bottom:8px">'+lista+'</div>':'')
+            // form inline de adicionar
+            +'<div style="background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+            +'<div class="field" style="margin:0"><label style="font-size:11px">Data</label><input type="date" id="direto-data-'+u.id+'" style="padding:7px 10px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;color:var(--fg);font-size:13px;width:100%"/></div>'
+            +'<div class="field" style="margin:0"><label style="font-size:11px">Tipo</label>'
+            +'<select id="direto-tipo-'+u.id+'" style="padding:7px 10px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;color:var(--fg);font-size:13px;width:100%">'
+            +'<option value="carro">🚗 Carro — R$ 30,00</option>'
+            +'<option value="moto">🏍 Moto — R$ 25,00</option>'
+            +'</select></div>'
+            +'<div class="field" style="margin:0;grid-column:1/-1"><label style="font-size:11px">Vincular a OS</label>'
+            +'<select id="direto-os-'+u.id+'" style="padding:7px 10px;background:var(--dark);border:1px solid rgba(251,191,36,.3);border-radius:8px;color:var(--fg);font-size:13px;width:100%">'+optsOS+'</select></div>'
+            +'<button onclick="registrarDiretoHE(\''+u.id+'\',\''+mes+'\')" style="grid-column:1/-1;padding:8px 12px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.35);color:#fbbf24;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">+ Registrar Foi Direto</button>'
+            +'</div>'
             +'</div>';
         })()}
       </div>
