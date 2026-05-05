@@ -2600,9 +2600,11 @@ function finalizarReg(){
       return !g.part||!g.par;
     });
     if(semHorario){
+      // DEBUG: mostra exatamente o que foi coletado para diagnóstico iOS
+      const _dbg=ativos.map((g,i)=>`G${i}: rodou=${g.rodou} virou=${g.virou} part="${g.part}" par="${g.par}" dtLiga="${g.dtLiga}" dtDesliga="${g.dtDesliga}"`).join('\n');
       const _msg=semHorario.virou
-        ? 'Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
-        : 'Preencha os horários de Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
+        ? 'Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).\n\nDEBUG:\n'+_dbg
+        : 'Preencha os horários de Liga e Desliga do gerador '+(semHorario.potencia||'')+' (Liga e Desliga).\n\nDEBUG:\n'+_dbg;
       _erroFinalizarReg(_msg);
       return;
     }
