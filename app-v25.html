@@ -2600,11 +2600,9 @@ function finalizarReg(){
       return !g.part||!g.par;
     });
     if(semHorario){
-      // DEBUG: mostra exatamente o que foi coletado para diagnóstico iOS
-      const _dbg=ativos.map((g,i)=>`G${i}: rodou=${g.rodou} virou=${g.virou} part="${g.part}" par="${g.par}" dtLiga="${g.dtLiga}" dtDesliga="${g.dtDesliga}"`).join('\n');
       const _msg=semHorario.virou
-        ? 'Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).\n\nDEBUG:\n'+_dbg
-        : 'Preencha os horários de Liga e Desliga do gerador '+(semHorario.potencia||'')+' (Liga e Desliga).\n\nDEBUG:\n'+_dbg;
+        ? 'Preencha a data/hora de liga e desliga do gerador '+(semHorario.potencia||'')+' (virou).'
+        : 'Preencha os horários de Liga e Desliga do gerador '+(semHorario.potencia||'')+'.';
       _erroFinalizarReg(_msg);
       return;
     }
@@ -2698,7 +2696,7 @@ function finalizarReg(){
   registros.push(lastReg);
   DB.set('sos_registros',registros);
   // Avança imediatamente — não espera Firebase
-  try{_finalizarRegUI();}catch(e){_erroFinalizarReg('Erro interno ao avançar tela:\n'+e.message+'\n\nStack: '+e.stack?.slice(0,300));return;}
+  _finalizarRegUI();
   // Firebase: tenta salvar com retry automático (3 tentativas)
   // Se payload ainda for grande demais (assinatura), tenta sem assinaturas como fallback
   function _tentarSalvarReg(tentativa){
@@ -2735,27 +2733,17 @@ function finalizarReg(){
 function _finalizarRegUI(){
   _sigClienteTemp=null;
   _sigOperadorTemp=null;
-  // Oculta todos os steps
-  for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
-  // Se op-ok não existe no DOM, cria inline em vez de reconstruir form inteiro
-  // (buildOpForm() no iOS Safari causava re-render que engolia o estado e dava aparência de "travado")
-  if(!document.getElementById('op-ok')){
-    const _okDiv=document.createElement('div');
-    _okDiv.id='op-ok';
-    _okDiv.style.cssText='padding:24px;text-align:center';
-    _okDiv.innerHTML='<div style="font-size:40px;margin-bottom:12px">✅</div><div style="font-size:16px;font-weight:700;color:var(--green)">Dia salvo com sucesso!</div>';
-    const _cont=document.getElementById('op-form')||document.querySelector('[id^="op"]')?.parentElement;
-    if(_cont) _cont.appendChild(_okDiv);
+  // Reconstrói o form do zero garantindo que op-ok esteja no DOM correto
+  // (iOS Safari pode perder referências de elementos gerados dinamicamente)
+  buildOpForm(opOS);
+  setTimeout(function(){
+    for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
     _renderResumoOS();
     showToast('Dia salvo! ✓');
+    const opOk=document.getElementById('op-ok');
+    if(opOk) opOk.style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
-    return;
-  }
-  _renderResumoOS();
-  showToast('Dia salvo! ✓');
-  const opOk=document.getElementById('op-ok');
-  if(opOk) opOk.style.display='block';
-  window.scrollTo({top:0,behavior:'smooth'});
+  },150);
 }
 
 function _renderResumoOS(){
