@@ -2637,11 +2637,25 @@ function finalizarReg(){
   // HE máquina — soma de todos os geradores que rodaram
   const heM=geradoresReg.reduce((a,g)=>a+(g.heM||0),0);
   // Captura assinaturas — usa canvas atual ou backup temporário
+  // Comprime para JPEG 0.55 para evitar payload enorme no Firebase (Safari/iOS falha silenciosamente com PNG grande)
+  function _comprimirSig(dataUrl){
+    if(!dataUrl||dataUrl==='data:,') return null;
+    try{
+      const img=new Image();
+      img.src=dataUrl;
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth||400;c.height=img.naturalHeight||200;
+      const ctx=c.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(img,0,0);
+      return c.toDataURL('image/jpeg',0.55);
+    }catch(e){return dataUrl;}
+  }
   const sigCliente=sigPads['sigCanvas']?.hasData
-    ? document.getElementById('sigCanvas').toDataURL('image/png')
+    ? _comprimirSig(document.getElementById('sigCanvas').toDataURL('image/png'))
     : (_sigClienteTemp||null);
   const sigOperador=sigPads['sigCanvasOp']?.hasData
-    ? document.getElementById('sigCanvasOp').toDataURL('image/png')
+    ? _comprimirSig(document.getElementById('sigCanvasOp').toDataURL('image/png'))
     : (_sigOperadorTemp||null);
   // Assinatura do operador: recomendada no último dia, mas NÃO bloqueia o envio
   // (bloqueios de assinatura causavam travamento silencioso em iOS PWA)
@@ -2683,14 +2697,20 @@ function finalizarReg(){
   DB.set('sos_registros',registros);
   // Avança imediatamente — não espera Firebase
   _finalizarRegUI();
-  // Firebase: tenta salvar com retry automático (3 tentativas, 5s cada)
+  // Firebase: tenta salvar com retry automático (3 tentativas)
+  // Se payload ainda for grande demais (assinatura), tenta sem assinaturas como fallback
   function _tentarSalvarReg(tentativa){
     if(tentativa>3){
       showToast('Salvo localmente. Será enviado quando houver conexão.','ok');
       return;
     }
+    var payload=lastReg;
+    // Fallback: se for 3ª tentativa, remove assinaturas do payload Firebase (ficam só no localStorage)
+    if(tentativa===3){
+      payload=Object.assign({},lastReg,{assinatura:'(local)',assinaturaOp:'(local)'});
+    }
     var _timeout=new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},8000);});
-    Promise.race([db.ref('registros/'+lastReg.id).set(lastReg),_timeout])
+    Promise.race([db.ref('registros/'+lastReg.id).set(payload),_timeout])
       .then(function(){
         lastReg.status='enviado';
         var idx=registros.findIndex(function(r){return r.id===lastReg.id;});
@@ -2698,9 +2718,10 @@ function finalizarReg(){
         DB.set('sos_registros',registros);
         showToast('Dia salvo e enviado! ✓','ok');
       })
-      .catch(function(){
+      .catch(function(err){
+        console.warn('Firebase save tentativa '+tentativa+' falhou:',err);
         if(tentativa<3){
-          setTimeout(function(){_tentarSalvarReg(tentativa+1);},3000);
+          setTimeout(function(){_tentarSalvarReg(tentativa+1);},2000);
         } else {
           showToast('Salvo localmente. Será enviado quando houver conexão.','ok');
         }
@@ -2714,17 +2735,18 @@ function _finalizarRegUI(){
   _sigOperadorTemp=null;
   // Oculta todos os steps
   for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
-  // Se op-ok não existe no DOM (form foi reconstruído), rebuild primeiro
+  // Se op-ok não existe no DOM, cria inline em vez de reconstruir form inteiro
+  // (buildOpForm() no iOS Safari causava re-render que engolia o estado e dava aparência de "travado")
   if(!document.getElementById('op-ok')){
-    buildOpForm(opOS);
-    setTimeout(()=>{
-      for(let i=0;i<4;i++){const el=document.getElementById('op'+i);if(el)el.style.display='none';}
-      _renderResumoOS();
-      showToast('Dia salvo! ✓');
-      const opOk=document.getElementById('op-ok');
-      if(opOk) opOk.style.display='block';
-      window.scrollTo({top:0,behavior:'smooth'});
-    },100);
+    const _okDiv=document.createElement('div');
+    _okDiv.id='op-ok';
+    _okDiv.style.cssText='padding:24px;text-align:center';
+    _okDiv.innerHTML='<div style="font-size:40px;margin-bottom:12px">✅</div><div style="font-size:16px;font-weight:700;color:var(--green)">Dia salvo com sucesso!</div>';
+    const _cont=document.getElementById('op-form')||document.querySelector('[id^="op"]')?.parentElement;
+    if(_cont) _cont.appendChild(_okDiv);
+    _renderResumoOS();
+    showToast('Dia salvo! ✓');
+    window.scrollTo({top:0,behavior:'smooth'});
     return;
   }
   _renderResumoOS();
