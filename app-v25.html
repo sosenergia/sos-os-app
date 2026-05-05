@@ -558,7 +558,35 @@ function fbSaveDescontos() {
 // ════════════════════════════════════════
 const DB={
   get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},
-  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))
+  set:(k,v)=>{
+    // Para registros: remove assinaturas de itens já enviados ao Firebase para evitar quota overflow no iOS
+    var val=v;
+    if(k==='sos_registros'&&Array.isArray(v)){
+      val=v.map(function(r){
+        if(r.status==='enviado'&&(r.assinatura||r.assinaturaOp)){
+          var c=Object.assign({},r);
+          if(c.assinatura&&c.assinatura!=='(local)') c.assinatura='(local)';
+          if(c.assinaturaOp&&c.assinaturaOp!=='(local)') c.assinaturaOp='(local)';
+          return c;
+        }
+        return r;
+      });
+    }
+    try{
+      localStorage.setItem(k,JSON.stringify(val));
+    }catch(e){
+      // Quota excedida: tenta limpar assinaturas de todos os registros e retry
+      if(k==='sos_registros'&&Array.isArray(val)){
+        var compressed=val.map(function(r){
+          var c=Object.assign({},r);
+          if(c.assinatura&&c.assinatura!=='(local)') c.assinatura='(local)';
+          if(c.assinaturaOp&&c.assinaturaOp!=='(local)') c.assinaturaOp='(local)';
+          return c;
+        });
+        try{localStorage.setItem(k,JSON.stringify(compressed));}catch(e2){console.warn('DB.set quota overflow:',e2);}
+      }
+    }
+  }
 };
 let ordens     = DB.get('sos_ordens',[]);
 let registros  = DB.get('sos_registros',[]);
