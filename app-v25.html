@@ -773,25 +773,7 @@ function renderOSList(){
   const el=document.getElementById('os-list');
   if(!el) return;
   // OS fechadas não aparecem aqui — ficam na aba Status
-  // Auto-fechar OS cuja dataRetorno já passou E TODOS os operadores enviaram
-  // (evita fechar antes do último operador entregar)
-  const hoje=new Date().toISOString().split('T')[0];
-  ordens.forEach(o=>{
-    if(o.status==='fechada') return;
-    if(!o.dataRetorno||o.dataRetorno>=hoje) return; // evento ainda não terminou
-    if(o.tipoLocacao&&o.tipoLocacao!=='evento') return; // periódica não auto-fecha
-    // Monta lista de operadores atribuídos
-    const opsIds=(o.operadores&&o.operadores.length)
-      ? o.operadores.map(op=>op.userId).filter(Boolean)
-      : (o.operadorId?[o.operadorId]:[]);
-    if(!opsIds.length) return; // sem operador — não auto-fecha
-    // Só fecha se TODOS os operadores têm pelo menos 1 registro enviado
-    const todosEnviaram=opsIds.every(uid=>registros.some(r=>r.osId===o.id&&r.operadorId===uid&&r.status==='enviado'));
-    if(todosEnviaram){
-      o.status='fechada';
-      db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{});
-    }
-  });
+  // Fechamento SOMENTE manual pelo ADM — sem auto-fechamento
 
   const lista=ordens.filter(o=>o.status!=='fechada').slice().reverse();
   if(!lista.length){el.innerHTML='<p style="color:var(--dim);font-size:13px;padding:6px 0">Nenhuma OS ativa. OS encerradas estão na aba <strong style="color:var(--dim)">Status</strong>.</p>';return;}
@@ -880,10 +862,17 @@ function renderOSList(){
   }
 
   // Admin: separa em grupos
-  // Periódicas (mensal/quinzenal/semanal) — grupo próprio
-  const grpPeriodica=lista.filter(os=>os.tipoLocacao&&os.tipoLocacao!=='evento');
-  // Lista sem as periódicas para os demais grupos
   const listaEvento=lista.filter(os=>!os.tipoLocacao||os.tipoLocacao==='evento');
+  // Periódicas em andamento (sem devolução ainda)
+  const grpPeriodica=lista.filter(os=>{
+    if(!os.tipoLocacao||os.tipoLocacao==='evento') return false;
+    return !registros.some(r=>r.osId===os.id&&r.checkDevolucao);
+  });
+  // Periódicas com devolução — aguardando fechamento manual do ADM
+  const grpPeriodicaDev=lista.filter(os=>{
+    if(!os.tipoLocacao||os.tipoLocacao==='evento') return false;
+    return registros.some(r=>r.osId===os.id&&r.checkDevolucao);
+  });
   // Grupo 1 — tem rascunho pendente de envio pelo operador
   const grpRascunho=listaEvento.filter(os=>{
     return registros.some(r=>r.osId===os.id&&r.status==='rascunho');
@@ -893,10 +882,9 @@ function renderOSList(){
     const regs=registros.filter(r=>r.osId===os.id);
     return regs.length>0 && regs.some(r=>r.status==='enviado') && !regs.some(r=>r.status==='rascunho');
   });
-  // Grupo 3 — sem nenhum registro ainda (ou só registros com status inválido)
+  // Grupo 3 — sem nenhum registro ainda
   const grpSemReg=listaEvento.filter(os=>{
     const regs=registros.filter(r=>r.osId===os.id);
-    // Considera "sem registro" apenas se não tem nenhum ou todos têm status undefined/null/''
     return regs.length===0 || regs.every(r=>!r.status);
   });
   // Grupo 4 — catch-all: tem registros mas não se encaixa nos grupos acima (dias mistos)
@@ -916,10 +904,10 @@ function renderOSList(){
   }
 
   el.innerHTML=
-    _section('Locações Mensais em Andamento','#CC0000','rgba(204,0,0,.07)','📅',grpPeriodica)+
+    _section('Locações Periódicas em Andamento','#CC0000','rgba(204,0,0,.07)','📅',grpPeriodica)+
+    _section('Enviado pelo operador — pendente de fechamento','#34d399','rgba(16,185,129,.07)','✅',[...grpEnviado,...grpPeriodicaDev])+
     _section('Aguardando envio do operador','#f59e0b','rgba(234,179,8,.08)','⏳',grpRascunho)+
     _section('Com registros — verificar','#a855f7','rgba(168,85,247,.07)','📋',grpMisto)+
-    _section('Enviado pelo operador — pendente da sua finalização','#34d399','rgba(16,185,129,.07)','✅',grpEnviado)+
     _section('Sem registros ainda','#94a3b8','rgba(100,116,139,.07)','📋',grpSemReg);
 }
 
@@ -2095,20 +2083,13 @@ function finalizarLocacaoPeriodica(){
     status:'enviado',
     criadoEm:new Date().toISOString()
   };
-  // Se é devolução, fechar a OS
-  if(_lpTipo==='devolucao'){
-    const osIdx=ordens.findIndex(o=>o.id===opOS.id);
-    if(osIdx>=0) ordens[osIdx].status='fechada';
-  }
+  // Devolução NÃO fecha a OS — ADM fecha manualmente
   // Salva no localStorage imediatamente (não perde se cair)
   registros=registros.filter(r=>r.id!==reg.id);
   registros.push(reg);
   DB.set('sos_registros',registros);
   // Usa set() para registro individual — mais confiável que update() com payload grande
-  const doSave=()=>Promise.all([
-    db.ref('registros/'+reg.id).set(reg),
-    _lpTipo==='devolucao'?db.ref('ordens/'+opOS.id+'/status').set('fechada'):Promise.resolve()
-  ]);
+  const doSave=()=>db.ref('registros/'+reg.id).set(reg);
   // Tenta salvar com timeout de 20s; em caso de falha, tenta mais 1x antes de mostrar erro
   const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
   withTimeout(doSave(),20000)
@@ -3234,32 +3215,8 @@ function loadRelatorio(){
     const fim=o.dataRetorno||o.dataSaida||'';
     return ini.startsWith(mesSel)||fim.startsWith(mesSel)||(ini<=mesSel+'-31'&&fim>=mesSel+'-01');
   });
-  // Auto-fechar OS de evento com dataRetorno passado + TODOS operadores enviaram
-  doMes.forEach(o=>{
-    if(o.status==='fechada') return;
-    if(!o.dataRetorno||o.dataRetorno>=hoje) return;
-    if(o.tipoLocacao&&o.tipoLocacao!=='evento') return;
-    const opsIds2=(o.operadores&&o.operadores.length)
-      ? o.operadores.map(op=>op.userId).filter(Boolean)
-      : (o.operadorId?[o.operadorId]:[]);
-    if(!opsIds2.length) return;
-    const todosEnviaram2=opsIds2.every(uid=>registros.some(r=>r.osId===o.id&&r.operadorId===uid&&r.status==='enviado'));
-    if(todosEnviaram2){ o.status='fechada'; db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{}); }
-  });
-  // Inclui OS "praticamente encerradas": evento passou + TODOS operadores enviaram, mesmo sem status=fechada
-  // Periódicas: encerradas quando têm devolução registrada
-  const encerradasMes=doMes.filter(o=>{
-    if(o.status==='fechada') return true;
-    if(o.tipoLocacao&&o.tipoLocacao!=='evento'){
-      return registros.some(r=>r.osId===o.id&&r.checkDevolucao);
-    }
-    if(!o.dataRetorno||o.dataRetorno>=hoje) return false;
-    const opsIds3=(o.operadores&&o.operadores.length)
-      ? o.operadores.map(op=>op.userId).filter(Boolean)
-      : (o.operadorId?[o.operadorId]:[]);
-    if(!opsIds3.length) return registros.some(r=>r.osId===o.id&&r.status==='enviado');
-    return opsIds3.every(uid=>registros.some(r=>r.osId===o.id&&r.operadorId===uid&&r.status==='enviado'));
-  });
+  // Encerradas = somente status 'fechada' (fechamento manual pelo ADM)
+  const encerradasMes=doMes.filter(o=>o.status==='fechada');
 
   // Gera opções de mês: todos os meses que têm OS, mais os últimos 6
   const mesesComOS=[...new Set(ordens.map(o=>(o.dataSaida||'').slice(0,7)).filter(m=>m>='2025-01'&&m<='2099-12'))].sort().reverse();
