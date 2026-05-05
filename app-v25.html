@@ -2698,7 +2698,7 @@ function finalizarReg(){
   registros.push(lastReg);
   DB.set('sos_registros',registros);
   // Avança imediatamente — não espera Firebase
-  _finalizarRegUI();
+  try{_finalizarRegUI();}catch(e){_erroFinalizarReg('Erro interno ao avançar tela:\n'+e.message+'\n\nStack: '+e.stack?.slice(0,300));return;}
   // Firebase: tenta salvar com retry automático (3 tentativas)
   // Se payload ainda for grande demais (assinatura), tenta sem assinaturas como fallback
   function _tentarSalvarReg(tentativa){
