@@ -1548,7 +1548,13 @@ function loadOperador(){
     if(isAdmin) return true;
     const atribuida=(o.operadores&&o.operadores.some(op=>op.userId===sessaoAtual.id||(op.userId&&usuarios.find(u=>u.id===op.userId)&&usuarios.find(u=>u.id===op.userId).nome===sessaoAtual.nome)))||o.operadorId===sessaoAtual.id||o.operadorNome===sessaoAtual.nome;
     if(!atribuida) return false;
-    // Oculta OS totalmente enviadas (sem rascunho pendente) — vão pro Histórico
+    // OS periódica: mantém visível até ter devolução registrada
+    if(o.tipoLocacao&&o.tipoLocacao!=='evento'){
+      const regsP=registros.filter(r=>r.osId===o.id);
+      const temDev=regsP.some(r=>r.checkDevolucao);
+      return !temDev; // some só após devolução
+    }
+    // OS de evento: oculta quando totalmente enviada (sem rascunho pendente) — vai pro Histórico
     const temRascunho=registros.some(r=>r.osId===o.id&&r.operadorId===sessaoAtual.id&&r.status==='rascunho');
     const temEnviado=registros.some(r=>r.osId===o.id&&r.operadorId===sessaoAtual.id&&r.status==='enviado');
     if(temEnviado&&!temRascunho) return false;
@@ -3165,7 +3171,16 @@ function loadRelatorio(){
   const mesSel=localStorage.getItem('sos_status_mes')||mesAtual;
 
   // Classifica cada OS
-  const emAndamento=ordens.filter(o=>o.status!=='fechada'&&o.dataSaida<=hoje&&o.dataRetorno>=hoje);
+  // Periódicas sem devolução ficam em "em andamento" mesmo após dataRetorno
+  const emAndamento=ordens.filter(o=>{
+    if(o.status==='fechada') return false;
+    if(!o.dataSaida||o.dataSaida>hoje) return false;
+    if(o.tipoLocacao&&o.tipoLocacao!=='evento'){
+      const temDev=registros.some(r=>r.osId===o.id&&r.checkDevolucao);
+      return !temDev;
+    }
+    return o.dataRetorno>=hoje;
+  });
   const futuras=ordens.filter(o=>o.status!=='fechada'&&o.dataSaida>hoje);
   const doMes=ordens.filter(o=>{
     const ini=o.dataSaida||'';
@@ -3185,9 +3200,12 @@ function loadRelatorio(){
     if(todosEnviaram2){ o.status='fechada'; db.ref('ordens/'+o.id+'/status').set('fechada').catch(()=>{}); }
   });
   // Inclui OS "praticamente encerradas": evento passou + TODOS operadores enviaram, mesmo sem status=fechada
+  // Periódicas: encerradas quando têm devolução registrada
   const encerradasMes=doMes.filter(o=>{
     if(o.status==='fechada') return true;
-    if(o.tipoLocacao&&o.tipoLocacao!=='evento') return false;
+    if(o.tipoLocacao&&o.tipoLocacao!=='evento'){
+      return registros.some(r=>r.osId===o.id&&r.checkDevolucao);
+    }
     if(!o.dataRetorno||o.dataRetorno>=hoje) return false;
     const opsIds3=(o.operadores&&o.operadores.length)
       ? o.operadores.map(op=>op.userId).filter(Boolean)
