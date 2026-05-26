@@ -1488,6 +1488,7 @@ function verOS(id){
   </div>
   ${os.status!=='fechada'?'<button class="btn btn-green" onclick="fecharOSConf(\x27'+os.id+'\x27)">✓ Fechar OS</button>':'<button class="btn btn-primary" style="background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.4);color:var(--blue)" onclick="reabrirOS(\x27'+os.id+'\x27)">🔓 Reabrir OS</button>'}
   ${isAdminView?'<button class="btn btn-primary" style="margin-top:8px;background:#1a1a2e;border:1px solid var(--red)" onclick="gerarPDFOS(\x27'+os.id+'\x27)">📄 Gerar PDF da OS</button>':''}
+  ${isAdminView?'<button class="btn btn-primary" style="margin-top:8px;background:#0a2e1a;border:1px solid #22c55e;color:#22c55e" onclick="gerarPDFCliente(\x27'+os.id+'\x27)">📊 Relatório para o Cliente</button>':''}
   <button class="btn btn-ghost" style="margin-top:8px;color:var(--red-light);border-color:rgba(204,0,0,.3)" onclick="excluirOS('${os.id}')">🗑 Excluir OS</button>
   <button class="btn btn-ghost" style="margin-top:8px" onclick="fecharDet()">← Voltar</button>`;
   } // fim _renderVerOS_inner
@@ -6142,6 +6143,167 @@ function gerarPDFOS(osId){
   if(!os) return;
   const regsOS=registros.filter(r=>r.osId===osId);
   _gerarPDF(os, regsOS);
+}
+
+function gerarPDFCliente(osId){
+  const os=ordens.find(o=>o.id===osId);
+  if(!os) return;
+  const regsOS=registros.filter(r=>r.osId===osId&&r.status==='enviado');
+  _gerarPDFCliente(os, regsOS);
+}
+
+function _gerarPDFCliente(os, regsOS){
+  try{
+  regsOS=Array.isArray(regsOS)?regsOS:[];
+  const dataEmissao=new Date().toLocaleString('pt-BR');
+  const eqs=os.equipamentos&&os.equipamentos.length?os.equipamentos:[];
+  const geradores=eqs.filter(e=>e.tipo==='gerador');
+  const acessorios=eqs.filter(e=>e.tipo==='acessorio');
+
+  // Totais por gerador
+  const equipHTML=(()=>{
+    if(!geradores.length) return '';
+    let h='<div style="font-size:9px;font-weight:700;color:#CC0000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Geradores</div>';
+    h+='<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:8px">'+
+      '<thead><tr style="background:#f3f3f3">'+
+        '<th style="padding:5px 8px;text-align:left;border:1px solid #ddd;font-size:9px;color:#555;text-transform:uppercase">Potência</th>'+
+        '<th style="padding:5px 8px;text-align:left;border:1px solid #ddd;font-size:9px;color:#555;text-transform:uppercase">Patrimônio / Local</th>'+
+        '<th style="padding:5px 8px;text-align:right;border:1px solid #ddd;font-size:9px;color:#555;text-transform:uppercase">Horas rodadas</th>'+
+        '<th style="padding:5px 8px;text-align:right;border:1px solid #ddd;font-size:9px;color:#856404;text-transform:uppercase">HE máquina</th>'+
+        '<th style="padding:5px 8px;text-align:right;border:1px solid #ddd;font-size:9px;color:#CC0000;text-transform:uppercase">Valor HE</th>'+
+      '</tr></thead><tbody>'+
+      geradores.map(g=>{
+        const horasG=regsOS.reduce((acc,r)=>{const gd=(r.geradoresReg||[]).find(x=>x.eqId===g.id);if(!gd||(!gd.standby&&gd.rodou===false)||(gd.standby&&!gd.rodou))return acc;return acc+(gd.totalHoras||0);},0);
+        const heMaqG=regsOS.reduce((acc,r)=>{const gd=(r.geradoresReg||[]).find(x=>x.eqId===g.id);if(!gd)return acc;return acc+(gd.heM||0);},0);
+        const heVal=parseFloat(g.heValorGerador)||0;
+        const valorHE=heMaqG*heVal;
+        const _gdPat=(regsOS.map(r=>(r.geradoresReg||[]).find(x=>x.eqId===g.id)).filter(x=>x&&x.patrimonio).pop()||{}).patrimonio;
+        const pat=_gdPat||g.patrimonio||'—';
+        const loc=g.atuacao?'<div style="font-size:8px;color:#555;margin-top:2px">📍 '+g.atuacao+'</div>':'<div style="font-size:8px;color:#bbb;margin-top:2px;border-bottom:1px dotted #ccc;width:80px">&nbsp;</div>';
+        const _corHE=heMaqG>0?'#856404':'#22c55e';
+        const _txtHE=heMaqG>0?'+'+fmtHE(heMaqG)+' extra':'✓ Dentro do contrato';
+        const _txtVal=heVal>0?(valorHE>0?'R$ '+valorHE.toFixed(2)+'<br/><span style="font-size:8px;font-weight:400;color:#888">R$ '+heVal.toFixed(2)+'/hora</span>':'R$ 0,00'):'<span style="color:#888">—</span>';
+        return '<tr>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd;font-weight:700">⚡ '+(g.potencia||'—')+'</td>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd">'+pat+loc+'</td>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right">'+(horasG>0?fmtHE(horasG):'—')+'</td>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:'+_corHE+'">'+_txtHE+'</td>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:'+(valorHE>0?'#CC0000':'#888')+'">'+_txtVal+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+    if(acessorios.length){
+      h+='<div style="font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:4px">Acessórios</div>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'+acessorios.map(a=>'<span style="background:#f3f4f6;border:1px solid #ddd;border-radius:4px;padding:2px 7px;font-size:9px">🔌 '+(a.nome||'—')+(a.quantidade&&a.quantidade!='1'?' ×'+a.quantidade:'')+'</span>').join('')+'</div>';
+    }
+    return h;
+  })();
+
+  // Registros por dia — só horas da máquina, sem dados do funcionário
+  const registrosHTML=regsOS.slice().sort((a,b)=>(a.data||'').localeCompare(b.data||'')).map(r=>{
+    const heM=r.heMaquina||0;
+    const _gRegs=r.geradoresReg&&r.geradoresReg.length?r.geradoresReg:null;
+    const _fDt=dt=>{if(!dt)return'—';const d=new Date(dt);return d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});};
+    const maqHTML=_gRegs?_gRegs.map(gd=>{
+      const _patLabel=gd.patrimonio?(' <span style="color:#888;font-size:9px">('+gd.patrimonio+')</span>'):'';
+      const _t='<div style="font-weight:700;font-size:10px;color:#CC0000;border-top:1px solid #eee;padding-top:4px;margin-top:2px">⚡ '+(gd.potencia||'Gerador')+_patLabel+'</div>';
+      if(gd.standby&&!gd.rodou) return _t+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><span style="font-size:9px;color:#888">Stand-by (não rodou)</span></div>';
+      if(!gd.rodou) return _t+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><span style="font-size:9px;color:#888">Não operou</span></div>';
+      if(gd.virou) return _t+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><span style="font-size:9px;color:#555">Liga</span><span style="font-size:9px">'+_fDt(gd.dtLiga)+'</span><span style="font-size:9px;color:#555">Desliga</span><span style="font-size:9px">'+_fDt(gd.dtDesliga)+'</span><span style="font-size:9px;color:#555">Total</span><span style="font-size:9px">'+(gd.totalHoras||0).toFixed(1)+'h</span>'+(gd.heM>0?'<span style="font-size:9px;color:#856404;font-weight:700">HE</span><span style="font-size:9px;color:#856404;font-weight:700">+'+gd.heM.toFixed(1)+'h</span>':'')+'</div>';
+      return _t+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><span style="font-size:9px;color:#555">Liga</span><span style="font-size:9px">'+(gd.part||'—')+'</span><span style="font-size:9px;color:#555">Desliga</span><span style="font-size:9px">'+(gd.par||'—')+'</span><span style="font-size:9px;color:#555">Total</span><span style="font-size:9px">'+(gd.totalHoras||0).toFixed(1)+'h</span><span style="font-size:9px;color:#555">Horímetro</span><span style="font-size:9px">'+(gd.horIni||'—')+' → '+(gd.horFim||'—')+'</span>'+(gd.heM>0?'<span style="font-size:9px;color:#856404;font-weight:700">HE máq.</span><span style="font-size:9px;color:#856404;font-weight:700">+'+gd.heM.toFixed(1)+'h</span>':'')+'</div>';
+    }).join('')
+    :'<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><span style="font-size:9px;color:#555">Liga</span><span style="font-size:9px">'+(r.partida||'—')+'</span><span style="font-size:9px;color:#555">Desliga</span><span style="font-size:9px">'+(r.parada||'—')+'</span><span style="font-size:9px;color:#555">Total</span><span style="font-size:9px">'+(r.totalHoras||0).toFixed(1)+'h</span></div>';
+
+    // Assinatura do cliente (mas NÃO do operador)
+    const sigHTML=r.assinatura
+      ?'<div style="margin-top:8px;border-top:1px solid #eee;padding-top:8px;display:flex;gap:16px"><div style="flex:1;text-align:center"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#555;margin-bottom:4px">Assinatura do Responsável</div><img src="'+r.assinatura+'" style="max-height:50px;max-width:160px;object-fit:contain"/><div style="font-size:8px;color:#555;margin-top:2px">'+(r.respCliente||'')+'</div></div></div>'
+      :'';
+
+    return '<div style="border:1px solid #ddd;border-radius:6px;padding:10px;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+        '<span style="font-weight:700;font-size:11px">'+fmtData(r.data)+'</span>'+
+        (heM>0?'<span style="background:#fef3c7;color:#856404;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #f59e0b">⚠ HE: +'+fmtHE(heM)+'</span>':'<span style="background:#f0fdf4;color:#16a34a;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #86efac">✓ Dentro do contrato</span>')+
+      '</div>'+maqHTML+sigHTML+'</div>';
+  }).join('');
+
+  // Totais apenas de máquina
+  const totHoras=regsOS.reduce((a,r)=>a+(r.totalHoras||0),0);
+  const totHEMaq=regsOS.reduce((a,r)=>a+(r.heMaquina||0),0);
+  const totValHEMaq=(()=>{
+    if(!totHEMaq||!geradores.length) return 0;
+    return geradores.reduce((acc,g)=>acc+(parseFloat(g.heValorGerador)||0)*totHEMaq,0);
+  })();
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+<title>Relatório Cliente — OS ${os.num} — ${os.cliente||''}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
+  @page{margin:12mm 14mm}
+  .header{background:#0a0a0a;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-left:5px solid #CC0000}
+  .os-title{font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+  .os-sub{font-size:9px;color:#aaa;margin-top:2px}
+  .sec-title{background:#CC0000;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:4px 10px;margin:12px 0 6px;border-radius:3px}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:8px;font-size:10px}
+  .info-row{display:contents}
+  .info-lbl{background:#f9fafb;padding:5px 10px;color:#6b7280;border-bottom:1px solid #e5e7eb;font-weight:600}
+  .info-val{padding:5px 10px;border-bottom:1px solid #e5e7eb}
+  .info-full .info-lbl,.info-full .info-val{grid-column:span 2}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .summary-card{border:1px solid #e5e7eb;border-radius:8px;padding:10px;text-align:center}
+  .summary-val{font-size:18px;font-weight:700;color:#CC0000}
+  .summary-lbl{font-size:9px;color:#6b7280;margin-top:2px;text-transform:uppercase}
+  .footer{border-top:1px solid #e5e7eb;margin-top:16px;padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:#9ca3af}
+  .confidencial{background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:4px 10px;font-size:9px;color:#92400e;text-align:center;margin-bottom:10px}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="os-title">Relatório de Horas — OS ${os.num}</div>
+    <div class="os-sub">${os.cliente||''} · ${os.evento||''}</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:16px;font-weight:700;color:#CC0000">SOS Energia</div>
+    <div style="font-size:9px;color:#aaa">Locação de Geradores</div>
+  </div>
+</div>
+
+<div class="sec-title">Dados do Cliente / Evento</div>
+<div class="info-grid">
+  <div class="info-row"><span class="info-lbl">Cliente</span><span class="info-val">${os.cliente||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Evento</span><span class="info-val">${os.evento||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Endereço</span><span class="info-val">${os.endereco||'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">Cidade/UF</span><span class="info-val">${os.cidade||'—'}${os.uf?' / '+os.uf:''}</span></div>
+  <div class="info-row"><span class="info-lbl">Período</span><span class="info-val">${os.dataSaida?fmtData(os.dataSaida):'—'} → ${os.dataRetorno?fmtData(os.dataRetorno):'—'}</span></div>
+  <div class="info-row"><span class="info-lbl">CNPJ / CPF</span><span class="info-val">${os.cnpj||'—'}</span></div>
+</div>
+
+<div class="sec-title">Resumo</div>
+<div class="summary">
+  <div class="summary-card"><div class="summary-val">${regsOS.length}</div><div class="summary-lbl">Registros</div></div>
+  <div class="summary-card"><div class="summary-val">${totHoras.toFixed(1)}h</div><div class="summary-lbl">Horas totais máquina</div></div>
+  <div class="summary-card" style="border-color:${totHEMaq>0?'#f59e0b':'#86efac'}">
+    <div class="summary-val" style="color:${totHEMaq>0?'#856404':'#16a34a'}">${totHEMaq>0?fmtHE(totHEMaq)+' extra':'✓ OK'}</div>
+    <div class="summary-lbl">HE máquina${totValHEMaq>0?' · R$ '+totValHEMaq.toFixed(2):''}</div>
+  </div>
+</div>
+
+<div class="sec-title">Equipamentos</div>
+<div style="padding:0 4px;margin-bottom:4px">${equipHTML}</div>
+
+<div class="sec-title">Registros Diários (${regsOS.length})</div>
+${registrosHTML||'<p style="color:#aaa;padding:8px 4px;font-size:11px">Nenhum registro.</p>'}
+
+<div class="footer">
+  <span>SOS Energia — Locação de Geradores</span>
+  <span>OS ${os.num} | Emitido em ${dataEmissao}</span>
+</div>
+</body></html>`;
+
+  const win=window.open('','_blank');
+  if(!win){showToast('Popup bloqueado. Permita popups para este site.','err');return;}
+  win.document.write(html);
+  win.document.close();
+  showToast('Relatório do cliente pronto!','ok');
+  }catch(e){showToast('Erro ao gerar relatório: '+(e&&e.message?e.message:String(e)),'err');console.error('_gerarPDFCliente error',e);}
 }
 
 function _gerarPDF(os, regsOS){
