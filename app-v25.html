@@ -6148,7 +6148,7 @@ function gerarPDFOS(osId){
 function gerarPDFCliente(osId){
   const os=ordens.find(o=>o.id===osId);
   if(!os) return;
-  const regsOS=registros.filter(r=>r.osId===osId&&r.status==='enviado');
+  const regsOS=registros.filter(r=>r.osId===osId);
   _gerarPDFCliente(os, regsOS);
 }
 
