@@ -6384,9 +6384,10 @@ ${(()=>{
         // patrimônio: prioriza o preenchido pelo operador nos geradoresReg, fallback para g.patrimonio da OS
         const _gdPatrimonio=(regsOS.map(r=>(r.geradoresReg||[]).find(x=>x.eqId===g.id)).filter(x=>x&&x.patrimonio).pop()||{}).patrimonio;
         const _patrimonioPdf=_gdPatrimonio||g.patrimonio||'—';
+        const _atuacaoPdf=g.atuacao?'<div style="font-size:8px;color:#555;margin-top:2px">📍 '+g.atuacao+'</div>':'';
         return '<tr>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;font-weight:700">⚡ '+(g.potencia||'—')+'</td>'+
-          '<td style="padding:5px 8px;border:1px solid #ddd">'+_patrimonioPdf+'</td>'+
+          '<td style="padding:5px 8px;border:1px solid #ddd">'+_patrimonioPdf+_atuacaoPdf+'</td>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right">'+(horasGerador>0?fmtHE(horasGerador):'—')+'</td>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:'+_corHEMaq+'">'+_txtHEMaq+'</td>'+
           '<td style="padding:5px 8px;border:1px solid #ddd;text-align:right;font-weight:700;color:'+_corValHE+'">'+_txtValHE+'</td>'+
